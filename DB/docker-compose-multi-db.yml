@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: pg-pos-multi-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: supersecret
+      POSTGRES_DB: pos_master
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata_multi:/var/lib/postgresql/data
+      - ./init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh
+volumes:
+  pgdata_multi:
