@@ -1,0 +1,37 @@
+# Binaries
+bin/
+*.exe
+*.out
+
+# Build output
+dist/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Go specific
+vendor/
+*.test
+*.prof
+coverage.out
+coverage.html
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Air (live reload)
+tmp/
+.air.toml
+
+# Logs
+*.log
