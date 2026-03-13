@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16
+    container_name: pg-pos-single
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: supersecret
+      POSTGRES_DB: pos_single
+    volumes:
+      - pgdata_single:/var/lib/postgresql/data
+      - ../DB/init-single.sh:/docker-entrypoint-initdb.d/01-init.sh
+      - ../DB/pos-single-db.sql:/docker-entrypoint-initdb.d/pos-single-db.sql
+      - ../DB/seed-single.sql:/docker-entrypoint-initdb.d/seed-single.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_single"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    container_name: pos-api-single
+    environment:
+      DB_MODE: single
+      SINGLE_DSN: postgres://postgres:supersecret@db:5432/pos_single?sslmode=disable
+      PORT: "8080"
+      # Override JWT_SECRET in production via env file or CI/CD secrets
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  pgdata_single:

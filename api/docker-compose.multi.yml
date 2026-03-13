@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16
+    container_name: pg-pos-multi
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: supersecret
+      POSTGRES_DB: pos_master
+    volumes:
+      - pgdata_multi:/var/lib/postgresql/data
+      - ../DB/init-multi.sh:/docker-entrypoint-initdb.d/01-init.sh
+      - ../DB/pos-multi-master.sql:/docker-entrypoint-initdb.d/pos-multi-master.sql
+      - ../DB/pos-multi-tenant.sql:/docker-entrypoint-initdb.d/pos-multi-tenant.sql
+      - ../DB/seed-multi-master.sql:/docker-entrypoint-initdb.d/seed-multi-master.sql
+      - ../DB/seed-multi-tenant.sql:/docker-entrypoint-initdb.d/seed-multi-tenant.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_master"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    container_name: pos-api-multi
+    environment:
+      DB_MODE: multi
+      MASTER_DSN: postgres://postgres:supersecret@db:5432/pos_master?sslmode=disable
+      TENANT_DB_HOST: db
+      TENANT_DB_PORT: "5432"
+      PORT: "8080"
+      # Override JWT_SECRET in production via env file or CI/CD secrets
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  pgdata_multi:

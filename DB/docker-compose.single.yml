@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:16
+    container_name: pg-pos-single
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: supersecret
+      POSTGRES_DB: pos_single
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_single:/var/lib/postgresql/data
+      - ./init-single.sh:/docker-entrypoint-initdb.d/01-init.sh
+      - ./pos-single-db.sql:/docker-entrypoint-initdb.d/pos-single-db.sql
+      - ./seed-single.sql:/docker-entrypoint-initdb.d/seed-single.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_single"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata_single:
