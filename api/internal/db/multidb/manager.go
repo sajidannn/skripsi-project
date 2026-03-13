@@ -105,8 +105,11 @@ func (m *Manager) Pool(ctx context.Context, tenantID int) (*pgxpool.Pool, error)
 		port = tenant.DBPort
 	}
 
+	// Keep per-tenant pool small: for a thesis load-test with ≤500 tenants,
+	// 2 min / 4 max connections per tenant is sufficient and avoids exhausting
+	// Postgres max_connections without needing PGBouncer.
 	dsn := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable&pool_min_conns=2&pool_max_conns=4",
 		tenant.DBUser, tenant.DBPass, host, port, tenant.DBName,
 	)
 

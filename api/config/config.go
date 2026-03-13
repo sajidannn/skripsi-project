@@ -19,6 +19,10 @@ type Config struct {
 	// Server
 	Port string
 
+	// Debug mode — when true, 5xx responses include internal error detail.
+	// Never enable in production.
+	Debug bool
+
 	// DB mode: "single" | "multi"
 	DBMode DBMode
 
@@ -45,6 +49,7 @@ func Load() *Config {
 
 	return &Config{
 		Port:      getEnv("PORT", "8080"),
+		Debug:     getEnv("DEBUG", "false") == "true",
 		DBMode:    mode,
 		SingleDSN: getEnv("SINGLE_DSN", ""),
 		MasterDSN: getEnv("MASTER_DSN", ""),

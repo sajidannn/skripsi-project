@@ -10,8 +10,3 @@ type Warehouse struct {
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 }
-
-// CreateWarehouseRequest is the validated request payload.
-type CreateWarehouseRequest struct {
-	Name string `json:"name" binding:"required,min=1,max=255"`
-}

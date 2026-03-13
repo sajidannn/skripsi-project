@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/sajidannn/pos-api/internal/db/multidb"
+	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
 )
 
@@ -23,7 +24,7 @@ func NewWarehouseRepo(mgr *multidb.Manager) *WarehouseRepo {
 }
 
 // Create inserts a warehouse row into the tenant's own database.
-func (r *WarehouseRepo) Create(ctx context.Context, tenantID int, req model.CreateWarehouseRequest) (*model.Warehouse, error) {
+func (r *WarehouseRepo) Create(ctx context.Context, tenantID int, req dto.CreateWarehouseRequest) (*model.Warehouse, error) {
 	pool, err := r.mgr.Pool(ctx, tenantID)
 	if err != nil {
 		return nil, err

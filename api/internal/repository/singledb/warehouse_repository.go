@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
 )
 
@@ -22,7 +23,7 @@ func NewWarehouseRepo(db *pgxpool.Pool) *WarehouseRepo {
 }
 
 // Create inserts a warehouse row for the given tenant.
-func (r *WarehouseRepo) Create(ctx context.Context, tenantID int, req model.CreateWarehouseRequest) (*model.Warehouse, error) {
+func (r *WarehouseRepo) Create(ctx context.Context, tenantID int, req dto.CreateWarehouseRequest) (*model.Warehouse, error) {
 	var w model.Warehouse
 	err := r.db.QueryRow(ctx,
 		`INSERT INTO warehouses (tenant_id, name)

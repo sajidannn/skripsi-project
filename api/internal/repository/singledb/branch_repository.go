@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
 )
 
@@ -19,7 +20,7 @@ func NewBranchRepo(db *pgxpool.Pool) *BranchRepo {
 }
 
 // Create inserts a branch row for the given tenant.
-func (r *BranchRepo) Create(ctx context.Context, tenantID int, req model.CreateBranchRequest) (*model.Branch, error) {
+func (r *BranchRepo) Create(ctx context.Context, tenantID int, req dto.CreateBranchRequest) (*model.Branch, error) {
 	var b model.Branch
 	err := r.db.QueryRow(ctx,
 		`INSERT INTO branches (tenant_id, name, phone, address, opening_balance)

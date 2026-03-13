@@ -79,7 +79,7 @@ func main() {
 		Branch:    handler.NewBranchHandler(branchSvc),
 	}
 
-	router := api.NewRouter(cfg.JWTSecret, handlers)
+	router := api.NewRouter(cfg.JWTSecret, cfg.Debug, handlers)
 
 	// -----------------------------------------------------------------------
 	// Start the HTTP server with graceful shutdown.

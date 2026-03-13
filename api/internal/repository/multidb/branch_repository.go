@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sajidannn/pos-api/internal/db/multidb"
+	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
 )
 
@@ -19,7 +20,7 @@ func NewBranchRepo(mgr *multidb.Manager) *BranchRepo {
 }
 
 // Create inserts a branch row into the tenant's own database.
-func (r *BranchRepo) Create(ctx context.Context, tenantID int, req model.CreateBranchRequest) (*model.Branch, error) {
+func (r *BranchRepo) Create(ctx context.Context, tenantID int, req dto.CreateBranchRequest) (*model.Branch, error) {
 	pool, err := r.mgr.Pool(ctx, tenantID)
 	if err != nil {
 		return nil, err

@@ -6,6 +6,7 @@ package repository
 import (
 	"context"
 
+	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
 )
 
@@ -15,7 +16,7 @@ type WarehouseRepository interface {
 	// tenantID is always passed by the service layer; in multi-DB mode it is
 	// used only to select the right connection pool — the column itself does
 	// not exist in the tenant's schema.
-	Create(ctx context.Context, tenantID int, req model.CreateWarehouseRequest) (*model.Warehouse, error)
+	Create(ctx context.Context, tenantID int, req dto.CreateWarehouseRequest) (*model.Warehouse, error)
 
 	// GetByID fetches a single warehouse.
 	GetByID(ctx context.Context, tenantID, id int) (*model.Warehouse, error)

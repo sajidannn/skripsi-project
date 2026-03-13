@@ -14,9 +14,10 @@ type Handlers struct {
 }
 
 // NewRouter builds and returns the Gin engine with all routes registered.
-func NewRouter(jwtSecret string, h Handlers) *gin.Engine {
+func NewRouter(jwtSecret string, debug bool, h Handlers) *gin.Engine {
 	r := gin.New()
-	r.Use(gin.Recovery(), middleware.RequestTiming(), gin.Logger())
+	// ErrorHandler must be outermost so it executes last (after all handlers).
+	r.Use(middleware.ErrorHandler(debug), gin.Recovery(), middleware.RequestTiming(), gin.Logger())
 
 	// Health check — no auth required.
 	r.GET("/health", func(c *gin.Context) {

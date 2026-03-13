@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
 	"github.com/sajidannn/pos-api/internal/repository"
 	"github.com/sajidannn/pos-api/internal/tenant"
@@ -22,7 +23,7 @@ func NewWarehouseService(repo repository.WarehouseRepository) *WarehouseService 
 }
 
 // Create validates the request and delegates to the repository.
-func (s *WarehouseService) Create(ctx context.Context, req model.CreateWarehouseRequest) (*model.Warehouse, error) {
+func (s *WarehouseService) Create(ctx context.Context, req dto.CreateWarehouseRequest) (*model.Warehouse, error) {
 	tenantID, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("WarehouseService.Create: %w", err)

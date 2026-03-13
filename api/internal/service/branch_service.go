@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
 	"github.com/sajidannn/pos-api/internal/repository"
 	"github.com/sajidannn/pos-api/internal/tenant"
@@ -20,7 +21,7 @@ func NewBranchService(repo repository.BranchRepository) *BranchService {
 }
 
 // Create validates the request and delegates to the repository.
-func (s *BranchService) Create(ctx context.Context, req model.CreateBranchRequest) (*model.Branch, error) {
+func (s *BranchService) Create(ctx context.Context, req dto.CreateBranchRequest) (*model.Branch, error) {
 	tenantID, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BranchService.Create: %w", err)

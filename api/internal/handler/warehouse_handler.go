@@ -3,15 +3,16 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
+	"github.com/sajidannn/pos-api/internal/apierr"
+	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/middleware"
 	"github.com/sajidannn/pos-api/internal/model"
 	"github.com/sajidannn/pos-api/internal/service"
+	"github.com/sajidannn/pos-api/internal/validator"
 )
 
 // WarehouseHandler handles HTTP requests for the /warehouses resource.
@@ -26,26 +27,26 @@ func NewWarehouseHandler(svc *service.WarehouseService) *WarehouseHandler {
 
 // Create handles POST /warehouses
 func (h *WarehouseHandler) Create(c *gin.Context) {
-	var req model.CreateWarehouseRequest
+	var req dto.CreateWarehouseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		_ = c.Error(apierr.ValidationFailed(validator.ParseBindingError(err)))
 		return
 	}
 
 	warehouse, err := h.svc.Create(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		_ = c.Error(apierr.Wrap(err, "warehouse not found"))
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": warehouse})
+	c.JSON(http.StatusCreated, dto.Success(toWarehouseResponse(warehouse)))
 }
 
 // GetByID handles GET /warehouses/:id
 func (h *WarehouseHandler) GetByID(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid warehouse id"})
+		_ = c.Error(apierr.BadRequest("invalid warehouse id"))
 		return
 	}
 
@@ -60,15 +61,11 @@ func (h *WarehouseHandler) GetByID(c *gin.Context) {
 	}
 
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "warehouse not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		_ = c.Error(apierr.Wrap(err, "warehouse not found"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": warehouse})
+	c.JSON(http.StatusOK, dto.Success(toWarehouseResponse(warehouse)))
 }
 
 // List handles GET /warehouses
@@ -84,9 +81,22 @@ func (h *WarehouseHandler) List(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		_ = c.Error(apierr.Wrap(err, "warehouse not found"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": warehouses})
+	resp := make([]dto.WarehouseResponse, len(warehouses))
+	for i, w := range warehouses {
+		resp[i] = toWarehouseResponse(&w)
+	}
+	c.JSON(http.StatusOK, dto.Success(resp))
+}
+
+// toWarehouseResponse maps a domain model to the HTTP response DTO.
+func toWarehouseResponse(w *model.Warehouse) dto.WarehouseResponse {
+	return dto.WarehouseResponse{
+		ID:        w.ID,
+		Name:      w.Name,
+		CreatedAt: w.CreatedAt,
+	}
 }

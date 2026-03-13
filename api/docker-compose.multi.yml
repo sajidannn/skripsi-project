@@ -1,0 +1,50 @@
+services:
+  # ── API ─────────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pos-api-multi
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      DEBUG: "false"
+      DB_MODE: "multi"
+      MASTER_DSN: "postgres://postgres:secret@db-multi:5432/pos_master?sslmode=disable"
+      # All tenant DBs live on the same Postgres container — only the DB name
+      # differs per tenant. The Manager falls back to these values when
+      # db_host / db_port are empty in the tenants table.
+      TENANT_DB_HOST: "db-multi"
+      TENANT_DB_PORT: "5432"
+      JWT_SECRET: "change-me-in-production"
+    depends_on:
+      db-multi:
+        condition: service_healthy
+
+  # ── Postgres (master DB + all tenant DBs on one server) ─────────────────────
+  # For a thesis benchmark this is the correct setup: tenant isolation is at the
+  # DATABASE level (separate schemas / connection pools), not at the server level.
+  # Separating into multiple Postgres containers adds unrealistic network overhead.
+  db-multi:
+    image: postgres:16-alpine
+    container_name: pos-db-multi
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: pos_master     # default DB; docker-init.sh creates the rest
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-multi-data:/var/lib/postgresql/data
+      - ./migrations/multidb/docker-init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_master"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db-multi-data:
