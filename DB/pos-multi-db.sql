@@ -1,5 +1,11 @@
--- for master db soon
-CREATE TABLE tenants (
+-- ─── Multi-DB combined reference ─────────────────────────────────────────────
+-- This file documents the full multi-DB schema for reference.
+-- For Docker / automation use the split files:
+--   pos-multi-master.sql  → apply to pos_master database
+--   pos-multi-tenant.sql  → apply to each tenant database
+--
+-- ─── Master DB (pos_master) ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS tenants (
     id              SERIAL PRIMARY KEY,
     name            TEXT NOT NULL UNIQUE,
     db_name         TEXT NOT NULL,
