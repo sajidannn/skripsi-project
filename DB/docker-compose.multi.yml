@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:16
+    container_name: pg-pos-multi
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: supersecret
+      POSTGRES_DB: pos_master
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata_multi:/var/lib/postgresql/data
+      - ./init-multi.sh:/docker-entrypoint-initdb.d/01-init.sh
+      - ./pos-multi-master.sql:/docker-entrypoint-initdb.d/pos-multi-master.sql
+      - ./pos-multi-tenant.sql:/docker-entrypoint-initdb.d/pos-multi-tenant.sql
+      - ./seed-multi-master.sql:/docker-entrypoint-initdb.d/seed-multi-master.sql
+      - ./seed-multi-tenant.sql:/docker-entrypoint-initdb.d/seed-multi-tenant.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_master"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata_multi:
