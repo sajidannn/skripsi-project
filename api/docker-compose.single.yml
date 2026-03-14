@@ -9,7 +9,4 @@ services:
       JWT_SECRET: change-me-in-production
     ports:
       - "8080:8080"
-    depends_on:
-      db:
-        condition: service_healthy
     restart: on-failure

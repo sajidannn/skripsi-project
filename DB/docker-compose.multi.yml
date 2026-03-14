@@ -10,7 +10,6 @@ services:
       - "5433:5432"
     volumes:
       - pgdata_multi:/var/lib/postgresql/data
-      - ./init-multi.sh:/docker-entrypoint-initdb.d/01-init.sh
       - ./pos-multi-master.sql:/docker-entrypoint-initdb.d/pos-multi-master.sql
       - ./pos-multi-tenant.sql:/docker-entrypoint-initdb.d/pos-multi-tenant.sql
       - ./seed-multi-master.sql:/docker-entrypoint-initdb.d/seed-multi-master.sql
