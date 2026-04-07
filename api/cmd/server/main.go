@@ -35,6 +35,8 @@ func main() {
 		branchRepo    repository.BranchRepository
 		itemRepo      repository.ItemRepository
 		inventoryRepo repository.InventoryRepository
+		userRepo      repository.UserRepository
+		customerRepo  repository.CustomerRepository
 	)
 
 	switch cfg.DBMode {
@@ -52,6 +54,8 @@ func main() {
 		branchRepo = repoSingle.NewBranchRepo(pool)
 		itemRepo = repoSingle.NewItemRepo(pool)
 		inventoryRepo = repoSingle.NewInventoryRepo(pool)
+		userRepo = repoSingle.NewUserRepo(pool)
+		customerRepo = repoSingle.NewCustomerRepo(pool)
 
 	case config.DBModeMulti:
 		log.Println("[mode] multi-db")
@@ -72,6 +76,8 @@ func main() {
 		branchRepo = repoMulti.NewBranchRepo(mgr)
 		itemRepo = repoMulti.NewItemRepo(mgr)
 		inventoryRepo = repoMulti.NewInventoryRepo(mgr)
+		userRepo = repoMulti.NewUserRepo(mgr)
+		customerRepo = repoMulti.NewCustomerRepo(mgr)
 
 	default:
 		log.Fatalf("unknown DB_MODE: %s", cfg.DBMode)
@@ -85,6 +91,8 @@ func main() {
 	branchSvc := service.NewBranchService(branchRepo)
 	itemSvc := service.NewItemService(itemRepo)
 	inventorySvc := service.NewInventoryService(inventoryRepo)
+	userSvc := service.NewUserService(userRepo, cfg.JWTSecret)
+	customerSvc := service.NewCustomerService(customerRepo)
 
 	handlers := api.Handlers{
 		Tenant:    handler.NewTenantHandler(tenantSvc),
@@ -92,6 +100,8 @@ func main() {
 		Branch:    handler.NewBranchHandler(branchSvc),
 		Item:      handler.NewItemHandler(itemSvc),
 		Inventory: handler.NewInventoryHandler(inventorySvc),
+		User:      handler.NewUserHandler(userSvc),
+		Customer:  handler.NewCustomerHandler(customerSvc),
 	}
 
 	router := api.NewRouter(cfg.JWTSecret, cfg.Debug, handlers)

@@ -14,6 +14,8 @@ type Handlers struct {
 	Branch    *handler.BranchHandler
 	Item      *handler.ItemHandler
 	Inventory *handler.InventoryHandler
+	User      *handler.UserHandler
+	Customer  *handler.CustomerHandler
 }
 
 // NewRouter builds and returns the Gin engine with all routes registered.
@@ -30,7 +32,10 @@ func NewRouter(jwtSecret string, debug bool, h Handlers) *gin.Engine {
 	// Unprotected endpoint for listing tenants (useful for testing/Locust benchmark).
 	r.GET("/api/v1/tenants", h.Tenant.List)
 
-	// All API routes require a valid JWT carrying tenant_id.
+	// Login — public, produces a JWT.
+	r.POST("/api/v1/auth/login", h.User.Login)
+
+	// All API routes below require a valid JWT carrying tenant_id.
 	api := r.Group("/api/v1", middleware.Auth(jwtSecret))
 	{
 		// Warehouses
@@ -65,7 +70,28 @@ func NewRouter(jwtSecret string, debug bool, h Handlers) *gin.Engine {
 			inventory.GET("/branch/:id", h.Inventory.ListByBranch)
 			inventory.GET("/warehouse/:id", h.Inventory.ListByWarehouse)
 		}
+
+		// Users (employee management)
+		users := api.Group("/users")
+		{
+			users.POST("", middleware.RequireRole("owner"), h.User.Create)
+			users.GET("", middleware.RequireRole("owner", "manager"), h.User.List)
+			users.GET("/:id", middleware.RequireRole("owner", "manager"), h.User.GetByID)
+			users.PUT("/:id", middleware.RequireRole("owner"), h.User.Update)
+			users.DELETE("/:id", middleware.RequireRole("owner"), h.User.Delete)
+		}
+
+		// Customers
+		customers := api.Group("/customers")
+		{
+			customers.POST("", middleware.RequireRole("owner", "manager", "cashier"), h.Customer.Create)
+			customers.GET("", middleware.RequireRole("owner", "manager", "cashier"), h.Customer.List)
+			customers.GET("/:id", middleware.RequireRole("owner", "manager", "cashier"), h.Customer.GetByID)
+			customers.PUT("/:id", middleware.RequireRole("owner", "manager", "cashier"), h.Customer.Update)
+			customers.DELETE("/:id", middleware.RequireRole("owner", "manager"), h.Customer.Delete)
+		}
 	}
 
 	return r
 }
+

@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS users (
     name        TEXT NOT NULL,
     email       TEXT NOT NULL,
     password    TEXT NOT NULL,
-    role        TEXT NOT NULL DEFAULT 'cashier',
+    role        TEXT NOT NULL DEFAULT 'cashier' CHECK (role IN ('owner', 'manager', 'cashier')),
     created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE (tenant_id, email)
 );

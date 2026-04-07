@@ -57,3 +57,27 @@ func Auth(secret string) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// RequireRole returns a Gin middleware that enforces role-based access control.
+// It must be used AFTER the Auth middleware (which sets the "role" key in context).
+// Call it per-route or per-group with one or more allowed roles, e.g.:
+//
+//	api.POST("/users", middleware.RequireRole("owner"), h.User.Create)
+func RequireRole(roles ...string) gin.HandlerFunc {
+	allowed := make(map[string]struct{}, len(roles))
+	for _, r := range roles {
+		allowed[r] = struct{}{}
+	}
+
+	return func(c *gin.Context) {
+		role, _ := c.Get("role")
+		roleStr, _ := role.(string)
+		if _, ok := allowed[roleStr]; !ok {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error": "you do not have permission to perform this action",
+			})
+			return
+		}
+		c.Next()
+	}
+}
