@@ -1,0 +1,536 @@
+{
+  "info": {
+    "_postman_id": "f689a761-b409-4215-bcba-59458911ae74",
+    "name": "pos-api",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "health check",
+          "id": "ac66fce8-8f95-4c2a-b4ee-35af8d6d8a0b",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "localhost:8080/health",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "432e7bef-532f-46f2-8a53-8dacc5ad8586"
+    },
+    {
+      "name": "Warehouses",
+      "item": [
+        {
+          "name": "create warehouse",
+          "id": "7a692157-6879-4991-b767-6b91d97ddbab",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Warehouse A\"\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/warehouses",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "warehouses"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "list warehouses",
+          "id": "74c951be-aa46-454a-a077-df8752f2c605",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/warehouses",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "warehouses"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get warehouse by id",
+          "id": "34b7fb38-7544-4111-b66f-3368a9f76eaf",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/warehouses/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "warehouses",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "156d21cb-a1ad-4537-8592-416f2749e37f"
+    },
+    {
+      "name": "Branches",
+      "item": [
+        {
+          "name": "create branch",
+          "id": "adb7ac92-8846-4c7a-9bab-c90ce71d7d50",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Branch A\",\n  \"phone\": \"+628123456789\",\n  \"address\": \"Jalan Merdeka No. 1\",\n  \"opening_balance\": 1000000\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/branches",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "branches"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "list branches",
+          "id": "9f0654aa-62c7-4417-8e74-590ef89f55d1",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/branches",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "branches"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get branch by id",
+          "id": "30dedb5a-7723-4147-a0e0-0c31d9b3346b",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/branches/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "branches",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "f17f4a0f-eb89-4b2b-b17d-fe0881c5f359"
+    },
+    {
+      "name": "tenants",
+      "item": [
+        {
+          "name": "list tenants",
+          "id": "083e89df-5d53-4f2b-a1c3-f90c7eb28f4c",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/tenants",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tenants"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "7358af79-6f8c-4a9b-860d-259e2447f444"
+    },
+    {
+      "name": "Items",
+      "item": [
+        {
+          "name": "create item",
+          "id": "feed1ff0-e369-4e10-bf61-455a1ec540f0",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Chitato Sapi Panggang\",\n  \"sku\": \"\",\n  \"price\": 12000,\n  \"description\": \"Chitato 68g\"\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/items",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "list items",
+          "id": "fc18b05f-d684-48de-9696-b77259ce2438",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/items",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get item by id",
+          "id": "266f6b22-785f-412e-b02a-076c7e2259ba",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/items/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "update item",
+          "id": "905d0eb8-ed54-46a5-9203-0b5f54e23303",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Chitato Mi Goreng\",\n  \"price\": 14000\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/items/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete item",
+          "id": "c9dcb445-0156-4c64-b48d-f36975d762d8",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/items/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "acabb950-cd46-42ae-8614-4d64c063ae86"
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "list branch inventory",
+          "id": "96b88a80-5d2e-4f56-b5f5-c2ab082355f0",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/inventory/branch/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "branch",
+                "1"
+              ],
+              "query": [
+                {
+                  "key": "low_stock",
+                  "value": "true",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "list warehouse inventory",
+          "id": "a381b76a-779b-48b7-b7f9-6160b9c7d6ae",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/inventory/warehouse/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "warehouse",
+                "1"
+              ],
+              "query": [
+                {
+                  "key": "low_stock",
+                  "value": "true",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "7d954f28-9692-41a0-baad-67fcf62c941e"
+    }
+  ]
+}
