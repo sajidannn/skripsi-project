@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sajidannn/pos-api/internal/apierr"
 	"github.com/sajidannn/pos-api/internal/dto"
-	"github.com/sajidannn/pos-api/internal/middleware"
 	"github.com/sajidannn/pos-api/internal/model"
 	"github.com/sajidannn/pos-api/internal/service"
 	"github.com/sajidannn/pos-api/internal/validator"
@@ -50,15 +49,7 @@ func (h *WarehouseHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	if t := middleware.TimingFromContext(c.Request.Context()); t != nil {
-		t.Mark("handler_start")
-	}
-
 	warehouse, err := h.svc.GetByID(c.Request.Context(), id)
-
-	if t := middleware.TimingFromContext(c.Request.Context()); t != nil {
-		t.Mark("db_done")
-	}
 
 	if err != nil {
 		_ = c.Error(apierr.Wrap(err, "warehouse not found"))
@@ -70,15 +61,7 @@ func (h *WarehouseHandler) GetByID(c *gin.Context) {
 
 // List handles GET /warehouses
 func (h *WarehouseHandler) List(c *gin.Context) {
-	if t := middleware.TimingFromContext(c.Request.Context()); t != nil {
-		t.Mark("handler_start")
-	}
-
 	warehouses, err := h.svc.List(c.Request.Context())
-
-	if t := middleware.TimingFromContext(c.Request.Context()); t != nil {
-		t.Mark("db_done")
-	}
 
 	if err != nil {
 		_ = c.Error(apierr.Wrap(err, "warehouse not found"))

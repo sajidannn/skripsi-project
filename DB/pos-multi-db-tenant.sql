@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS branches (
 CREATE TABLE IF NOT EXISTS items (
     id          SERIAL PRIMARY KEY,
     name        TEXT NOT NULL,
-    sku         TEXT UNIQUE,
+    sku         TEXT NOT NULL UNIQUE,
     price       NUMERIC(12,2) NOT NULL,
     description TEXT,
     created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

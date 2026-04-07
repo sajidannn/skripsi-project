@@ -10,12 +10,12 @@ services:
       - "5433:5432"
     volumes:
       - pgdata_multi:/var/lib/postgresql/data
-      - ./pos-multi-master.sql:/docker-entrypoint-initdb.d/pos-multi-master.sql
-      - ./pos-multi-tenant.sql:/docker-entrypoint-initdb.d/pos-multi-tenant.sql
-      - ./seed-multi-master.sql:/docker-entrypoint-initdb.d/seed-multi-master.sql
-      - ./seed-multi-tenant.sql:/docker-entrypoint-initdb.d/seed-multi-tenant.sql
+      - ./pos-multi-db-master.sql:/docker-entrypoint-initdb.d/pos-multi-db-master.sql
+      - ./pos-multi-db-tenant.sql:/docker-entrypoint-initdb.d/pos-multi-db-tenant.sql
+      - ./seed-multi-db-master.sql:/docker-entrypoint-initdb.d/seed-multi-db-master.sql
+      - ./seed-multi-db-tenant.sql:/docker-entrypoint-initdb.d/seed-multi-db-tenant.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_master"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d pos_master" ]
       interval: 5s
       timeout: 5s
       retries: 10

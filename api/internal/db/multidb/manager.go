@@ -137,6 +137,11 @@ func (m *Manager) Close() {
 	m.master.Close()
 }
 
+// Master returns the connection pool to the master database.
+func (m *Manager) Master() *pgxpool.Pool {
+	return m.master
+}
+
 // fetchTenantDB queries the master tenants table for the given tenantID.
 func (m *Manager) fetchTenantDB(ctx context.Context, tenantID int) (*TenantDB, error) {
 	var t TenantDB

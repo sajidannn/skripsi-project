@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS items (
     id          SERIAL PRIMARY KEY,
     tenant_id   INT NOT NULL REFERENCES tenants(id),
     name        TEXT NOT NULL,
-    sku         TEXT,
+    sku         TEXT NOT NULL,
     price       NUMERIC(12,2) NOT NULL,
     description TEXT,
     created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

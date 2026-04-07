@@ -30,8 +30,11 @@ func main() {
 	// Handler and Service layers are identical for both modes.
 	// -----------------------------------------------------------------------
 	var (
+		tenantRepo    repository.TenantRepository
 		warehouseRepo repository.WarehouseRepository
 		branchRepo    repository.BranchRepository
+		itemRepo      repository.ItemRepository
+		inventoryRepo repository.InventoryRepository
 	)
 
 	switch cfg.DBMode {
@@ -44,8 +47,11 @@ func main() {
 		}
 		defer pool.Close()
 
+		tenantRepo = repoSingle.NewTenantRepo(pool)
 		warehouseRepo = repoSingle.NewWarehouseRepo(pool)
 		branchRepo = repoSingle.NewBranchRepo(pool)
+		itemRepo = repoSingle.NewItemRepo(pool)
+		inventoryRepo = repoSingle.NewInventoryRepo(pool)
 
 	case config.DBModeMulti:
 		log.Println("[mode] multi-db")
@@ -53,7 +59,7 @@ func main() {
 		mgr, err := multidb.NewManager(
 			ctx,
 			cfg.MasterDSN,
-			os.Getenv("TENANT_DB_HOST"), // PGBouncer / Postgres host for tenant pools
+			os.Getenv("TENANT_DB_HOST"),
 			os.Getenv("TENANT_DB_PORT"),
 		)
 		if err != nil {
@@ -61,8 +67,11 @@ func main() {
 		}
 		defer mgr.Close()
 
+		tenantRepo = repoMulti.NewTenantRepo(mgr)
 		warehouseRepo = repoMulti.NewWarehouseRepo(mgr)
 		branchRepo = repoMulti.NewBranchRepo(mgr)
+		itemRepo = repoMulti.NewItemRepo(mgr)
+		inventoryRepo = repoMulti.NewInventoryRepo(mgr)
 
 	default:
 		log.Fatalf("unknown DB_MODE: %s", cfg.DBMode)
@@ -71,12 +80,18 @@ func main() {
 	// -----------------------------------------------------------------------
 	// Build service and handler layers (same for both modes).
 	// -----------------------------------------------------------------------
+	tenantSvc := service.NewTenantService(tenantRepo)
 	warehouseSvc := service.NewWarehouseService(warehouseRepo)
 	branchSvc := service.NewBranchService(branchRepo)
+	itemSvc := service.NewItemService(itemRepo)
+	inventorySvc := service.NewInventoryService(inventoryRepo)
 
 	handlers := api.Handlers{
+		Tenant:    handler.NewTenantHandler(tenantSvc),
 		Warehouse: handler.NewWarehouseHandler(warehouseSvc),
 		Branch:    handler.NewBranchHandler(branchSvc),
+		Item:      handler.NewItemHandler(itemSvc),
+		Inventory: handler.NewInventoryHandler(inventorySvc),
 	}
 
 	router := api.NewRouter(cfg.JWTSecret, cfg.Debug, handlers)

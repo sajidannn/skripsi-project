@@ -54,12 +54,6 @@ func Auth(secret string) gin.HandlerFunc {
 		c.Set("role", claims.Role)
 		ctx := tenant.NewContext(c.Request.Context(), claims.TenantID)
 		c.Request = c.Request.WithContext(ctx)
-
-		// Record how long JWT validation + tenant resolve took.
-		if t := TimingFromContext(c.Request.Context()); t != nil {
-			t.Mark("auth")
-		}
-
 		c.Next()
 	}
 }
