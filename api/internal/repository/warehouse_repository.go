@@ -18,6 +18,8 @@ type WarehouseRepository interface {
 	// not exist in the tenant's schema.
 	Create(ctx context.Context, tenantID int, req dto.CreateWarehouseRequest) (*model.Warehouse, error)
 
+	Update(ctx context.Context, tenantID, id int, req dto.UpdateWarehouseRequest) (*model.Warehouse, error)
+
 	// GetByID fetches a single warehouse.
 	GetByID(ctx context.Context, tenantID, id int) (*model.Warehouse, error)
 

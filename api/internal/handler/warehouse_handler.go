@@ -59,6 +59,28 @@ func (h *WarehouseHandler) GetByID(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.Success(toWarehouseResponse(warehouse)))
 }
 
+func (h *WarehouseHandler) Update(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		_ = c.Error(apierr.BadRequest("invalid warehouse id"))
+		return
+	}
+
+	var req dto.UpdateWarehouseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(apierr.ValidationFailed(validator.ParseBindingError(err)))
+		return
+	}
+
+	warehouse, err := h.svc.Update(c.Request.Context(), id, req)
+	if err != nil {
+		_ = c.Error(apierr.Wrap(err, "failed to update warehouse"))
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Success(toWarehouseResponse(warehouse)))
+}
+
 // List handles GET /warehouses
 func (h *WarehouseHandler) List(c *gin.Context) {
 	warehouses, err := h.svc.List(c.Request.Context())

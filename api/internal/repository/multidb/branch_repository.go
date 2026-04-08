@@ -87,3 +87,26 @@ func (r *BranchRepo) List(ctx context.Context, tenantID int) ([]model.Branch, er
 	}
 	return list, rows.Err()
 }
+func (r *BranchRepo) Update(ctx context.Context, tenantID, id int, req dto.UpdateBranchRequest) (*model.Branch, error) {
+	pool, err := r.mgr.Pool(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	var b model.Branch
+	err = pool.QueryRow(ctx,
+		`UPDATE branches
+		 SET name = COALESCE($1, name),
+			phone = COALESCE($2, phone),
+			address = COALESCE($3, address),
+			opening_balance = COALESCE($4, opening_balance)
+		 WHERE id = $5
+		 RETURNING id, name, phone, address, opening_balance, created_at`,
+		req.Name, req.Phone, req.Address, req.OpeningBalance, id,
+	).Scan(&b.ID, &b.Name, &b.Phone, &b.Address, &b.OpeningBalance, &b.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("multidb.BranchRepo.Update: %w", err)
+	}
+	b.TenantID = tenantID
+	return &b, nil
+}

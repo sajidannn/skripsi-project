@@ -71,6 +71,28 @@ func (h *BranchHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.Success(resp))
 }
 
+func (h *BranchHandler) Update(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		_ = c.Error(apierr.BadRequest("invalid branch id"))
+		return
+	}
+
+	var req dto.UpdateBranchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(apierr.ValidationFailed(validator.ParseBindingError(err)))
+		return
+	}
+
+	branch, err := h.svc.Update(c.Request.Context(), id, req)
+	if err != nil {
+		_ = c.Error(apierr.Wrap(err, "failed to update branch"))
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Success(toBranchResponse(branch)))
+}
+
 // toBranchResponse maps a domain model to the HTTP response DTO.
 func toBranchResponse(b *model.Branch) dto.BranchResponse {
 	return dto.BranchResponse{

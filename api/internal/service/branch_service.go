@@ -38,11 +38,19 @@ func (s *BranchService) GetByID(ctx context.Context, id int) (*model.Branch, err
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-// List returns all branches for the tenant in ctx.
+// List returns branches for the tenant with pagination and filter.
 func (s *BranchService) List(ctx context.Context) ([]model.Branch, error) {
 	tenantID, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BranchService.List: %w", err)
 	}
 	return s.repo.List(ctx, tenantID)
+}
+
+func (s *BranchService) Update(ctx context.Context, id int, req dto.UpdateBranchRequest) (*model.Branch, error) {
+	tenantID, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("BranchService.Update: %w", err)
+	}
+	return s.repo.Update(ctx, tenantID, id, req)
 }

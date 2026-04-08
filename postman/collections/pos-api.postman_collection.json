@@ -135,6 +135,46 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "update warehouse",
+          "id": "7341dc2e-a51d-4e19-87b5-969585020caa",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Warehouse A update\"\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/warehouses/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "warehouses",
+                "1"
+              ]
+            }
+          },
+          "response": []
         }
       ],
       "id": "156d21cb-a1ad-4537-8592-416f2749e37f"
@@ -227,6 +267,46 @@
             },
             "method": "GET",
             "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/branches/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "branches",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "create branch Copy",
+          "id": "10ab0dc2-ab88-4319-944e-89c4a8d4b519",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Branch A update\",\n  \"phone\": \"+628123456789\",\n  \"address\": \"Jalan Merdeka No. 1\",\n  \"opening_balance\": 1000000\n}"
+            },
             "url": {
               "raw": "{{host}}/api/v1/branches/1",
               "host": [

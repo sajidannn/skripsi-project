@@ -90,3 +90,24 @@ func (r *WarehouseRepo) List(ctx context.Context, tenantID int) ([]model.Warehou
 	}
 	return list, rows.Err()
 }
+
+func (r *WarehouseRepo) Update(ctx context.Context, tenantID, id int, req dto.UpdateWarehouseRequest) (*model.Warehouse, error) {
+	pool, err := r.mgr.Pool(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	var w model.Warehouse
+	err = pool.QueryRow(ctx,
+		`UPDATE warehouses
+		 SET name = COALESCE($1, name)
+		 WHERE id = $2
+		 RETURNING id, name, created_at`,
+		req.Name, id,
+	).Scan(&w.ID, &w.Name, &w.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("multidb.WarehouseRepo.Update: %w", err)
+	}
+	w.TenantID = tenantID
+	return &w, nil
+}

@@ -48,3 +48,11 @@ func (s *WarehouseService) List(ctx context.Context) ([]model.Warehouse, error) 
 	}
 	return s.repo.List(ctx, tenantID)
 }
+
+func (s *WarehouseService) Update(ctx context.Context, id int, req dto.UpdateWarehouseRequest) (*model.Warehouse, error) {
+	tenantID, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("WarehouseService.Update: %w", err)
+	}
+	return s.repo.Update(ctx, tenantID, id, req)
+}

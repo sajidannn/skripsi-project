@@ -12,6 +12,9 @@ type BranchRepository interface {
 	// Create inserts a new branch record.
 	Create(ctx context.Context, tenantID int, req dto.CreateBranchRequest) (*model.Branch, error)
 
+	// Update a branch.
+	Update(ctx context.Context, tenantID, id int, req dto.UpdateBranchRequest) (*model.Branch, error)
+
 	// GetByID fetches a single branch.
 	GetByID(ctx context.Context, tenantID, id int) (*model.Branch, error)
 

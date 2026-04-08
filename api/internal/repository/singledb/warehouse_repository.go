@@ -52,6 +52,22 @@ func (r *WarehouseRepo) GetByID(ctx context.Context, tenantID, id int) (*model.W
 	return &w, nil
 }
 
+// Update a warehouse.
+func (r *WarehouseRepo) Update(ctx context.Context, tenantID, id int, req dto.UpdateWarehouseRequest) (*model.Warehouse, error) {
+	var w model.Warehouse
+	err := r.db.QueryRow(ctx,
+		`UPDATE warehouses
+		 SET name = COALESCE($1, name)
+		 WHERE id = $2 AND tenant_id = $3
+		 RETURNING id, tenant_id, name, created_at`,
+		req.Name, id, tenantID,
+	).Scan(&w.ID, &w.TenantID, &w.Name, &w.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("singledb.WarehouseRepo.Update: %w", err)
+	}
+	return &w, nil
+}
+
 // List returns all warehouses for a tenant.
 func (r *WarehouseRepo) List(ctx context.Context, tenantID int) ([]model.Warehouse, error) {
 	rows, err := r.db.Query(ctx,
