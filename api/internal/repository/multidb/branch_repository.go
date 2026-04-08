@@ -60,32 +60,63 @@ func (r *BranchRepo) GetByID(ctx context.Context, tenantID, id int) (*model.Bran
 	return &b, nil
 }
 
-// List returns all branches from the tenant's database.
-func (r *BranchRepo) List(ctx context.Context, tenantID int) ([]model.Branch, error) {
+// List returns a paginated, filtered list of branches from the tenant's database.
+func (r *BranchRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dto.BranchFilter) ([]model.Branch, int, error) {
 	pool, err := r.mgr.Pool(ctx, tenantID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	rows, err := pool.Query(ctx,
-		`SELECT id, name, phone, address, opening_balance, created_at
-		 FROM branches ORDER BY id`,
+	var args []any
+	where := "WHERE TRUE"
+
+	if f.Search != "" {
+		args = append(args, "%"+f.Search+"%")
+		n := len(args)
+		where += fmt.Sprintf(" AND (name ILIKE $%d OR phone ILIKE $%d OR address ILIKE $%d)", n, n, n)
+	}
+	if f.DateFrom != nil {
+		args = append(args, *f.DateFrom)
+		where += fmt.Sprintf(" AND created_at >= $%d", len(args))
+	}
+	if f.DateTo != nil {
+		args = append(args, *f.DateTo)
+		where += fmt.Sprintf(" AND created_at <= $%d", len(args))
+	}
+
+	args = append(args, q.Limit, q.Offset())
+	limitIdx := len(args) - 1
+	offsetIdx := len(args)
+
+	query := fmt.Sprintf(`
+		SELECT id, name, phone, address, opening_balance, created_at,
+		       COUNT(*) OVER() AS total_count
+		FROM branches
+		%s
+		ORDER BY %s %s
+		LIMIT $%d OFFSET $%d`,
+		where, q.Sort, q.Order, limitIdx, offsetIdx,
 	)
+
+	rows, err := pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("multidb.BranchRepo.List: %w", err)
+		return nil, 0, fmt.Errorf("multidb.BranchRepo.List: %w", err)
 	}
 	defer rows.Close()
 
-	var list []model.Branch
+	var (
+		list  []model.Branch
+		total int
+	)
 	for rows.Next() {
 		var b model.Branch
-		if err := rows.Scan(&b.ID, &b.Name, &b.Phone, &b.Address, &b.OpeningBalance, &b.CreatedAt); err != nil {
-			return nil, fmt.Errorf("multidb.BranchRepo.List scan: %w", err)
+		if err := rows.Scan(&b.ID, &b.Name, &b.Phone, &b.Address, &b.OpeningBalance, &b.CreatedAt, &total); err != nil {
+			return nil, 0, fmt.Errorf("multidb.BranchRepo.List scan: %w", err)
 		}
 		b.TenantID = tenantID
 		list = append(list, b)
 	}
-	return list, rows.Err()
+	return list, total, rows.Err()
 }
 func (r *BranchRepo) Update(ctx context.Context, tenantID, id int, req dto.UpdateBranchRequest) (*model.Branch, error) {
 	pool, err := r.mgr.Pool(ctx, tenantID)

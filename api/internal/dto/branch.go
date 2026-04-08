@@ -2,6 +2,15 @@ package dto
 
 import "time"
 
+// ── Filter ────────────────────────────────────────────────────────────────────
+
+// BranchFilter holds optional query-string filters for GET /branches.
+type BranchFilter struct {
+	Search   string `form:"search"` // case-insensitive partial match on name, phone, address
+	DateFrom *time.Time
+	DateTo   *time.Time
+}
+
 // ── Request ──────────────────────────────────────────────────────────────────
 
 // CreateBranchRequest is the validated HTTP request body for POST /branches.

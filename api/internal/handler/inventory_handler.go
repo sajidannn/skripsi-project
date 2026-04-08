@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/sajidannn/pos-api/internal/apierr"
 	"github.com/sajidannn/pos-api/internal/dto"
@@ -22,7 +24,6 @@ func NewInventoryHandler(svc *service.InventoryService) *InventoryHandler {
 }
 
 // ListByBranch handles GET /inventory/branch/:id
-// Optional query param: ?low_stock=true
 func (h *InventoryHandler) ListByBranch(c *gin.Context) {
 	branchID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -30,9 +31,41 @@ func (h *InventoryHandler) ListByBranch(c *gin.Context) {
 		return
 	}
 
-	lowStock := c.Query("low_stock") == "true"
+	var rawQ dto.PageQuery
+	if err := c.ShouldBindQuery(&rawQ); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid query parameters"))
+		return
+	}
+	q := rawQ.Validate(
+		[]string{"id", "item_id", "stock", "updated_at"},
+		"id", // default sort
+	)
 
-	items, err := h.svc.ListByBranch(c.Request.Context(), branchID, lowStock)
+	var f dto.InventoryFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid filter parameters"))
+		return
+	}
+
+	if s := c.Query("date_from"); s != "" {
+		if t, err := time.Parse("2006-01-02", s); err == nil {
+			f.DateFrom = &t
+		} else {
+			_ = c.Error(apierr.BadRequest("date_from must be in YYYY-MM-DD format"))
+			return
+		}
+	}
+	if s := c.Query("date_to"); s != "" {
+		if t, err := time.Parse("2006-01-02", s); err == nil {
+			end := t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+			f.DateTo = &end
+		} else {
+			_ = c.Error(apierr.BadRequest("date_to must be in YYYY-MM-DD format"))
+			return
+		}
+	}
+
+	items, total, err := h.svc.ListByBranch(c.Request.Context(), branchID, q, f)
 	if err != nil {
 		_ = c.Error(apierr.Wrap(err, "failed to list branch inventory"))
 		return
@@ -42,11 +75,10 @@ func (h *InventoryHandler) ListByBranch(c *gin.Context) {
 	for i, bi := range items {
 		resp[i] = toBranchItemResponse(&bi)
 	}
-	c.JSON(http.StatusOK, dto.Success(resp))
+	c.JSON(http.StatusOK, dto.PagedOK(resp, dto.NewPageMeta(q, total)))
 }
 
 // ListByWarehouse handles GET /inventory/warehouse/:id
-// Optional query param: ?low_stock=true
 func (h *InventoryHandler) ListByWarehouse(c *gin.Context) {
 	warehouseID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -54,9 +86,41 @@ func (h *InventoryHandler) ListByWarehouse(c *gin.Context) {
 		return
 	}
 
-	lowStock := c.Query("low_stock") == "true"
+	var rawQ dto.PageQuery
+	if err := c.ShouldBindQuery(&rawQ); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid query parameters"))
+		return
+	}
+	q := rawQ.Validate(
+		[]string{"id", "item_id", "stock", "updated_at"},
+		"id", // default sort
+	)
 
-	items, err := h.svc.ListByWarehouse(c.Request.Context(), warehouseID, lowStock)
+	var f dto.InventoryFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid filter parameters"))
+		return
+	}
+
+	if s := c.Query("date_from"); s != "" {
+		if t, err := time.Parse("2006-01-02", s); err == nil {
+			f.DateFrom = &t
+		} else {
+			_ = c.Error(apierr.BadRequest("date_from must be in YYYY-MM-DD format"))
+			return
+		}
+	}
+	if s := c.Query("date_to"); s != "" {
+		if t, err := time.Parse("2006-01-02", s); err == nil {
+			end := t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+			f.DateTo = &end
+		} else {
+			_ = c.Error(apierr.BadRequest("date_to must be in YYYY-MM-DD format"))
+			return
+		}
+	}
+
+	items, total, err := h.svc.ListByWarehouse(c.Request.Context(), warehouseID, q, f)
 	if err != nil {
 		_ = c.Error(apierr.Wrap(err, "failed to list warehouse inventory"))
 		return
@@ -66,7 +130,7 @@ func (h *InventoryHandler) ListByWarehouse(c *gin.Context) {
 	for i, wi := range items {
 		resp[i] = toWarehouseItemResponse(&wi)
 	}
-	c.JSON(http.StatusOK, dto.Success(resp))
+	c.JSON(http.StatusOK, dto.PagedOK(resp, dto.NewPageMeta(q, total)))
 }
 
 // toBranchItemResponse maps a domain model to the HTTP response DTO.

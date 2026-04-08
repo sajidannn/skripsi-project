@@ -34,12 +34,12 @@ func (s *CustomerService) GetByID(ctx context.Context, id int) (*model.Customer,
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-func (s *CustomerService) List(ctx context.Context, branchID int) ([]model.Customer, error) {
+func (s *CustomerService) List(ctx context.Context, q dto.PageQuery, f dto.CustomerFilter) ([]model.Customer, int, error) {
 	tenantID, err := tenant.FromContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("CustomerService.List: %w", err)
+		return nil, 0, fmt.Errorf("CustomerService.List: %w", err)
 	}
-	return s.repo.List(ctx, tenantID, branchID)
+	return s.repo.List(ctx, tenantID, q, f)
 }
 
 func (s *CustomerService) Update(ctx context.Context, id int, req dto.UpdateCustomerRequest) (*model.Customer, error) {

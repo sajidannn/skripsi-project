@@ -3,19 +3,15 @@ package repository
 import (
 	"context"
 
+	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
 )
 
-// InventoryFilter carries optional query parameters for inventory listings.
-type InventoryFilter struct {
-	LowStock bool // when true, only return items whose stock == 0
-}
-
 // InventoryRepository is the data-access contract for branch/warehouse inventory.
 type InventoryRepository interface {
-	// ListByBranch returns all inventory entries for a given branch.
-	ListByBranch(ctx context.Context, tenantID, branchID int, f InventoryFilter) ([]model.BranchItem, error)
+	// ListByBranch returns a paginated, filtered list of inventory entries for a given branch.
+	ListByBranch(ctx context.Context, tenantID, branchID int, q dto.PageQuery, f dto.InventoryFilter) (entries []model.BranchItem, total int, err error)
 
-	// ListByWarehouse returns all inventory entries for a given warehouse.
-	ListByWarehouse(ctx context.Context, tenantID, warehouseID int, f InventoryFilter) ([]model.WarehouseItem, error)
+	// ListByWarehouse returns a paginated, filtered list of inventory entries for a given warehouse.
+	ListByWarehouse(ctx context.Context, tenantID, warehouseID int, q dto.PageQuery, f dto.InventoryFilter) (entries []model.WarehouseItem, total int, err error)
 }

@@ -39,12 +39,12 @@ func (s *BranchService) GetByID(ctx context.Context, id int) (*model.Branch, err
 }
 
 // List returns branches for the tenant with pagination and filter.
-func (s *BranchService) List(ctx context.Context) ([]model.Branch, error) {
+func (s *BranchService) List(ctx context.Context, q dto.PageQuery, f dto.BranchFilter) ([]model.Branch, int, error) {
 	tenantID, err := tenant.FromContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("BranchService.List: %w", err)
+		return nil, 0, fmt.Errorf("BranchService.List: %w", err)
 	}
-	return s.repo.List(ctx, tenantID)
+	return s.repo.List(ctx, tenantID, q, f)
 }
 
 func (s *BranchService) Update(ctx context.Context, id int, req dto.UpdateBranchRequest) (*model.Branch, error) {

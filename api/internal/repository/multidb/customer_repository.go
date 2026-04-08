@@ -65,37 +65,66 @@ func (r *CustomerRepo) GetByID(ctx context.Context, tenantID, id int) (*model.Cu
 	return &c, nil
 }
 
-func (r *CustomerRepo) List(ctx context.Context, tenantID, branchID int) ([]model.Customer, error) {
+func (r *CustomerRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dto.CustomerFilter) ([]model.Customer, int, error) {
 	pool, err := r.mgr.Pool(ctx, tenantID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	query := `SELECT id, branch_id, name, phone, email, created_at FROM customers`
 	var args []any
+	where := "WHERE TRUE"
 
-	if branchID > 0 {
-		query += ` WHERE branch_id = $1`
-		args = append(args, branchID)
+	if f.BranchID > 0 {
+		args = append(args, f.BranchID)
+		where += fmt.Sprintf(" AND branch_id = $%d", len(args))
 	}
-	query += ` ORDER BY name ASC`
+	if f.Search != "" {
+		args = append(args, "%"+f.Search+"%")
+		n := len(args)
+		where += fmt.Sprintf(" AND (name ILIKE $%d OR phone ILIKE $%d OR email ILIKE $%d)", n, n, n)
+	}
+	if f.DateFrom != nil {
+		args = append(args, *f.DateFrom)
+		where += fmt.Sprintf(" AND created_at >= $%d", len(args))
+	}
+	if f.DateTo != nil {
+		args = append(args, *f.DateTo)
+		where += fmt.Sprintf(" AND created_at <= $%d", len(args))
+	}
+
+	args = append(args, q.Limit, q.Offset())
+	limitIdx := len(args) - 1
+	offsetIdx := len(args)
+
+	query := fmt.Sprintf(`
+		SELECT id, branch_id, name, phone, email, created_at,
+		       COUNT(*) OVER() AS total_count
+		FROM customers
+		%s
+		ORDER BY %s %s
+		LIMIT $%d OFFSET $%d`,
+		where, q.Sort, q.Order, limitIdx, offsetIdx,
+	)
 
 	rows, err := pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("multidb.CustomerRepo.List: %w", err)
+		return nil, 0, fmt.Errorf("multidb.CustomerRepo.List: %w", err)
 	}
 	defer rows.Close()
 
-	var list []model.Customer
+	var (
+		list  []model.Customer
+		total int
+	)
 	for rows.Next() {
 		var c model.Customer
-		if err := rows.Scan(&c.ID, &c.BranchID, &c.Name, &c.Phone, &c.Email, &c.CreatedAt); err != nil {
-			return nil, fmt.Errorf("multidb.CustomerRepo.List scan: %w", err)
+		if err := rows.Scan(&c.ID, &c.BranchID, &c.Name, &c.Phone, &c.Email, &c.CreatedAt, &total); err != nil {
+			return nil, 0, fmt.Errorf("multidb.CustomerRepo.List scan: %w", err)
 		}
 		c.TenantID = tenantID
 		list = append(list, c)
 	}
-	return list, rows.Err()
+	return list, total, rows.Err()
 }
 
 func (r *CustomerRepo) Update(ctx context.Context, tenantID, id int, req dto.UpdateCustomerRequest) (*model.Customer, error) {

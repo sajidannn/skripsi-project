@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/sajidannn/pos-api/internal/apierr"
 	"github.com/sajidannn/pos-api/internal/dto"
@@ -83,7 +85,38 @@ func (h *WarehouseHandler) Update(c *gin.Context) {
 
 // List handles GET /warehouses
 func (h *WarehouseHandler) List(c *gin.Context) {
-	warehouses, err := h.svc.List(c.Request.Context())
+	var rawQ dto.PageQuery
+	if err := c.ShouldBindQuery(&rawQ); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid query parameters"))
+		return
+	}
+	q := rawQ.Validate([]string{"id", "name", "created_at"}, "id")
+
+	var f dto.WarehouseFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid filter parameters"))
+		return
+	}
+
+	if s := c.Query("date_from"); s != "" {
+		if t, err := time.Parse("2006-01-02", s); err == nil {
+			f.DateFrom = &t
+		} else {
+			_ = c.Error(apierr.BadRequest("date_from must be in YYYY-MM-DD format"))
+			return
+		}
+	}
+	if s := c.Query("date_to"); s != "" {
+		if t, err := time.Parse("2006-01-02", s); err == nil {
+			end := t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+			f.DateTo = &end
+		} else {
+			_ = c.Error(apierr.BadRequest("date_to must be in YYYY-MM-DD format"))
+			return
+		}
+	}
+
+	warehouses, total, err := h.svc.List(c.Request.Context(), q, f)
 
 	if err != nil {
 		_ = c.Error(apierr.Wrap(err, "warehouse not found"))
@@ -94,7 +127,7 @@ func (h *WarehouseHandler) List(c *gin.Context) {
 	for i, w := range warehouses {
 		resp[i] = toWarehouseResponse(&w)
 	}
-	c.JSON(http.StatusOK, dto.Success(resp))
+	c.JSON(http.StatusOK, dto.PagedOK(resp, dto.NewPageMeta(q, total)))
 }
 
 // toWarehouseResponse maps a domain model to the HTTP response DTO.

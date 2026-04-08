@@ -49,29 +49,84 @@ func (r *ItemRepo) GetByID(ctx context.Context, tenantID, id int) (*model.Item, 
 	return &it, nil
 }
 
-// List returns all items for the tenant, ordered by id.
-func (r *ItemRepo) List(ctx context.Context, tenantID int) ([]model.Item, error) {
-	rows, err := r.db.Query(ctx,
-		`SELECT id, tenant_id, name, sku, price, COALESCE(description,''), created_at, updated_at
-		 FROM items
-		 WHERE tenant_id = $1
-		 ORDER BY id`,
-		tenantID,
+// List returns a paginated, optionally-filtered list of items for the tenant.
+// It uses COUNT(*) OVER() to fetch total in a single query trip.
+// All filter conditions are built dynamically and bound as parameters (no string interpolation)
+// so the query is safe from SQL injection.
+func (r *ItemRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dto.ItemFilter) ([]model.Item, int, error) {
+	// --- build WHERE clause dynamically ---
+	// Start with the mandatory tenant predicate.
+	args := []any{tenantID}
+	where := "WHERE tenant_id = $1"
+
+	// search: partial match across name, sku, and description via ILIKE.
+	// ILIKE is safer and simpler than full-text search when no GIN/tsvector index exists.
+	if f.Search != "" {
+		args = append(args, "%"+f.Search+"%")
+		n := len(args)
+		where += fmt.Sprintf(" AND (name ILIKE $%d OR sku ILIKE $%d OR description ILIKE $%d)", n, n, n)
+	}
+
+	// exact SKU match
+	if f.SKU != "" {
+		args = append(args, f.SKU)
+		where += fmt.Sprintf(" AND sku = $%d", len(args))
+	}
+
+	// price range
+	if f.MinPrice > 0 {
+		args = append(args, f.MinPrice)
+		where += fmt.Sprintf(" AND price >= $%d", len(args))
+	}
+	if f.MaxPrice > 0 {
+		args = append(args, f.MaxPrice)
+		where += fmt.Sprintf(" AND price <= $%d", len(args))
+	}
+
+	// created_at range
+	if f.DateFrom != nil {
+		args = append(args, *f.DateFrom)
+		where += fmt.Sprintf(" AND created_at >= $%d", len(args))
+	}
+	if f.DateTo != nil {
+		args = append(args, *f.DateTo)
+		where += fmt.Sprintf(" AND created_at <= $%d", len(args))
+	}
+
+	// --- pagination args (always last) ---
+	args = append(args, q.Limit, q.Offset())
+	limitIdx := len(args) - 1
+	offsetIdx := len(args)
+
+	query := fmt.Sprintf(`
+		SELECT id, tenant_id, name, sku, price, COALESCE(description,''), created_at, updated_at,
+		       COUNT(*) OVER() AS total_count
+		FROM items
+		%s
+		ORDER BY %s %s
+		LIMIT $%d OFFSET $%d`,
+		where, q.Sort, q.Order, limitIdx, offsetIdx,
 	)
+
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("singledb.ItemRepo.List: %w", err)
+		return nil, 0, fmt.Errorf("singledb.ItemRepo.List: %w", err)
 	}
 	defer rows.Close()
 
-	var list []model.Item
+	var (
+		list  []model.Item
+		total int
+	)
 	for rows.Next() {
 		var it model.Item
-		if err := rows.Scan(&it.ID, &it.TenantID, &it.Name, &it.SKU, &it.Price, &it.Description, &it.CreatedAt, &it.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("singledb.ItemRepo.List scan: %w", err)
+		if err := rows.Scan(&it.ID, &it.TenantID, &it.Name, &it.SKU, &it.Price,
+			&it.Description, &it.CreatedAt, &it.UpdatedAt, &total); err != nil {
+			return nil, 0, fmt.Errorf("singledb.ItemRepo.List scan: %w", err)
 		}
 		list = append(list, it)
 	}
-	return list, rows.Err()
+	return list, total, rows.Err()
 }
 
 // Update modifies an existing item scoped to the tenant.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
 	"github.com/sajidannn/pos-api/internal/repository"
 	"github.com/sajidannn/pos-api/internal/tenant"
@@ -20,19 +21,19 @@ func NewInventoryService(repo repository.InventoryRepository) *InventoryService 
 }
 
 // ListByBranch returns inventory for a given branch, scoped to the tenant in ctx.
-func (s *InventoryService) ListByBranch(ctx context.Context, branchID int, lowStock bool) ([]model.BranchItem, error) {
+func (s *InventoryService) ListByBranch(ctx context.Context, branchID int, q dto.PageQuery, f dto.InventoryFilter) ([]model.BranchItem, int, error) {
 	tenantID, err := tenant.FromContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("InventoryService.ListByBranch: %w", err)
+		return nil, 0, fmt.Errorf("InventoryService.ListByBranch: %w", err)
 	}
-	return s.repo.ListByBranch(ctx, tenantID, branchID, repository.InventoryFilter{LowStock: lowStock})
+	return s.repo.ListByBranch(ctx, tenantID, branchID, q, f)
 }
 
 // ListByWarehouse returns inventory for a given warehouse, scoped to the tenant in ctx.
-func (s *InventoryService) ListByWarehouse(ctx context.Context, warehouseID int, lowStock bool) ([]model.WarehouseItem, error) {
+func (s *InventoryService) ListByWarehouse(ctx context.Context, warehouseID int, q dto.PageQuery, f dto.InventoryFilter) ([]model.WarehouseItem, int, error) {
 	tenantID, err := tenant.FromContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("InventoryService.ListByWarehouse: %w", err)
+		return nil, 0, fmt.Errorf("InventoryService.ListByWarehouse: %w", err)
 	}
-	return s.repo.ListByWarehouse(ctx, tenantID, warehouseID, repository.InventoryFilter{LowStock: lowStock})
+	return s.repo.ListByWarehouse(ctx, tenantID, warehouseID, q, f)
 }

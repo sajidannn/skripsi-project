@@ -2,6 +2,21 @@ package dto
 
 import "time"
 
+// ── Filter ────────────────────────────────────────────────────────────────────
+
+// CustomerFilter holds optional query-string filters for GET /customers.
+type CustomerFilter struct {
+	// Search does a case-insensitive partial match on name, phone, and email.
+	Search string `form:"search"`
+
+	// BranchID filters customers by the branch they belong to.
+	BranchID int `form:"branch_id"`
+
+	// DateFrom / DateTo bound the created_at column (inclusive).
+	DateFrom *time.Time
+	DateTo   *time.Time
+}
+
 // CreateCustomerRequest is the validated body for POST /customers.
 type CreateCustomerRequest struct {
 	BranchID int    `json:"branch_id" binding:"required,gt=0"`

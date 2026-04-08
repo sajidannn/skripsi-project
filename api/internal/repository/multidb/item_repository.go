@@ -60,32 +60,88 @@ func (r *ItemRepo) GetByID(ctx context.Context, tenantID, id int) (*model.Item, 
 	return &it, nil
 }
 
-// List returns all items from the tenant's database.
-func (r *ItemRepo) List(ctx context.Context, tenantID int) ([]model.Item, error) {
+// List returns a paginated, optionally-filtered list of items from the tenant's database.
+// Tenant isolation is handled at the connection level (multi-DB), so there is no
+// tenant_id column in this schema. All filters are bound as parameters (SQLI-safe).
+func (r *ItemRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dto.ItemFilter) ([]model.Item, int, error) {
 	pool, err := r.mgr.Pool(ctx, tenantID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	rows, err := pool.Query(ctx,
-		`SELECT id, name, sku, price, COALESCE(description,''), created_at, updated_at
-		 FROM items ORDER BY id`,
+	// --- build WHERE clause dynamically ---
+	// Multi-DB schema has no tenant_id column, so we start with a tautology.
+	var args []any
+	where := "WHERE TRUE"
+
+	// search: ILIKE across name, sku, description
+	if f.Search != "" {
+		args = append(args, "%"+f.Search+"%")
+		n := len(args)
+		where += fmt.Sprintf(" AND (name ILIKE $%d OR sku ILIKE $%d OR description ILIKE $%d)", n, n, n)
+	}
+
+	// exact SKU match
+	if f.SKU != "" {
+		args = append(args, f.SKU)
+		where += fmt.Sprintf(" AND sku = $%d", len(args))
+	}
+
+	// price range
+	if f.MinPrice > 0 {
+		args = append(args, f.MinPrice)
+		where += fmt.Sprintf(" AND price >= $%d", len(args))
+	}
+	if f.MaxPrice > 0 {
+		args = append(args, f.MaxPrice)
+		where += fmt.Sprintf(" AND price <= $%d", len(args))
+	}
+
+	// created_at range
+	if f.DateFrom != nil {
+		args = append(args, *f.DateFrom)
+		where += fmt.Sprintf(" AND created_at >= $%d", len(args))
+	}
+	if f.DateTo != nil {
+		args = append(args, *f.DateTo)
+		where += fmt.Sprintf(" AND created_at <= $%d", len(args))
+	}
+
+	// --- pagination args (always last) ---
+	args = append(args, q.Limit, q.Offset())
+	limitIdx := len(args) - 1
+	offsetIdx := len(args)
+
+	query := fmt.Sprintf(`
+		SELECT id, name, sku, price, COALESCE(description,''), created_at, updated_at,
+		       COUNT(*) OVER() AS total_count
+		FROM items
+		%s
+		ORDER BY %s %s
+		LIMIT $%d OFFSET $%d`,
+		where, q.Sort, q.Order, limitIdx, offsetIdx,
 	)
+
+	rows, err := pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("multidb.ItemRepo.List: %w", err)
+		return nil, 0, fmt.Errorf("multidb.ItemRepo.List: %w", err)
 	}
 	defer rows.Close()
 
-	var list []model.Item
+	var (
+		list  []model.Item
+		total int
+	)
 	for rows.Next() {
 		var it model.Item
-		if err := rows.Scan(&it.ID, &it.Name, &it.SKU, &it.Price, &it.Description, &it.CreatedAt, &it.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("multidb.ItemRepo.List scan: %w", err)
+		if err := rows.Scan(&it.ID, &it.Name, &it.SKU, &it.Price,
+			&it.Description, &it.CreatedAt, &it.UpdatedAt, &total); err != nil {
+			return nil, 0, fmt.Errorf("multidb.ItemRepo.List scan: %w", err)
 		}
 		it.TenantID = tenantID
 		list = append(list, it)
 	}
-	return list, rows.Err()
+	return list, total, rows.Err()
 }
 
 // Update modifies an existing item in the tenant's database.

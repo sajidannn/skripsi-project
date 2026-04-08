@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sajidannn/pos-api/internal/apierr"
@@ -57,8 +58,56 @@ func (h *ItemHandler) GetByID(c *gin.Context) {
 }
 
 // List handles GET /items
+//
+// Query params (all optional):
+//
+//	page, limit, sort, order          — pagination
+//	search                            — ILIKE across name, sku, description
+//	sku                               — exact match
+//	min_price, max_price              — price range
+//	date_from, date_to                — created_at range (YYYY-MM-DD)
 func (h *ItemHandler) List(c *gin.Context) {
-	items, err := h.svc.List(c.Request.Context())
+	// --- parse & validate pagination ---
+	var rawQ dto.PageQuery
+	if err := c.ShouldBindQuery(&rawQ); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid query parameters"))
+		return
+	}
+	// Whitelist of sortable columns; handler owns this knowledge to prevent SQLI.
+	q := rawQ.Validate(
+		[]string{"id", "name", "sku", "price", "created_at", "updated_at"},
+		"id", // default sort
+	)
+
+	// --- parse & validate filter ---
+	var f dto.ItemFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid filter parameters"))
+		return
+	}
+
+	// Parse date strings manually (gin form binding doesn't auto-parse time.Time).
+	if s := c.Query("date_from"); s != "" {
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			_ = c.Error(apierr.BadRequest("date_from must be in YYYY-MM-DD format"))
+			return
+		}
+		f.DateFrom = &t
+	}
+	if s := c.Query("date_to"); s != "" {
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			_ = c.Error(apierr.BadRequest("date_to must be in YYYY-MM-DD format"))
+			return
+		}
+		// include the full day
+		end := t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		f.DateTo = &end
+	}
+
+	// --- call service ---
+	items, total, err := h.svc.List(c.Request.Context(), q, f)
 	if err != nil {
 		_ = c.Error(apierr.Wrap(err, "failed to list items"))
 		return
@@ -68,7 +117,8 @@ func (h *ItemHandler) List(c *gin.Context) {
 	for i, it := range items {
 		resp[i] = toItemResponse(&it)
 	}
-	c.JSON(http.StatusOK, dto.Success(resp))
+
+	c.JSON(http.StatusOK, dto.PagedOK(resp, dto.NewPageMeta(q, total)))
 }
 
 // Update handles PUT /items/:id

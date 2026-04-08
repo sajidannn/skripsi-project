@@ -73,13 +73,13 @@ func (s *UserService) GetByID(ctx context.Context, id int) (*model.User, error) 
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-// List returns all users for the tenant in ctx.
-func (s *UserService) List(ctx context.Context) ([]model.User, error) {
+// List returns a paginated, filtered list of users for the tenant in ctx.
+func (s *UserService) List(ctx context.Context, q dto.PageQuery, f dto.UserFilter) ([]model.User, int, error) {
 	tenantID, err := tenant.FromContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("UserService.List: %w", err)
+		return nil, 0, fmt.Errorf("UserService.List: %w", err)
 	}
-	return s.repo.List(ctx, tenantID)
+	return s.repo.List(ctx, tenantID, q, f)
 }
 
 // Update modifies name and/or role of an existing user.

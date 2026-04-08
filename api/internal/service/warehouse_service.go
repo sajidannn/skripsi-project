@@ -40,13 +40,13 @@ func (s *WarehouseService) GetByID(ctx context.Context, id int) (*model.Warehous
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-// List returns all warehouses for the tenant in ctx.
-func (s *WarehouseService) List(ctx context.Context) ([]model.Warehouse, error) {
+// List returns a paginated, filtered list of warehouses for the tenant in ctx.
+func (s *WarehouseService) List(ctx context.Context, q dto.PageQuery, f dto.WarehouseFilter) ([]model.Warehouse, int, error) {
 	tenantID, err := tenant.FromContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("WarehouseService.List: %w", err)
+		return nil, 0, fmt.Errorf("WarehouseService.List: %w", err)
 	}
-	return s.repo.List(ctx, tenantID)
+	return s.repo.List(ctx, tenantID, q, f)
 }
 
 func (s *WarehouseService) Update(ctx context.Context, id int, req dto.UpdateWarehouseRequest) (*model.Warehouse, error) {

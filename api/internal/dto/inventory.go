@@ -2,6 +2,21 @@ package dto
 
 import "time"
 
+// ── Filter ────────────────────────────────────────────────────────────────────
+
+// InventoryFilter holds optional query-string filters for GET /inventory/...
+type InventoryFilter struct {
+	// Search does a case-insensitive partial match on item name or SKU.
+	Search string `form:"search"`
+
+	// LowStock returns only items with stock <= 0 (or some threshold) when true.
+	LowStock bool `form:"low_stock"`
+
+	// DateFrom / DateTo bound the updated_at column (inclusive).
+	DateFrom *time.Time
+	DateTo   *time.Time
+}
+
 // ── Response ─────────────────────────────────────────────────────────────────
 
 // BranchItemResponse is the outbound representation of a branch inventory entry.

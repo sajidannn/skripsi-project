@@ -43,13 +43,13 @@ func (s *ItemService) GetByID(ctx context.Context, id int) (*model.Item, error) 
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-// List returns all items for the tenant in ctx.
-func (s *ItemService) List(ctx context.Context) ([]model.Item, error) {
+// List returns a paginated, filtered list of items for the tenant in ctx.
+func (s *ItemService) List(ctx context.Context, q dto.PageQuery, f dto.ItemFilter) ([]model.Item, int, error) {
 	tenantID, err := tenant.FromContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("ItemService.List: %w", err)
+		return nil, 0, fmt.Errorf("ItemService.List: %w", err)
 	}
-	return s.repo.List(ctx, tenantID)
+	return s.repo.List(ctx, tenantID, q, f)
 }
 
 // Update modifies an existing item, scoped to the tenant in ctx.

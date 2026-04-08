@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/sajidannn/pos-api/internal/apierr"
 	"github.com/sajidannn/pos-api/internal/dto"
@@ -52,29 +54,55 @@ func (h *CustomerHandler) GetByID(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.Success(toCustomerResponse(customer)))
 }
 
+// List handles GET /customers
+// Query params (optional): page, limit, sort, order, search, branch_id, date_from, date_to
 func (h *CustomerHandler) List(c *gin.Context) {
-	var branchID int
-	if b := c.Query("branch_id"); b != "" {
-		if parsed, err := strconv.Atoi(b); err == nil {
-			branchID = parsed
+	var rawQ dto.PageQuery
+	if err := c.ShouldBindQuery(&rawQ); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid query parameters"))
+		return
+	}
+	q := rawQ.Validate(
+		[]string{"id", "branch_id", "name", "phone", "email", "created_at"},
+		"name", // default sort
+	)
+
+	var f dto.CustomerFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid filter parameters"))
+		return
+	}
+
+	if s := c.Query("date_from"); s != "" {
+		if t, err := time.Parse("2006-01-02", s); err == nil {
+			f.DateFrom = &t
+		} else {
+			_ = c.Error(apierr.BadRequest("date_from must be in YYYY-MM-DD format"))
+			return
+		}
+	}
+	if s := c.Query("date_to"); s != "" {
+		if t, err := time.Parse("2006-01-02", s); err == nil {
+			end := t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+			f.DateTo = &end
+		} else {
+			_ = c.Error(apierr.BadRequest("date_to must be in YYYY-MM-DD format"))
+			return
 		}
 	}
 
-	customers, err := h.svc.List(c.Request.Context(), branchID)
+	customers, total, err := h.svc.List(c.Request.Context(), q, f)
 	if err != nil {
 		_ = c.Error(apierr.Wrap(err, "failed to list customers"))
 		return
 	}
 
 	resp := make([]dto.CustomerResponse, len(customers))
-	if len(customers) == 0 {
-		resp = []dto.CustomerResponse{} // Output [] instead of null in JSON
-	}
 	for i, cust := range customers {
 		resp[i] = toCustomerResponse(&cust)
 	}
 
-	c.JSON(http.StatusOK, dto.Success(resp))
+	c.JSON(http.StatusOK, dto.PagedOK(resp, dto.NewPageMeta(q, total)))
 }
 
 func (h *CustomerHandler) Update(c *gin.Context) {

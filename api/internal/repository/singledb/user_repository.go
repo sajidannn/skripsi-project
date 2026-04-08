@@ -66,29 +66,61 @@ func (r *UserRepo) GetByEmail(ctx context.Context, tenantID int, email string) (
 	return &u, hashedPassword, nil
 }
 
-// List returns all users for the tenant, ordered by id.
-func (r *UserRepo) List(ctx context.Context, tenantID int) ([]model.User, error) {
-	rows, err := r.db.Query(ctx,
-		`SELECT id, tenant_id, name, email, role, created_at
-		 FROM users
-		 WHERE tenant_id = $1
-		 ORDER BY id`,
-		tenantID,
+// List returns a paginated, filtered list of users for the tenant.
+func (r *UserRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dto.UserFilter) ([]model.User, int, error) {
+	args := []any{tenantID}
+	where := "WHERE tenant_id = $1"
+
+	if f.Search != "" {
+		args = append(args, "%"+f.Search+"%")
+		n := len(args)
+		where += fmt.Sprintf(" AND (name ILIKE $%d OR email ILIKE $%d)", n, n)
+	}
+	if f.Role != "" {
+		args = append(args, f.Role)
+		where += fmt.Sprintf(" AND role = $%d", len(args))
+	}
+	if f.DateFrom != nil {
+		args = append(args, *f.DateFrom)
+		where += fmt.Sprintf(" AND created_at >= $%d", len(args))
+	}
+	if f.DateTo != nil {
+		args = append(args, *f.DateTo)
+		where += fmt.Sprintf(" AND created_at <= $%d", len(args))
+	}
+
+	args = append(args, q.Limit, q.Offset())
+	limitIdx := len(args) - 1
+	offsetIdx := len(args)
+
+	query := fmt.Sprintf(`
+		SELECT id, tenant_id, name, email, role, created_at,
+		       COUNT(*) OVER() AS total_count
+		FROM users
+		%s
+		ORDER BY %s %s
+		LIMIT $%d OFFSET $%d`,
+		where, q.Sort, q.Order, limitIdx, offsetIdx,
 	)
+
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("singledb.UserRepo.List: %w", err)
+		return nil, 0, fmt.Errorf("singledb.UserRepo.List: %w", err)
 	}
 	defer rows.Close()
 
-	var list []model.User
+	var (
+		list  []model.User
+		total int
+	)
 	for rows.Next() {
 		var u model.User
-		if err := rows.Scan(&u.ID, &u.TenantID, &u.Name, &u.Email, &u.Role, &u.CreatedAt); err != nil {
-			return nil, fmt.Errorf("singledb.UserRepo.List scan: %w", err)
+		if err := rows.Scan(&u.ID, &u.TenantID, &u.Name, &u.Email, &u.Role, &u.CreatedAt, &total); err != nil {
+			return nil, 0, fmt.Errorf("singledb.UserRepo.List scan: %w", err)
 		}
 		list = append(list, u)
 	}
-	return list, rows.Err()
+	return list, total, rows.Err()
 }
 
 // Update modifies name and/or role of an existing user.

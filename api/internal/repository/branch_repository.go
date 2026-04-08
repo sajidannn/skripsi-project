@@ -18,6 +18,6 @@ type BranchRepository interface {
 	// GetByID fetches a single branch.
 	GetByID(ctx context.Context, tenantID, id int) (*model.Branch, error)
 
-	// List returns all branches that belong to the tenant.
-	List(ctx context.Context, tenantID int) ([]model.Branch, error)
+	// List returns a paginated, filtered list of branches that belong to the tenant.
+	List(ctx context.Context, tenantID int, q dto.PageQuery, f dto.BranchFilter) ([]model.Branch, int, error)
 }

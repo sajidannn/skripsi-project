@@ -421,6 +421,60 @@
                 "api",
                 "v1",
                 "items"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "2",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "name",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "desc",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "gula",
+                  "uuid": "2f593103-fdb4-4ee5-9912-c07c9de973f0",
+                  "disabled": true
+                },
+                {
+                  "key": "sku",
+                  "value": "ITEM-20260101-ABC123",
+                  "disabled": true
+                },
+                {
+                  "key": "min_price",
+                  "value": "5000",
+                  "uuid": "38e8f7e4-baa3-40df-9a2c-ab6287c8fcde",
+                  "disabled": true
+                },
+                {
+                  "key": "max_price",
+                  "value": "500000",
+                  "disabled": true
+                },
+                {
+                  "key": "date_from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-12-31",
+                  "disabled": true
+                }
               ]
             }
           },

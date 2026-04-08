@@ -2,6 +2,16 @@ package dto
 
 import "time"
 
+// ── Filter ────────────────────────────────────────────────────────────────────
+
+// UserFilter holds optional query-string filters for GET /users.
+type UserFilter struct {
+	Search   string `form:"search"` // case-insensitive partial match on name or email
+	Role     string `form:"role"`
+	DateFrom *time.Time
+	DateTo   *time.Time
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 // LoginRequest is the body for POST /auth/login.

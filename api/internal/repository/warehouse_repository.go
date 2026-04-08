@@ -23,6 +23,6 @@ type WarehouseRepository interface {
 	// GetByID fetches a single warehouse.
 	GetByID(ctx context.Context, tenantID, id int) (*model.Warehouse, error)
 
-	// List returns all warehouses that belong to the tenant.
-	List(ctx context.Context, tenantID int) ([]model.Warehouse, error)
+	// List returns a paginated, filtered list of warehouses that belong to the tenant.
+	List(ctx context.Context, tenantID int, q dto.PageQuery, f dto.WarehouseFilter) ([]model.Warehouse, int, error)
 }

@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/sajidannn/pos-api/internal/apierr"
 	"github.com/sajidannn/pos-api/internal/dto"
@@ -58,9 +60,40 @@ func (h *BranchHandler) GetByID(c *gin.Context) {
 
 // List handles GET /branches
 func (h *BranchHandler) List(c *gin.Context) {
-	branches, err := h.svc.List(c.Request.Context())
+	var rawQ dto.PageQuery
+	if err := c.ShouldBindQuery(&rawQ); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid query parameters"))
+		return
+	}
+	q := rawQ.Validate([]string{"id", "name", "phone", "address", "created_at"}, "id")
+
+	var f dto.BranchFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid filter parameters"))
+		return
+	}
+
+	if s := c.Query("date_from"); s != "" {
+		if t, err := time.Parse("2006-01-02", s); err == nil {
+			f.DateFrom = &t
+		} else {
+			_ = c.Error(apierr.BadRequest("date_from must be in YYYY-MM-DD format"))
+			return
+		}
+	}
+	if s := c.Query("date_to"); s != "" {
+		if t, err := time.Parse("2006-01-02", s); err == nil {
+			end := t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+			f.DateTo = &end
+		} else {
+			_ = c.Error(apierr.BadRequest("date_to must be in YYYY-MM-DD format"))
+			return
+		}
+	}
+
+	branches, total, err := h.svc.List(c.Request.Context(), q, f)
 	if err != nil {
-		_ = c.Error(apierr.Wrap(err, "branch not found"))
+		_ = c.Error(apierr.Wrap(err, "failed to list branches"))
 		return
 	}
 
@@ -68,7 +101,7 @@ func (h *BranchHandler) List(c *gin.Context) {
 	for i, b := range branches {
 		resp[i] = toBranchResponse(&b)
 	}
-	c.JSON(http.StatusOK, dto.Success(resp))
+	c.JSON(http.StatusOK, dto.PagedOK(resp, dto.NewPageMeta(q, total)))
 }
 
 func (h *BranchHandler) Update(c *gin.Context) {

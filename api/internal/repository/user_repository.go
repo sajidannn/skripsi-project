@@ -19,8 +19,8 @@ type UserRepository interface {
 	// alongside the model. Used exclusively by the login flow.
 	GetByEmail(ctx context.Context, tenantID int, email string) (*model.User, string, error)
 
-	// List returns all users that belong to the tenant.
-	List(ctx context.Context, tenantID int) ([]model.User, error)
+	// List returns a paginated, filtered list of users that belong to the tenant.
+	List(ctx context.Context, tenantID int, q dto.PageQuery, f dto.UserFilter) ([]model.User, int, error)
 
 	// Update modifies name and/or role of an existing user.
 	Update(ctx context.Context, tenantID, id int, req dto.UpdateUserRequest) (*model.User, error)
