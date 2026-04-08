@@ -44,6 +44,7 @@ func NewRouter(jwtSecret string, debug bool, h Handlers) *gin.Engine {
 			warehouses.POST("", h.Warehouse.Create)
 			warehouses.GET("", h.Warehouse.List)
 			warehouses.GET("/:id", h.Warehouse.GetByID)
+			warehouses.PUT("/:id", h.Warehouse.Update)
 		}
 
 		// Branches
@@ -52,6 +53,7 @@ func NewRouter(jwtSecret string, debug bool, h Handlers) *gin.Engine {
 			branches.POST("", h.Branch.Create)
 			branches.GET("", h.Branch.List)
 			branches.GET("/:id", h.Branch.GetByID)
+			branches.PUT("/:id", h.Branch.Update)
 		}
 
 		// Items (master catalogue)
@@ -94,4 +96,3 @@ func NewRouter(jwtSecret string, debug bool, h Handlers) *gin.Engine {
 
 	return r
 }
-

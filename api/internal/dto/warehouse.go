@@ -9,6 +9,10 @@ type CreateWarehouseRequest struct {
 	Name string `json:"name" binding:"required,min=1,max=255"`
 }
 
+type UpdateWarehouseRequest struct {
+	Name string `json:"name" binding:"omitempty,min=1,max=255"`
+}
+
 // ── Response ─────────────────────────────────────────────────────────────────
 
 // WarehouseResponse is the outbound representation of a warehouse.
