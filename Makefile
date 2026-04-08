@@ -9,10 +9,10 @@
 # ==============================================================================
 # API COMMANDS (Local Execution)
 # ==============================================================================
-api-run-single:
+api-single-run	:
 	cd api && DB_MODE=single go run ./cmd/server/...
 
-api-run-multi:
+api-multi-run:
 	cd api && DB_MODE=multi go run ./cmd/server/...
 
 api-run:
@@ -31,22 +31,22 @@ api-docker-build:
 # ==============================================================================
 # API COMMANDS (Docker Compose) - VM 1
 # ==============================================================================
-api-up-single:
+api-single-up	:
 	cd api && docker compose -f docker-compose.single.yml up --build -d
 
-api-down-single:
+api-single-down:
 	cd api && docker compose -f docker-compose.single.yml down
 
-api-logs-single:
+api-single-logs:
 	cd api && docker compose -f docker-compose.single.yml logs -f
 
-api-up-multi:
+api-multi-up:
 	cd api && docker compose -f docker-compose.multi.yml up --build -d
 
-api-down-multi:
+api-multi-down:
 	cd api && docker compose -f docker-compose.multi.yml down
 
-api-logs-multi:
+api-multi-logs:
 	cd api && docker compose -f docker-compose.multi.yml logs -f
 
 api-clean:
@@ -57,22 +57,22 @@ api-clean:
 # ==============================================================================
 # DB COMMANDS (Docker Compose) - VM 2
 # ==============================================================================
-db-up-single:
+db-single-up:
 	cd DB && docker compose -f docker-compose.single.yml up -d
 
-db-down-single:
+db-single-down:
 	cd DB && docker compose -f docker-compose.single.yml down
 
-db-logs-single:
+db-single-logs:
 	cd DB && docker compose -f docker-compose.single.yml logs -f
 
-db-up-multi:
+db-multi-up:
 	cd DB && docker compose -f docker-compose.multi.yml up -d
 
-db-down-multi:
+db-multi-down:
 	cd DB && docker compose -f docker-compose.multi.yml down
 
-db-logs-multi:
+db-multi-logs:
 	cd DB && docker compose -f docker-compose.multi.yml logs -f
 
 db-clean:
