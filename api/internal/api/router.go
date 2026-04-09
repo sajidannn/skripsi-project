@@ -14,8 +14,9 @@ type Handlers struct {
 	Branch    *handler.BranchHandler
 	Item      *handler.ItemHandler
 	Inventory *handler.InventoryHandler
-	User      *handler.UserHandler
-	Customer  *handler.CustomerHandler
+	User        *handler.UserHandler
+	Customer    *handler.CustomerHandler
+	Transaction *handler.TransactionHandler
 }
 
 // NewRouter builds and returns the Gin engine with all routes registered.
@@ -91,6 +92,12 @@ func NewRouter(jwtSecret string, debug bool, h Handlers) *gin.Engine {
 			customers.GET("/:id", middleware.RequireRole("owner", "manager", "cashier"), h.Customer.GetByID)
 			customers.PUT("/:id", middleware.RequireRole("owner", "manager", "cashier"), h.Customer.Update)
 			customers.DELETE("/:id", middleware.RequireRole("owner", "manager"), h.Customer.Delete)
+		}
+
+		// Transactions
+		transactions := api.Group("/transactions")
+		{
+			transactions.POST("/sale", middleware.RequireRole("owner", "manager", "cashier"), h.Transaction.CreateSale)
 		}
 	}
 
