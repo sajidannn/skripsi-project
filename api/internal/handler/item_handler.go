@@ -75,7 +75,7 @@ func (h *ItemHandler) List(c *gin.Context) {
 	}
 	// Whitelist of sortable columns; handler owns this knowledge to prevent SQLI.
 	q := rawQ.Validate(
-		[]string{"id", "name", "sku", "price", "created_at", "updated_at"},
+		[]string{"id", "name", "sku", "cost", "price", "created_at", "updated_at"},
 		"id", // default sort
 	)
 

@@ -8,6 +8,7 @@ type Item struct {
 	TenantID    int       `json:"tenant_id,omitempty"` // only meaningful in single-db mode
 	Name        string    `json:"name"`
 	SKU         string    `json:"sku"`
+	Cost        float64   `json:"cost"`
 	Price       float64   `json:"price"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`

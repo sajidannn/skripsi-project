@@ -19,6 +19,10 @@ type ItemFilter struct {
 	// SKU filters for an exact match on the sku column.
 	SKU string `form:"sku"`
 
+	// MinCost / MaxCost bound the cost column (inclusive).
+	MinCost float64 `form:"min_cost"`
+	MaxCost float64 `form:"max_cost"`
+
 	// MinPrice / MaxPrice bound the price column (inclusive).
 	MinPrice float64 `form:"min_price"`
 	MaxPrice float64 `form:"max_price"`
@@ -35,16 +39,18 @@ type ItemFilter struct {
 type CreateItemRequest struct {
 	Name        string  `json:"name"        binding:"required,min=1,max=255"`
 	SKU         string  `json:"sku"         binding:"omitempty,max=100"`
+	Cost        float64 `json:"cost"        binding:"required,min=0"`
 	Price       float64 `json:"price"       binding:"required,min=0"`
 	Description string  `json:"description" binding:"omitempty,max=1000"`
 }
 
 // UpdateItemRequest is the validated HTTP request body for PUT /items/:id.
 type UpdateItemRequest struct {
-	Name        string  `json:"name"        binding:"omitempty,min=1,max=255"`
-	SKU         string  `json:"sku"         binding:"omitempty,max=100"`
-	Price       float64 `json:"price"       binding:"omitempty,min=0"`
-	Description string  `json:"description" binding:"omitempty,max=1000"`
+	Name        string   `json:"name"        binding:"omitempty,min=1,max=255"`
+	SKU         string   `json:"sku"         binding:"omitempty,max=100"`
+	Cost        *float64 `json:"cost"       binding:"omitempty,min=0"`
+	Price       *float64 `json:"price"      binding:"omitempty,min=0"`
+	Description string   `json:"description" binding:"omitempty,max=1000"`
 }
 
 // ── Response ─────────────────────────────────────────────────────────────────
@@ -54,6 +60,7 @@ type ItemResponse struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`
 	SKU         string    `json:"sku"`
+	Cost        float64   `json:"cost"`
 	Price       float64   `json:"price"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`

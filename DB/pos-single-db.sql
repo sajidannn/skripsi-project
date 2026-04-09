@@ -27,12 +27,23 @@ CREATE TABLE IF NOT EXISTS branches (
 );
 CREATE INDEX IF NOT EXISTS idx_branches_tenant ON branches(tenant_id);
 
+CREATE TABLE IF NOT EXISTS suppliers (
+    id          SERIAL PRIMARY KEY,
+    tenant_id   INT NOT NULL REFERENCES tenants(id),
+    name        TEXT NOT NULL,
+    phone       TEXT,
+    address     TEXT,
+    created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_suppliers_tenant ON suppliers(tenant_id);
+
 CREATE TABLE IF NOT EXISTS items (
     id          SERIAL PRIMARY KEY,
     tenant_id   INT NOT NULL REFERENCES tenants(id),
     name        TEXT NOT NULL,
     sku         TEXT NOT NULL,
-    price       NUMERIC(12,2) NOT NULL,
+    cost        NUMERIC(12,2) NOT NULL DEFAULT 0,
+    price       NUMERIC(12,2) NOT NULL DEFAULT 0,
     description TEXT,
     created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -86,7 +97,7 @@ CREATE TABLE IF NOT EXISTS customers (
 CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers(tenant_id);
 
 DO $$ BEGIN
-    CREATE TYPE transaction_type AS ENUM ('SALE', 'PURC', 'TRANSFER');
+    CREATE TYPE transaction_type AS ENUM ('SALE', 'PURC', 'TRANSFER', 'RETURN');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -96,9 +107,12 @@ CREATE TABLE IF NOT EXISTS transactions (
     branch_id    INT REFERENCES branches(id),
     warehouse_id INT REFERENCES warehouses(id),
     customer_id  INT REFERENCES customers(id),
+    supplier_id  INT REFERENCES suppliers(id),
     user_id      INT REFERENCES users(id),
     trans_type   transaction_type NOT NULL,
     total_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+    tax          NUMERIC(12,2) NOT NULL DEFAULT 0,
+    discount     NUMERIC(12,2) NOT NULL DEFAULT 0,
     note         TEXT,
     created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE (tenant_id, trxno),
@@ -115,8 +129,9 @@ CREATE TABLE IF NOT EXISTS transaction_detail (
     branch_item_id    INT REFERENCES branch_items(id),
     warehouse_item_id INT REFERENCES warehouse_items(id),
     quantity          INT NOT NULL CHECK (quantity > 0),
-    price             NUMERIC(12,2) NOT NULL,
-    subtotal          NUMERIC(12,2) NOT NULL,
+    cogs              NUMERIC(12,2) NOT NULL DEFAULT 0,
+    price             NUMERIC(12,2) NOT NULL DEFAULT 0,
+    subtotal          NUMERIC(12,2) NOT NULL DEFAULT 0,
     CHECK (
         (branch_item_id IS NOT NULL AND warehouse_item_id IS NULL)
         OR
