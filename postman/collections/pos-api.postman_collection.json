@@ -1128,7 +1128,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"warehouse_id\": 1,\n    \"branch_id\": 1,\n    \"supplier_id\": 1,\n    \"tax\": 0,\n    \"discount\": 0,\n    \"note\": \"test purchase into warehouse\",\n    \"items\": [\n        {\n            \"item_id\": 1,\n            \"cost\": 26000,\n            \"qty\": 101\n        },\n        {\n            \"item_id\": 2,\n            \"cost\": 15500,\n            \"qty\": 54\n        }\n    ]\n}"
+              "raw": "{\n    \"branch_id\": 3,\n    \"supplier_id\": 1,\n    \"tax\": 0,\n    \"discount\": 0,\n    \"note\": \"test purchase into warehouse\",\n    \"items\": [\n        {\n            \"item_id\": 1,\n            \"cost\": 26000,\n            \"qty\": 101\n        },\n        {\n            \"item_id\": 2,\n            \"cost\": 15500,\n            \"qty\": 54\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{host}}/api/v1/transactions/purchase",
@@ -1168,7 +1168,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"source_type\": \"warehouse\",\n    \"source_id\": 1,\n    \"dest_type\": \"branch\",\n    \"dest_id\": 1,\n    \"note\": \"test transfer from WH 1 to Branch 1\",\n    \"items\": [\n        {\n            \"item_id\": 1,\n            \"qty\": 10\n        }\n    ]\n}"
+              "raw": "{\n    \"source_type\": \"branch\",\n    \"source_id\": 1,\n    \"dest_type\": \"branch\",\n    \"dest_id\": 4,\n    \"note\": \"test transfer from WH 1 to Branch 1\",\n    \"items\": [\n        {\n            \"item_id\": 1,\n            \"qty\": 11\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{host}}/api/v1/transactions/transfer",

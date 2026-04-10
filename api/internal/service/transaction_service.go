@@ -10,6 +10,7 @@ import (
 	"github.com/sajidannn/pos-api/internal/repository"
 	"github.com/sajidannn/pos-api/internal/tenant"
 	"github.com/shopspring/decimal"
+	"errors"
 )
 
 // TransactionService handles business logic for all POS transactions.
@@ -83,7 +84,17 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID int, req dto
 	}
 
 	// 3. Delegate execution to Repository using the defined logic
-	return s.repo.ExecuteSaleTx(ctx, tenantID, userID, req, calculateSaleFn)
+	res, err := s.repo.ExecuteSaleTx(ctx, tenantID, userID, req, calculateSaleFn)
+	if err != nil {
+		// If it's already an AppError (e.g. from closure), return as is
+		var appErr *apierr.AppError
+		if errors.As(err, &appErr) {
+			return nil, appErr
+		}
+		// Otherwise, treat repo validation errors as NotFound/BadRequest
+		return nil, apierr.NotFound(err.Error())
+	}
+	return res, nil
 }
 
 // CreatePurchase handles the business logic for purchasing items from suppliers.
@@ -155,7 +166,15 @@ func (s *TransactionService) CreatePurchase(ctx context.Context, userID int, req
 		}, nil
 	}
 
-	return s.repo.ExecutePurchaseTx(ctx, tenantID, userID, req, calculatePurchaseFn)
+	res, err := s.repo.ExecutePurchaseTx(ctx, tenantID, userID, req, calculatePurchaseFn)
+	if err != nil {
+		var appErr *apierr.AppError
+		if errors.As(err, &appErr) {
+			return nil, appErr
+		}
+		return nil, apierr.NotFound(err.Error())
+	}
+	return res, nil
 }
 
 // CreateTransfer handles the business logic for moving stock between locations.
@@ -225,5 +244,13 @@ func (s *TransactionService) CreateTransfer(ctx context.Context, userID int, req
 		}, nil
 	}
 
-	return s.repo.ExecuteTransferTx(ctx, tenantID, userID, req, calculateTransferFn)
+	res, err := s.repo.ExecuteTransferTx(ctx, tenantID, userID, req, calculateTransferFn)
+	if err != nil {
+		var appErr *apierr.AppError
+		if errors.As(err, &appErr) {
+			return nil, appErr
+		}
+		return nil, apierr.NotFound(err.Error())
+	}
+	return res, nil
 }

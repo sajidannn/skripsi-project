@@ -43,6 +43,26 @@ func (r *TransactionRepo) ExecuteSaleTx(
 	}
 	defer tx.Rollback(ctx)
 
+	// 0. PRE-PHASE: IDENTITY VALIDATION
+	var exists int
+	err = tx.QueryRow(ctx, `SELECT 1 FROM branches WHERE id = $1`, req.BranchID).Scan(&exists)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("branch id %d not found", req.BranchID)
+		}
+		return nil, fmt.Errorf("failed to validate branch identity: %w", err)
+	}
+
+	if req.CustomerID != nil {
+		err = tx.QueryRow(ctx, `SELECT 1 FROM customers WHERE id = $1`, *req.CustomerID).Scan(&exists)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return nil, fmt.Errorf("customer id %d not found", *req.CustomerID)
+			}
+			return nil, fmt.Errorf("failed to validate customer identity: %w", err)
+		}
+	}
+
 	// 1. PHASE ONE: BULK READ
 	branchItemIDs := make([]int, 0, len(req.Items))
 	for _, item := range req.Items {
@@ -177,6 +197,34 @@ func (r *TransactionRepo) ExecutePurchaseTx(
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
+
+	// 0. PRE-PHASE: IDENTITY VALIDATION
+	var exists int
+	if req.BranchID != nil {
+		err = tx.QueryRow(ctx, `SELECT 1 FROM branches WHERE id = $1`, *req.BranchID).Scan(&exists)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return nil, fmt.Errorf("branch id %d not found", *req.BranchID)
+			}
+			return nil, fmt.Errorf("failed to validate branch identity: %w", err)
+		}
+	} else if req.WarehouseID != nil {
+		err = tx.QueryRow(ctx, `SELECT 1 FROM warehouses WHERE id = $1`, *req.WarehouseID).Scan(&exists)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return nil, fmt.Errorf("warehouse id %d not found", *req.WarehouseID)
+			}
+			return nil, fmt.Errorf("failed to validate warehouse identity: %w", err)
+		}
+	}
+
+	err = tx.QueryRow(ctx, `SELECT 1 FROM suppliers WHERE id = $1`, req.SupplierID).Scan(&exists)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("supplier id %d not found", req.SupplierID)
+		}
+		return nil, fmt.Errorf("failed to validate supplier identity: %w", err)
+	}
 
 	// 1. PHASE ONE: BULK READ & GLOBAL STOCK CALCULATION
 	itemIDs := make([]int, 0, len(req.Items))
@@ -380,6 +428,32 @@ func (r *TransactionRepo) ExecuteTransferTx(
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
+
+	// 0. PRE-PHASE: IDENTITY VALIDATION
+	var exists int
+	if req.SourceType == "branch" {
+		err = tx.QueryRow(ctx, `SELECT 1 FROM branches WHERE id = $1`, req.SourceID).Scan(&exists)
+	} else {
+		err = tx.QueryRow(ctx, `SELECT 1 FROM warehouses WHERE id = $1`, req.SourceID).Scan(&exists)
+	}
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("source %s id %d not found", req.SourceType, req.SourceID)
+		}
+		return nil, fmt.Errorf("failed to validate source identity: %w", err)
+	}
+
+	if req.DestType == "branch" {
+		err = tx.QueryRow(ctx, `SELECT 1 FROM branches WHERE id = $1`, req.DestID).Scan(&exists)
+	} else {
+		err = tx.QueryRow(ctx, `SELECT 1 FROM warehouses WHERE id = $1`, req.DestID).Scan(&exists)
+	}
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("destination %s id %d not found", req.DestType, req.DestID)
+		}
+		return nil, fmt.Errorf("failed to validate destination identity: %w", err)
+	}
 
 	// 1. PHASE ONE: BULK READ & LOCK (SOURCE & DEST)
 	itemIDs := make([]int, 0, len(req.Items))
