@@ -20,13 +20,13 @@ INSERT INTO branches (tenant_id, phone, name, address, opening_balance) VALUES
     (2, '082222222222', 'Cabang Malang',   'Jl. Ijen No.7, Malang',       2500000);
 
 -- Items (3 per tenant)
-INSERT INTO items (tenant_id, name, sku, price, description) VALUES
-    (1, 'Kopi Robusta',  'KOP-001', 25000, 'Kopi robusta premium 200g'),
-    (1, 'Teh Hijau',     'TEH-001', 15000, 'Teh hijau organik 100g'),
-    (1, 'Gula Pasir',    'GUL-001',  8000, 'Gula pasir 500g'),
-    (2, 'Beras Premium', 'BRS-001', 65000, 'Beras putih pulen 5kg'),
-    (2, 'Minyak Goreng', 'MYK-001', 20000, 'Minyak goreng 1L'),
-    (2, 'Tepung Terigu', 'TPG-001', 12000, 'Tepung terigu serbaguna 1kg');
+INSERT INTO items (tenant_id, name, sku, cost, price, description) VALUES
+    (1, 'Kopi Robusta',  'KOP-001', 25000, 30000, 'Kopi robusta premium 200g'),
+    (1, 'Teh Hijau',     'TEH-001', 15000, 20000, 'Teh hijau organik 100g'),
+    (1, 'Gula Pasir',    'GUL-001',  8000, 10000, 'Gula pasir 500g'),
+    (2, 'Beras Premium', 'BRS-001', 65000, 75000, 'Beras putih pulen 5kg'),
+    (2, 'Minyak Goreng', 'MYK-001', 20000, 25000, 'Minyak goreng 1L'),
+    (2, 'Tepung Terigu', 'TPG-001', 12000, 15000, 'Tepung terigu serbaguna 1kg');
 
 -- Warehouse stock
 INSERT INTO warehouse_items (tenant_id, warehouse_id, item_id, stock) VALUES

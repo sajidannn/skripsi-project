@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/sajidannn/pos-api/internal/apierr"
 	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
@@ -30,16 +29,7 @@ func (h *TransactionHandler) CreateSale(c *gin.Context) {
 		return
 	}
 
-	// Retrieve user_id from the JWT claims to record who processed the real sale
-	userID := 0
-	claims, exists := c.Get("claims")
-	if exists {
-		if mapClaims, ok := claims.(jwt.MapClaims); ok {
-			if idFloat, ok := mapClaims["user_id"].(float64); ok {
-				userID = int(idFloat)
-			}
-		}
-	}
+	userID := c.GetInt("user_id")
 
 	if userID == 0 {
 		_ = c.Error(apierr.Unauthorized("unable to resolve user_id from token"))

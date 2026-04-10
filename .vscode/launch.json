@@ -1,0 +1,42 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "POS API: Single-DB",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/api/cmd/server",
+            "cwd": "${workspaceFolder}/api",
+            "env": {
+                "PORT": "8080",
+                "DEBUG": "true",
+                "DB_MODE": "single",
+                "SINGLE_DSN": "postgres://postgres:supersecret@192.168.10.243:5432/pos_single?sslmode=disable",
+                "JWT_SECRET": "change-me-in-production"
+            },
+            "showLog": true
+        },
+        {
+            "name": "POS API: Multi-DB",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/api/cmd/server",
+            "cwd": "${workspaceFolder}/api",
+            "env": {
+                "PORT": "8080",
+                "DEBUG": "true",
+                "DB_MODE": "multi",
+                "MASTER_DSN": "postgres://postgres:supersecret@192.168.10.243:5433/pos_master?sslmode=disable",
+                "TENANT_DB_HOST": "localhost",
+                "TENANT_DB_PORT": "6432",
+                "JWT_SECRET": "change-me-in-production"
+            },
+            "showLog": true
+        }
+    ]
+}

@@ -1061,6 +1061,52 @@
         }
       ],
       "id": "68405302-173f-4f1a-8c95-e93bedbb29ca"
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "create sale",
+          "id": "2de067b1-4f9e-4e8c-843f-5d6c8b9d0a1b",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branch_id\": 1,\n  \"customer_id\": null,\n  \"tax\": 0,\n  \"discount\": 0,\n  \"note\": \"test sale\",\n  \"items\": [\n    { \"branch_item_id\": 1, \"qty\": 2 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/transactions/sale",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions",
+                "sale"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "e3b4a56c-7d8e-4f9a-b0c1-d2e3f4a5b6c7"
     }
   ]
 }
