@@ -9,6 +9,7 @@ import (
 	"github.com/sajidannn/pos-api/internal/model"
 	"github.com/sajidannn/pos-api/internal/repository"
 	"github.com/sajidannn/pos-api/internal/tenant"
+	"github.com/shopspring/decimal"
 )
 
 // TransactionService handles business logic for all POS transactions.
@@ -31,7 +32,7 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID int, req dto
 	// Definition of Business Rule / Calculation Closure.
 	// This function receives raw data from DB and returns pure Final Output without knowing about Postgres.
 	calculateSaleFn := func(loadedDbItems map[int]model.ProcessSaleItem) (model.FinalSaleAggregate, error) {
-		var trxTotalAmount float64
+		var trxTotalAmount decimal.Decimal
 		var finalDetails []model.TransactionDetail
 
 		// 1. Process Mathematical Validations & Subtotals
@@ -47,8 +48,8 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID int, req dto
 			}
 
 			// Calculate Subtotal
-			subtotal := float64(reqItem.Qty) * dbItem.Price
-			trxTotalAmount += subtotal
+			subtotal := decimal.NewFromInt(int64(reqItem.Qty)).Mul(dbItem.Price)
+			trxTotalAmount = trxTotalAmount.Add(subtotal)
 
 			// Store Detail for saving
 			branchItemIDProxy := reqItem.BranchItemID
@@ -62,18 +63,18 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID int, req dto
 		}
 
 		// 2. Finalize Master Level Calculations
-		trxTotalAmount = trxTotalAmount + req.Tax - req.Discount
-		
+		trxTotalAmount = trxTotalAmount.Add(req.Tax).Sub(req.Discount)
+
 		// Optional Business Rule: Prevent total from going negative
-		if trxTotalAmount < 0 {
-			trxTotalAmount = 0
+		if trxTotalAmount.IsNegative() {
+			trxTotalAmount = decimal.Zero
 		}
 
 		// Optional Business Rule: Discount cannot be more than 50% of the raw subtotal sum
 		// (Example of logic that easily belongs in Service)
-		// rawSubtotal := float64(0)
-		// for _, d := range finalDetails { rawSubtotal += d.Subtotal }
-		// if req.Discount > rawSubtotal * 0.5 { return ... error }
+		// rawSubtotal := decimal.Zero
+		// for _, d := range finalDetails { rawSubtotal = rawSubtotal.Add(d.Subtotal) }
+		// if req.Discount.GreaterThan(rawSubtotal.Mul(decimal.NewFromFloat(0.5))) { return ... error }
 
 		return model.FinalSaleAggregate{
 			TotalAmount: trxTotalAmount,
@@ -99,9 +100,9 @@ func (s *TransactionService) CreatePurchase(ctx context.Context, userID int, req
 
 	// Closure for Weighted Average Cost calculation
 	calculatePurchaseFn := func(loadedDbItems map[int]model.ProcessPurchaseItem) (model.FinalPurchaseAggregate, error) {
-		var trxTotalAmount float64
+		var trxTotalAmount decimal.Decimal
 		var finalDetails []model.TransactionDetail
-		newCosts := make(map[int]float64)
+		newCosts := make(map[int]decimal.Decimal)
 
 		for _, reqItem := range req.Items {
 			dbItem, exists := loadedDbItems[reqItem.ItemID]
@@ -110,18 +111,18 @@ func (s *TransactionService) CreatePurchase(ctx context.Context, userID int, req
 			}
 
 			// 1. Logic Weighted Average Cost (WAC)
-			totalQtyOld := float64(dbItem.GlobalStock)
-			totalCostOld := totalQtyOld * dbItem.ExistingCost
-			
-			totalQtyNew := float64(reqItem.Qty)
-			totalCostNew := totalQtyNew * reqItem.Cost
-			
-			newWAC := (totalCostOld + totalCostNew) / (totalQtyOld + totalQtyNew)
+			qtyOld := decimal.NewFromInt(int64(dbItem.GlobalStock))
+			totalCostOld := qtyOld.Mul(dbItem.ExistingCost)
+
+			qtyNew := decimal.NewFromInt(int64(reqItem.Qty))
+			totalCostNew := qtyNew.Mul(reqItem.Cost)
+
+			newWAC := totalCostOld.Add(totalCostNew).Div(qtyOld.Add(qtyNew))
 			newCosts[reqItem.ItemID] = newWAC
 
 			// 2. Subtotal and Details
-			subtotal := totalQtyNew * reqItem.Cost
-			trxTotalAmount += subtotal
+			subtotal := qtyNew.Mul(reqItem.Cost)
+			trxTotalAmount = trxTotalAmount.Add(subtotal)
 
 			detail := model.TransactionDetail{
 				Quantity: reqItem.Qty,
@@ -129,7 +130,7 @@ func (s *TransactionService) CreatePurchase(ctx context.Context, userID int, req
 				Price:    reqItem.Cost,
 				Subtotal: subtotal,
 			}
-			
+
 			// Map item_id to the pointer so repo can resolve locID
 			itemIDProxy := reqItem.ItemID
 			if req.BranchID != nil {
@@ -137,14 +138,14 @@ func (s *TransactionService) CreatePurchase(ctx context.Context, userID int, req
 			} else {
 				detail.WarehouseItemID = &itemIDProxy
 			}
-			
+
 			finalDetails = append(finalDetails, detail)
 		}
 
 		// 3. Finalize Master Level Calculations
-		trxTotalAmount = trxTotalAmount + req.Tax - req.Discount
-		if trxTotalAmount < 0 {
-			trxTotalAmount = 0
+		trxTotalAmount = trxTotalAmount.Add(req.Tax).Sub(req.Discount)
+		if trxTotalAmount.IsNegative() {
+			trxTotalAmount = decimal.Zero
 		}
 
 		return model.FinalPurchaseAggregate{
@@ -187,7 +188,7 @@ func (s *TransactionService) CreateTransfer(ctx context.Context, userID int, req
 
 			// Value of transfer inherited from master cost
 			valuation := dbItem.ExistingCost
-			subtotal := float64(reqItem.Qty) * valuation
+			subtotal := decimal.NewFromInt(int64(reqItem.Qty)).Mul(valuation)
 
 			// Prepare TRFO (Transfer Out)
 			outDetail := model.TransactionDetail{

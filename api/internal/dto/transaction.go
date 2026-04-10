@@ -1,6 +1,10 @@
 package dto
 
-import "time"
+import (
+	"time"
+
+	"github.com/shopspring/decimal"
+)
 
 // ── Request ──────────────────────────────────────────────────────────────────
 
@@ -15,17 +19,17 @@ type SaleItemRequest struct {
 type CreateSaleRequest struct {
 	BranchID   int               `json:"branch_id"   binding:"required"`
 	CustomerID *int              `json:"customer_id" binding:"omitempty"` // Walk-in customers might not have an ID
-	Tax        float64           `json:"tax"         binding:"min=0"`
-	Discount   float64           `json:"discount"    binding:"min=0"`
+	Tax        decimal.Decimal   `json:"tax"         binding:"min=0"`
+	Discount   decimal.Decimal   `json:"discount"    binding:"min=0"`
 	Note       string            `json:"note"        binding:"omitempty,max=1000"`
 	Items      []SaleItemRequest `json:"items"       binding:"required,min=1,dive"`
 }
 
 // PurchaseItemRequest defines a single item inside a purchase payload.
 type PurchaseItemRequest struct {
-	ItemID int     `json:"item_id" binding:"required"`
-	Cost   float64 `json:"cost"    binding:"required,min=0"`
-	Qty    int     `json:"qty"     binding:"required,min=1"`
+	ItemID int             `json:"item_id" binding:"required"`
+	Cost   decimal.Decimal `json:"cost"    binding:"required,min=0"`
+	Qty    int             `json:"qty"     binding:"required,min=1"`
 }
 
 // CreatePurchaseRequest is the validated HTTP request body for POST /transactions/purchase.
@@ -33,8 +37,8 @@ type CreatePurchaseRequest struct {
 	WarehouseID *int                  `json:"warehouse_id" binding:"required_without=BranchID"`
 	BranchID    *int                  `json:"branch_id"    binding:"required_without=WarehouseID"`
 	SupplierID  int                   `json:"supplier_id"  binding:"required"`
-	Tax         float64               `json:"tax"          binding:"min=0"`
-	Discount    float64               `json:"discount"     binding:"min=0"`
+	Tax         decimal.Decimal       `json:"tax"          binding:"min=0"`
+	Discount    decimal.Decimal       `json:"discount"     binding:"min=0"`
 	Note        string                `json:"note"         binding:"omitempty,max=1000"`
 	Items       []PurchaseItemRequest `json:"items"        binding:"required,min=1,dive"`
 }
@@ -59,11 +63,11 @@ type CreateTransferRequest struct {
 
 // TransactionItemResponse structures details inside the transacion response.
 type TransactionItemResponse struct {
-	BranchItemID    *int    `json:"branch_item_id,omitempty"`
-	WarehouseItemID *int    `json:"warehouse_item_id,omitempty"`
-	Quantity        int     `json:"quantity"`
-	Price           float64 `json:"price"`     // The price they actually bought it for
-	Subtotal        float64 `json:"subtotal"`  // qty * price
+	BranchItemID    *int            `json:"branch_item_id,omitempty"`
+	WarehouseItemID *int            `json:"warehouse_item_id,omitempty"`
+	Quantity        int             `json:"quantity"`
+	Price           decimal.Decimal `json:"price"`    // The price they actually bought it for
+	Subtotal        decimal.Decimal `json:"subtotal"` // qty * price
 }
 
 // TransactionResponse is the generic outbound representation of a Transaction.
@@ -77,9 +81,9 @@ type TransactionResponse struct {
 	CustomerID  *int                      `json:"customer_id,omitempty"`
 	SupplierID  *int                      `json:"supplier_id,omitempty"`
 	UserID      *int                      `json:"user_id,omitempty"`
-	Tax         float64                   `json:"tax"`
-	Discount    float64                   `json:"discount"`
-	TotalAmount float64                   `json:"total_amount"` // Include tax and discount
+	Tax         decimal.Decimal           `json:"tax"`
+	Discount    decimal.Decimal           `json:"discount"`
+	TotalAmount decimal.Decimal           `json:"total_amount"` // Include tax and discount
 	Note        string                    `json:"note,omitempty"`
 	CreatedAt   time.Time                 `json:"created_at"`
 	Details     []TransactionItemResponse `json:"details"`

@@ -9,6 +9,7 @@ import (
 	"github.com/sajidannn/pos-api/internal/db/multidb"
 	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
+	"github.com/shopspring/decimal"
 )
 
 // TransactionRepo implements repository.TransactionRepository for multi-DB mode.
@@ -62,13 +63,13 @@ func (r *TransactionRepo) ExecuteSaleTx(
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulk lookup branch items: %w", err)
 	}
-	
+
 	for rows.Next() {
 		var (
 			bID   int
 			stock int
-			cost  float64
-			price float64
+			cost  decimal.Decimal
+			price decimal.Decimal
 		)
 		if err := rows.Scan(&bID, &stock, &cost, &price); err != nil {
 			rows.Close()
@@ -84,7 +85,7 @@ func (r *TransactionRepo) ExecuteSaleTx(
 	}
 	rows.Close()
 
-	// 2. PHASE TWO: EXECUTE BUSINESS LOGIC CLOSURE 
+	// 2. PHASE TWO: EXECUTE BUSINESS LOGIC CLOSURE
 	finalAggregate, err := processFn(loadedDbItems)
 	if err != nil {
 		return nil, err
@@ -192,7 +193,7 @@ func (r *TransactionRepo) ExecutePurchaseTx(
 	}
 	for rows.Next() {
 		var id int
-		var cost float64
+		var cost decimal.Decimal
 		if err := rows.Scan(&id, &cost); err != nil {
 			rows.Close()
 			return nil, err
@@ -387,7 +388,7 @@ func (r *TransactionRepo) ExecuteTransferTx(
 	}
 
 	loadedDbItems := make(map[int]model.ProcessTransferItem)
-	
+
 	// A. Load Master Item Info
 	rows, err := tx.Query(ctx, `SELECT id, cost FROM items WHERE id = ANY($1)`, itemIDs)
 	if err != nil {
@@ -395,7 +396,7 @@ func (r *TransactionRepo) ExecuteTransferTx(
 	}
 	for rows.Next() {
 		var id int
-		var cost float64
+		var cost decimal.Decimal
 		if err := rows.Scan(&id, &cost); err != nil {
 			rows.Close()
 			return nil, err
@@ -452,7 +453,7 @@ func (r *TransactionRepo) ExecuteTransferTx(
 		if err != nil {
 			return nil, fmt.Errorf("failed to ensure dest location record: %w", err)
 		}
-		
+
 		ptr := loadedDbItems[id]
 		ptr.DestStock = destStock
 		ptr.DestItemLocID = destLocID

@@ -54,13 +54,13 @@ func (r *BranchRepo) Update(ctx context.Context, tenantID, id int, req dto.Updat
 	err := r.db.QueryRow(ctx,
 		`UPDATE branches
 		 SET name = COALESCE($1, name),
-			phone = COALESCE($2, phone),
-			address = COALESCE($3, address),
-			opening_balance = COALESCE($4, opening_balance)
-		 WHERE id = $5 AND tenant_id = $6
-		 RETURNING id, tenant_id, name, phone, address, opening_balance, created_at`,
-		req.Name, req.Phone, req.Address, req.OpeningBalance, id, tenantID,
-	).Scan(&b.ID, &b.TenantID, &b.Name, &b.Phone, &b.Address, &b.OpeningBalance, &b.CreatedAt)
+    phone = COALESCE($2, phone),
+    address = COALESCE($3, address),
+    opening_balance = COALESCE($4, opening_balance)
+ WHERE id = $5 AND tenant_id = $6
+ RETURNING id, tenant_id, name, phone, address, opening_balance, created_at`,
+req.Name, req.Phone, req.Address, req.OpeningBalance, id, tenantID,
+).Scan(&b.ID, &b.TenantID, &b.Name, &b.Phone, &b.Address, &b.OpeningBalance, &b.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("singledb.BranchRepo.Update: %w", err)
 	}

@@ -1,6 +1,10 @@
 package dto
 
-import "time"
+import (
+	"time"
+
+	"github.com/shopspring/decimal"
+)
 
 // ── Filter ────────────────────────────────────────────────────────────────────
 
@@ -20,12 +24,12 @@ type ItemFilter struct {
 	SKU string `form:"sku"`
 
 	// MinCost / MaxCost bound the cost column (inclusive).
-	MinCost float64 `form:"min_cost"`
-	MaxCost float64 `form:"max_cost"`
+	MinCost decimal.Decimal `form:"min_cost"`
+	MaxCost decimal.Decimal `form:"max_cost"`
 
 	// MinPrice / MaxPrice bound the price column (inclusive).
-	MinPrice float64 `form:"min_price"`
-	MaxPrice float64 `form:"max_price"`
+	MinPrice decimal.Decimal `form:"min_price"`
+	MaxPrice decimal.Decimal `form:"max_price"`
 
 	// DateFrom / DateTo bound the created_at column (inclusive).
 	// Expected format: YYYY-MM-DD (parsed by the handler).
@@ -37,32 +41,32 @@ type ItemFilter struct {
 
 // CreateItemRequest is the validated HTTP request body for POST /items.
 type CreateItemRequest struct {
-	Name        string  `json:"name"        binding:"required,min=1,max=255"`
-	SKU         string  `json:"sku"         binding:"omitempty,max=100"`
-	Cost        float64 `json:"cost"        binding:"required,min=0"`
-	Price       float64 `json:"price"       binding:"required,min=0"`
-	Description string  `json:"description" binding:"omitempty,max=1000"`
+	Name        string          `json:"name"        binding:"required,min=1,max=255"`
+	SKU         string          `json:"sku"         binding:"omitempty,max=100"`
+	Cost        decimal.Decimal `json:"cost"        binding:"required"`
+	Price       decimal.Decimal `json:"price"       binding:"required"`
+	Description string          `json:"description" binding:"omitempty,max=1000"`
 }
 
 // UpdateItemRequest is the validated HTTP request body for PUT /items/:id.
 type UpdateItemRequest struct {
-	Name        string   `json:"name"        binding:"omitempty,min=1,max=255"`
-	SKU         string   `json:"sku"         binding:"omitempty,max=100"`
-	Cost        *float64 `json:"cost"       binding:"omitempty,min=0"`
-	Price       *float64 `json:"price"      binding:"omitempty,min=0"`
-	Description string   `json:"description" binding:"omitempty,max=1000"`
+	Name        string           `json:"name"        binding:"omitempty,min=1,max=255"`
+	SKU         string           `json:"sku"         binding:"omitempty,max=100"`
+	Cost        *decimal.Decimal `json:"cost"        binding:"omitempty"`
+	Price       *decimal.Decimal `json:"price"       binding:"omitempty"`
+	Description string           `json:"description" binding:"omitempty,max=1000"`
 }
 
 // ── Response ─────────────────────────────────────────────────────────────────
 
 // ItemResponse is the outbound representation of a catalogue item.
 type ItemResponse struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name"`
-	SKU         string    `json:"sku"`
-	Cost        float64   `json:"cost"`
-	Price       float64   `json:"price"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          int             `json:"id"`
+	Name        string          `json:"name"`
+	SKU         string          `json:"sku"`
+	Cost        decimal.Decimal `json:"cost"`
+	Price       decimal.Decimal `json:"price"`
+	Description string          `json:"description"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
 }

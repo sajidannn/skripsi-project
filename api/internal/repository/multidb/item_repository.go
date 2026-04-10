@@ -88,21 +88,21 @@ func (r *ItemRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dt
 	}
 
 	// cost range
-	if f.MinCost > 0 {
+	if !f.MinCost.IsZero() {
 		args = append(args, f.MinCost)
 		where += fmt.Sprintf(" AND cost >= $%d", len(args))
 	}
-	if f.MaxCost > 0 {
+	if !f.MaxCost.IsZero() {
 		args = append(args, f.MaxCost)
 		where += fmt.Sprintf(" AND cost <= $%d", len(args))
 	}
 
 	// price range
-	if f.MinPrice > 0 {
+	if !f.MinPrice.IsZero() {
 		args = append(args, f.MinPrice)
 		where += fmt.Sprintf(" AND price >= $%d", len(args))
 	}
-	if f.MaxPrice > 0 {
+	if !f.MaxPrice.IsZero() {
 		args = append(args, f.MaxPrice)
 		where += fmt.Sprintf(" AND price <= $%d", len(args))
 	}
@@ -167,8 +167,8 @@ func (r *ItemRepo) Update(ctx context.Context, tenantID, id int, req dto.UpdateI
 		`UPDATE items
 		 SET name        = COALESCE(NULLIF($1,''), name),
 		     sku         = COALESCE(NULLIF($2,''), sku),
-			 cost		 = CASE WHEN $3 > 0 THEN $3 ELSE cost END,
-		     price       = CASE WHEN $4 > 0 THEN $4 ELSE price END,
+			 cost		 = CASE WHEN NOT $3::numeric = 0 THEN $3 ELSE cost END,
+		     price       = CASE WHEN NOT $4::numeric = 0 THEN $4 ELSE price END,
 		     description = COALESCE(NULLIF($5,''), description),
 		     updated_at  = NOW()
 		 WHERE id = $6

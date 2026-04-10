@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
+	"github.com/shopspring/decimal"
 )
 
 // TransactionRepo implements repository.TransactionRepository for single-DB mode.
@@ -64,8 +65,8 @@ func (r *TransactionRepo) ExecuteSaleTx(
 		var (
 			bID   int
 			stock int
-			cost  float64
-			price float64
+			cost  decimal.Decimal
+			price decimal.Decimal
 		)
 		if err := rows.Scan(&bID, &stock, &cost, &price); err != nil {
 			rows.Close() // ALWAYS close early if manually returning
@@ -195,7 +196,7 @@ func (r *TransactionRepo) ExecutePurchaseTx(
 	}
 	for rows.Next() {
 		var id int
-		var cost float64
+		var cost decimal.Decimal
 		if err := rows.Scan(&id, &cost); err != nil {
 			rows.Close()
 			return nil, err
@@ -302,7 +303,7 @@ func (r *TransactionRepo) ExecutePurchaseTx(
 	// B. Batch Insert Details and Update Stocks
 	for _, detail := range finalAggregate.Details {
 		// Because we resolved locationItemIDs in Phase 1, we can now use them.
-		
+
 		var locID int
 		if req.BranchID != nil {
 			locID = locationItemIDs[*detail.BranchItemID] // Service stored item_id here
@@ -390,7 +391,7 @@ func (r *TransactionRepo) ExecuteTransferTx(
 	}
 
 	loadedDbItems := make(map[int]model.ProcessTransferItem)
-	
+
 	// A. Load Master Item Info (Existing Cost)
 	rows, err := tx.Query(ctx, `SELECT id, cost FROM items WHERE id = ANY($1) AND tenant_id = $2`, itemIDs, tenantID)
 	if err != nil {
@@ -398,7 +399,7 @@ func (r *TransactionRepo) ExecuteTransferTx(
 	}
 	for rows.Next() {
 		var id int
-		var cost float64
+		var cost decimal.Decimal
 		if err := rows.Scan(&id, &cost); err != nil {
 			rows.Close()
 			return nil, err
@@ -455,7 +456,7 @@ func (r *TransactionRepo) ExecuteTransferTx(
 		if err != nil {
 			return nil, fmt.Errorf("failed to ensure dest location record: %w", err)
 		}
-		
+
 		ptr := loadedDbItems[id]
 		ptr.DestStock = destStock
 		ptr.DestItemLocID = destLocID

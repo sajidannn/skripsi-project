@@ -166,6 +166,7 @@ func toItemResponse(it *model.Item) dto.ItemResponse {
 		ID:          it.ID,
 		Name:        it.Name,
 		SKU:         it.SKU,
+		Cost:        it.Cost,
 		Price:       it.Price,
 		Description: it.Description,
 		CreatedAt:   it.CreatedAt,
