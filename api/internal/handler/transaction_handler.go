@@ -45,6 +45,42 @@ func (h *TransactionHandler) CreateSale(c *gin.Context) {
 	c.JSON(http.StatusCreated, dto.Success(toTransactionResponse(trx)))
 }
 
+// CreatePurchase handles POST /api/v1/transactions/purchase.
+func (h *TransactionHandler) CreatePurchase(c *gin.Context) {
+	var req dto.CreatePurchaseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(apierr.BadRequest(err.Error()))
+		return
+	}
+
+	userID := c.GetInt("user_id")
+	res, err := h.svc.CreatePurchase(c.Request.Context(), userID, req)
+	if err != nil {
+		_ = c.Error(apierr.Wrap(err, "failed to create purchase"))
+		return
+	}
+
+	c.JSON(http.StatusCreated, dto.Success(toTransactionResponse(res)))
+}
+
+// CreateTransfer handles POST /api/v1/transactions/transfer.
+func (h *TransactionHandler) CreateTransfer(c *gin.Context) {
+	var req dto.CreateTransferRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(apierr.BadRequest(err.Error()))
+		return
+	}
+
+	userID := c.GetInt("user_id")
+	res, err := h.svc.CreateTransfer(c.Request.Context(), userID, req)
+	if err != nil {
+		_ = c.Error(apierr.Wrap(err, "failed to create transfer"))
+		return
+	}
+
+	c.JSON(http.StatusCreated, dto.Success(toTransactionResponse(res)))
+}
+
 // toTransactionResponse maps internal model to DTO response
 func toTransactionResponse(trx *model.Transaction) dto.TransactionResponse {
 	resp := dto.TransactionResponse{

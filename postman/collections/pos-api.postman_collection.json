@@ -1088,7 +1088,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"branch_id\": 1,\n  \"customer_id\": null,\n  \"tax\": 0,\n  \"discount\": 0,\n  \"note\": \"test sale\",\n  \"items\": [\n    { \"branch_item_id\": 1, \"qty\": 2 }\n  ]\n}"
+              "raw": "{\n    \"branch_id\": 1,\n    \"customer_id\": null,\n    \"tax\": 0,\n    \"discount\": 0,\n    \"note\": \"test sale\",\n    \"items\": [\n        {\n            \"branch_item_id\": 2,\n            \"qty\": 6\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{host}}/api/v1/transactions/sale",
@@ -1100,6 +1100,86 @@
                 "v1",
                 "transactions",
                 "sale"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "create purchase",
+          "id": "7f8e9d0a-1b2c-3d4e-5f6g-7h8i9j0k1l2m",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"warehouse_id\": 1,\n    \"branch_id\": 1,\n    \"supplier_id\": 1,\n    \"tax\": 0,\n    \"discount\": 0,\n    \"note\": \"test purchase into warehouse\",\n    \"items\": [\n        {\n            \"item_id\": 1,\n            \"cost\": 26000,\n            \"qty\": 101\n        },\n        {\n            \"item_id\": 2,\n            \"cost\": 15500,\n            \"qty\": 54\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/transactions/purchase",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions",
+                "purchase"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "create transfer",
+          "id": "1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"source_type\": \"warehouse\",\n    \"source_id\": 1,\n    \"dest_type\": \"branch\",\n    \"dest_id\": 1,\n    \"note\": \"test transfer from WH 1 to Branch 1\",\n    \"items\": [\n        {\n            \"item_id\": 1,\n            \"qty\": 10\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/transactions/transfer",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions",
+                "transfer"
               ]
             }
           },

@@ -96,3 +96,36 @@ type FinalSaleAggregate struct {
 	TotalAmount float64
 	Details     []TransactionDetail
 }
+
+// ProcessPurchaseItem represents the read-only DB data fetched by the Repository
+// and provided to the Service for WAC calculation.
+type ProcessPurchaseItem struct {
+	ItemID       int
+	GlobalStock  int     // Sum of stock from all branches and warehouses
+	ExistingCost float64 // Current master cost in items table
+}
+
+// FinalPurchaseAggregate represents the business calculation result for a purchase
+// returned by the Service closure back to the Repository for execution.
+type FinalPurchaseAggregate struct {
+	TotalAmount float64
+	Details     []TransactionDetail
+	NewCosts    map[int]float64 // Map of item_id -> new average cost
+}
+
+// ProcessTransferItem represents the read-only DB data fetched by the Repository
+// for source and destination locations to validate stock and get COGS.
+type ProcessTransferItem struct {
+	ItemID        int
+	SourceStock   int
+	DestStock     int
+	SourceItemLocID int // branch_item_id or warehouse_item_id of source
+	DestItemLocID   int // branch_item_id or warehouse_item_id of dest
+	ExistingCost  float64
+}
+
+// FinalTransferAggregate represents the business calculation result for a transfer.
+type FinalTransferAggregate struct {
+	SourceDetails []TransactionDetail
+	DestDetails   []TransactionDetail
+}

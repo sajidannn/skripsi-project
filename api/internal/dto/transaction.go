@@ -21,6 +21,40 @@ type CreateSaleRequest struct {
 	Items      []SaleItemRequest `json:"items"       binding:"required,min=1,dive"`
 }
 
+// PurchaseItemRequest defines a single item inside a purchase payload.
+type PurchaseItemRequest struct {
+	ItemID int     `json:"item_id" binding:"required"`
+	Cost   float64 `json:"cost"    binding:"required,min=0"`
+	Qty    int     `json:"qty"     binding:"required,min=1"`
+}
+
+// CreatePurchaseRequest is the validated HTTP request body for POST /transactions/purchase.
+type CreatePurchaseRequest struct {
+	WarehouseID *int                  `json:"warehouse_id" binding:"required_without=BranchID"`
+	BranchID    *int                  `json:"branch_id"    binding:"required_without=WarehouseID"`
+	SupplierID  int                   `json:"supplier_id"  binding:"required"`
+	Tax         float64               `json:"tax"          binding:"min=0"`
+	Discount    float64               `json:"discount"     binding:"min=0"`
+	Note        string                `json:"note"         binding:"omitempty,max=1000"`
+	Items       []PurchaseItemRequest `json:"items"        binding:"required,min=1,dive"`
+}
+
+// TransferItemRequest defines a single item inside a transfer payload.
+type TransferItemRequest struct {
+	ItemID int `json:"item_id" binding:"required"`
+	Qty    int `json:"qty"     binding:"required,min=1"`
+}
+
+// CreateTransferRequest is the validated HTTP request body for POST /transactions/transfer.
+type CreateTransferRequest struct {
+	SourceType string                `json:"source_type" binding:"required,oneof=branch warehouse"`
+	SourceID   int                   `json:"source_id"   binding:"required"`
+	DestType   string                `json:"dest_type"   binding:"required,oneof=branch warehouse"`
+	DestID     int                   `json:"dest_id"     binding:"required"`
+	Note       string                `json:"note"        binding:"omitempty,max=1000"`
+	Items      []TransferItemRequest `json:"items"       binding:"required,min=1,dive"`
+}
+
 // ── Response ─────────────────────────────────────────────────────────────────
 
 // TransactionItemResponse structures details inside the transacion response.

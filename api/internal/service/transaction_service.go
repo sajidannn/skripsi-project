@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/sajidannn/pos-api/internal/apierr"
 	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
 	"github.com/sajidannn/pos-api/internal/repository"
@@ -37,12 +38,12 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID int, req dto
 		for _, reqItem := range req.Items {
 			dbItem, exists := loadedDbItems[reqItem.BranchItemID]
 			if !exists {
-				return model.FinalSaleAggregate{}, fmt.Errorf("item with id %d not found in loaded data", reqItem.BranchItemID)
+				return model.FinalSaleAggregate{}, apierr.NotFound(fmt.Sprintf("item with id %d not found in loaded data", reqItem.BranchItemID))
 			}
 
 			// Validate Stock domain rule
 			if dbItem.AvailableQty < reqItem.Qty {
-				return model.FinalSaleAggregate{}, fmt.Errorf("insufficient stock for item %d: available %d, requested %d", dbItem.BranchItemID, dbItem.AvailableQty, reqItem.Qty)
+				return model.FinalSaleAggregate{}, apierr.BadRequest(fmt.Sprintf("insufficient stock for item %d: available %d, requested %d", dbItem.BranchItemID, dbItem.AvailableQty, reqItem.Qty))
 			}
 
 			// Calculate Subtotal
@@ -82,4 +83,146 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID int, req dto
 
 	// 3. Delegate execution to Repository using the defined logic
 	return s.repo.ExecuteSaleTx(ctx, tenantID, userID, req, calculateSaleFn)
+}
+
+// CreatePurchase handles the business logic for purchasing items from suppliers.
+func (s *TransactionService) CreatePurchase(ctx context.Context, userID int, req dto.CreatePurchaseRequest) (*model.Transaction, error) {
+	tenantID, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, apierr.Internal(err, "failed to resolve tenant")
+	}
+
+	// Validation: branch_id and warehouse_id are mutually exclusive
+	if req.BranchID != nil && req.WarehouseID != nil {
+		return nil, apierr.BadRequest("destination must be either branch_id or warehouse_id, not both")
+	}
+
+	// Closure for Weighted Average Cost calculation
+	calculatePurchaseFn := func(loadedDbItems map[int]model.ProcessPurchaseItem) (model.FinalPurchaseAggregate, error) {
+		var trxTotalAmount float64
+		var finalDetails []model.TransactionDetail
+		newCosts := make(map[int]float64)
+
+		for _, reqItem := range req.Items {
+			dbItem, exists := loadedDbItems[reqItem.ItemID]
+			if !exists {
+				return model.FinalPurchaseAggregate{}, apierr.NotFound(fmt.Sprintf("item %d not found", reqItem.ItemID))
+			}
+
+			// 1. Logic Weighted Average Cost (WAC)
+			totalQtyOld := float64(dbItem.GlobalStock)
+			totalCostOld := totalQtyOld * dbItem.ExistingCost
+			
+			totalQtyNew := float64(reqItem.Qty)
+			totalCostNew := totalQtyNew * reqItem.Cost
+			
+			newWAC := (totalCostOld + totalCostNew) / (totalQtyOld + totalQtyNew)
+			newCosts[reqItem.ItemID] = newWAC
+
+			// 2. Subtotal and Details
+			subtotal := totalQtyNew * reqItem.Cost
+			trxTotalAmount += subtotal
+
+			detail := model.TransactionDetail{
+				Quantity: reqItem.Qty,
+				COGS:     newWAC, // New average cost becomes the reference COGS
+				Price:    reqItem.Cost,
+				Subtotal: subtotal,
+			}
+			
+			// Map item_id to the pointer so repo can resolve locID
+			itemIDProxy := reqItem.ItemID
+			if req.BranchID != nil {
+				detail.BranchItemID = &itemIDProxy
+			} else {
+				detail.WarehouseItemID = &itemIDProxy
+			}
+			
+			finalDetails = append(finalDetails, detail)
+		}
+
+		// 3. Finalize Master Level Calculations
+		trxTotalAmount = trxTotalAmount + req.Tax - req.Discount
+		if trxTotalAmount < 0 {
+			trxTotalAmount = 0
+		}
+
+		return model.FinalPurchaseAggregate{
+			TotalAmount: trxTotalAmount,
+			Details:     finalDetails,
+			NewCosts:    newCosts,
+		}, nil
+	}
+
+	return s.repo.ExecutePurchaseTx(ctx, tenantID, userID, req, calculatePurchaseFn)
+}
+
+// CreateTransfer handles the business logic for moving stock between locations.
+func (s *TransactionService) CreateTransfer(ctx context.Context, userID int, req dto.CreateTransferRequest) (*model.Transaction, error) {
+	tenantID, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, apierr.Internal(err, "failed to resolve tenant")
+	}
+
+	// 1. Validation: Prevent same source and destination
+	if req.SourceType == req.DestType && req.SourceID == req.DestID {
+		return nil, apierr.BadRequest("source and destination cannot be the same")
+	}
+
+	// 2. Closure for Stock Mutation
+	calculateTransferFn := func(loadedItems map[int]model.ProcessTransferItem) (model.FinalTransferAggregate, error) {
+		var sourceDetails []model.TransactionDetail
+		var destDetails []model.TransactionDetail
+
+		for _, reqItem := range req.Items {
+			dbItem, exists := loadedItems[reqItem.ItemID]
+			if !exists {
+				return model.FinalTransferAggregate{}, apierr.NotFound(fmt.Sprintf("item %d not found", reqItem.ItemID))
+			}
+
+			// Domain Rule: Validate source availability
+			if dbItem.SourceStock < reqItem.Qty {
+				return model.FinalTransferAggregate{}, apierr.BadRequest(fmt.Sprintf("insufficient stock for item %d at source: available %d, requested %d", reqItem.ItemID, dbItem.SourceStock, reqItem.Qty))
+			}
+
+			// Value of transfer inherited from master cost
+			valuation := dbItem.ExistingCost
+			subtotal := float64(reqItem.Qty) * valuation
+
+			// Prepare TRFO (Transfer Out)
+			outDetail := model.TransactionDetail{
+				Quantity: reqItem.Qty,
+				COGS:     valuation,
+				Price:    valuation,
+				Subtotal: subtotal,
+			}
+			if req.SourceType == "branch" {
+				outDetail.BranchItemID = &dbItem.SourceItemLocID
+			} else {
+				outDetail.WarehouseItemID = &dbItem.SourceItemLocID
+			}
+			sourceDetails = append(sourceDetails, outDetail)
+
+			// Prepare TRFI (Transfer In)
+			inDetail := model.TransactionDetail{
+				Quantity: reqItem.Qty,
+				COGS:     valuation,
+				Price:    valuation,
+				Subtotal: subtotal,
+			}
+			if req.DestType == "branch" {
+				inDetail.BranchItemID = &dbItem.DestItemLocID
+			} else {
+				inDetail.WarehouseItemID = &dbItem.DestItemLocID
+			}
+			destDetails = append(destDetails, inDetail)
+		}
+
+		return model.FinalTransferAggregate{
+			SourceDetails: sourceDetails,
+			DestDetails:   destDetails,
+		}, nil
+	}
+
+	return s.repo.ExecuteTransferTx(ctx, tenantID, userID, req, calculateTransferFn)
 }
