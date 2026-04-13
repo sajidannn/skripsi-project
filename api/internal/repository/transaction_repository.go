@@ -28,7 +28,6 @@ type TransactionRepository interface {
 		processFn func(loadedItems map[int]model.ProcessPurchaseItem) (model.FinalPurchaseAggregate, error),
 	) (*model.Transaction, error)
 
-	// ExecuteTransferTx handles the DB transaction and coordination for TRANSFERS.
 	ExecuteTransferTx(
 		ctx context.Context,
 		tenantID int,
@@ -36,4 +35,27 @@ type TransactionRepository interface {
 		req dto.CreateTransferRequest,
 		processFn func(loadedItems map[int]model.ProcessTransferItem) (model.FinalTransferAggregate, error),
 	) (*model.Transaction, error)
+
+	// ExecuteReturnTx handles the DB transaction and coordination for RETURNS.
+	ExecuteReturnTx(
+		ctx context.Context,
+		tenantID int,
+		userID int,
+		req dto.CreateReturnRequest,
+		processFn func(loadedItems map[int]model.ProcessReturnItem) (model.FinalReturnAggregate, error),
+	) (*model.Transaction, error)
+
+	// ExecuteAdjustmentTx performs a bulk stock adjustment.
+	ExecuteAdjustmentTx(
+		ctx context.Context,
+		tenantID int,
+		req dto.AdjustStockRequest,
+		processFn func(currentStocks map[int]int) (map[int]int, error),
+	) error
+
+	// List returns a paginated, filtered list of transactions for the tenant.
+	List(ctx context.Context, tenantID int, q dto.PageQuery, f dto.TransactionFilter) ([]model.Transaction, int, error)
+
+	// GetByID fetches a single transaction with its details joined.
+	GetByID(ctx context.Context, tenantID, id int) (*model.Transaction, error)
 }

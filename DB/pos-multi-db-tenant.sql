@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     total_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
     tax          NUMERIC(12,2) NOT NULL DEFAULT 0,
     discount     NUMERIC(12,2) NOT NULL DEFAULT 0,
+    reference_transaction_id INT REFERENCES transactions(id),
     note         TEXT,
     created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     CHECK (branch_id IS NOT NULL OR warehouse_id IS NOT NULL)
@@ -127,7 +128,7 @@ CREATE TABLE IF NOT EXISTS audit_stock (
 );
 
 DO $$ BEGIN
-    CREATE TYPE cashflow_type AS ENUM ('SALE', 'TRANSFER', 'ADJUSTMENT');
+    CREATE TYPE cashflow_type AS ENUM ('SALE', 'TRANSFER', 'ADJUSTMENT', 'RETURN');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS branch_cashflow (
@@ -142,7 +143,7 @@ CREATE TABLE IF NOT EXISTS branch_cashflow (
 CREATE INDEX IF NOT EXISTS idx_branch_cashflow_branch ON branch_cashflow(branch_id);
 
 DO $$ BEGIN
-    CREATE TYPE tenant_flow_type AS ENUM ('SALE', 'PURC', 'WITHDRAW', 'ADJUSTMENT');
+    CREATE TYPE tenant_flow_type AS ENUM ('SALE', 'PURC', 'WITHDRAW', 'ADJUSTMENT', 'RETURN');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS tenant_cashflow (

@@ -25,6 +25,7 @@ const (
 	CflowAdjustment CashflowType = "ADJUSTMENT"
 	CflowPurch      CashflowType = "PURC"
 	CflowWithdraw   CashflowType = "WITHDRAW"
+	CflowReturn     CashflowType = "RETURN"
 )
 
 // Transaction represents the main transaction header.
@@ -41,6 +42,7 @@ type Transaction struct {
 	TotalAmount decimal.Decimal `json:"total_amount"`
 	Tax         decimal.Decimal `json:"tax"`
 	Discount    decimal.Decimal `json:"discount"`
+	ReferenceTransactionID *int `json:"reference_transaction_id,omitempty"`
 	Note        string          `json:"note,omitempty"`
 	CreatedAt   time.Time       `json:"created_at"`
 
@@ -133,3 +135,17 @@ type FinalTransferAggregate struct {
 	SourceDetails []TransactionDetail
 	DestDetails   []TransactionDetail
 }
+
+// ProcessReturnItem represents the data needed to process a return.
+type ProcessReturnItem struct {
+	BranchItemID int
+	CurrentStock int
+}
+
+// FinalReturnAggregate represents the result of return calculations.
+type FinalReturnAggregate struct {
+	TotalAmount            decimal.Decimal
+	Details                []TransactionDetail
+	ReferenceTransactionID int
+}
+

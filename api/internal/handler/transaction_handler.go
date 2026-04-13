@@ -2,6 +2,8 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sajidannn/pos-api/internal/apierr"
@@ -81,6 +83,118 @@ func (h *TransactionHandler) CreateTransfer(c *gin.Context) {
 	c.JSON(http.StatusCreated, dto.Success(toTransactionResponse(res)))
 }
 
+// CreateReturn handles POST /api/v1/transactions/return.
+func (h *TransactionHandler) CreateReturn(c *gin.Context) {
+	var req dto.CreateReturnRequest
+	if err := h.shouldBind(c, &req); err != nil {
+		return
+	}
+
+	userID := c.GetInt("user_id")
+	res, err := h.svc.CreateReturn(c.Request.Context(), userID, req)
+	if err != nil {
+		_ = c.Error(apierr.Wrap(err, "failed to create return"))
+		return
+	}
+
+	c.JSON(http.StatusCreated, dto.Success(toTransactionResponse(res)))
+}
+
+// AdjustStock handles POST /api/v1/transactions/adjust.
+func (h *TransactionHandler) AdjustStock(c *gin.Context) {
+	var req dto.AdjustStockRequest
+	if err := h.shouldBind(c, &req); err != nil {
+		return
+	}
+
+	err := h.svc.AdjustStock(c.Request.Context(), req)
+	if err != nil {
+		_ = c.Error(apierr.Wrap(err, "failed to adjust stock"))
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Success("stock adjusted successfully"))
+}
+
+// shouldBind is a helper to bind and handle validation errors.
+func (h *TransactionHandler) shouldBind(c *gin.Context, req interface{}) error {
+	if err := c.ShouldBindJSON(req); err != nil {
+		_ = c.Error(apierr.BadRequest(err.Error()))
+		return err
+	}
+	return nil
+}
+
+// List handles GET /api/v1/transactions.
+func (h *TransactionHandler) List(c *gin.Context) {
+	var rawQ dto.PageQuery
+	if err := c.ShouldBindQuery(&rawQ); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid query parameters"))
+		return
+	}
+	q := rawQ.Validate(
+		[]string{"id", "trxno", "trans_type", "total_amount", "created_at"},
+		"created_at",
+	)
+	if rawQ.Order == "" {
+		q.Order = "DESC" // default to newest first
+	}
+
+	var f dto.TransactionFilter
+	if err := c.ShouldBindQuery(&f); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid filter parameters"))
+		return
+	}
+
+	if s := c.Query("date_from"); s != "" {
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			_ = c.Error(apierr.BadRequest("date_from must be YYYY-MM-DD"))
+			return
+		}
+		f.DateFrom = &t
+	}
+	if s := c.Query("date_to"); s != "" {
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			_ = c.Error(apierr.BadRequest("date_to must be YYYY-MM-DD"))
+			return
+		}
+		end := t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		f.DateTo = &end
+	}
+
+	list, total, err := h.svc.List(c.Request.Context(), q, f)
+	if err != nil {
+		_ = c.Error(apierr.Wrap(err, "failed to list transactions"))
+		return
+	}
+
+	resp := make([]dto.TransactionListResponse, len(list))
+	for i, trx := range list {
+		resp[i] = toTransactionListResponse(&trx)
+	}
+
+	c.JSON(http.StatusOK, dto.PagedOK(resp, dto.NewPageMeta(q, total)))
+}
+
+// GetByID handles GET /api/v1/transactions/:id.
+func (h *TransactionHandler) GetByID(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		_ = c.Error(apierr.BadRequest("invalid transaction id"))
+		return
+	}
+
+	res, err := h.svc.GetByID(c.Request.Context(), id)
+	if err != nil {
+		_ = c.Error(apierr.Wrap(err, "transaction not found"))
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Success(toTransactionResponse(res)))
+}
+
 // toTransactionResponse maps internal model to DTO response
 func toTransactionResponse(trx *model.Transaction) dto.TransactionResponse {
 	resp := dto.TransactionResponse{
@@ -96,6 +210,7 @@ func toTransactionResponse(trx *model.Transaction) dto.TransactionResponse {
 		Discount:    trx.Discount,
 		TotalAmount: trx.TotalAmount,
 		Note:        trx.Note,
+		ReferenceTransactionID: trx.ReferenceTransactionID,
 		CreatedAt:   trx.CreatedAt,
 		Details:     make([]dto.TransactionItemResponse, 0, len(trx.Details)),
 	}
@@ -105,10 +220,25 @@ func toTransactionResponse(trx *model.Transaction) dto.TransactionResponse {
 			BranchItemID:    d.BranchItemID,
 			WarehouseItemID: d.WarehouseItemID,
 			Quantity:        d.Quantity,
+			COGS:            d.COGS,
 			Price:           d.Price,
 			Subtotal:        d.Subtotal,
 		})
 	}
 
 	return resp
+}
+
+func toTransactionListResponse(trx *model.Transaction) dto.TransactionListResponse {
+	return dto.TransactionListResponse{
+		ID:          trx.ID,
+		TrxNo:       trx.TrxNo,
+		TransType:   string(trx.TransType),
+		BranchID:    trx.BranchID,
+		WarehouseID: trx.WarehouseID,
+		CustomerID:  trx.CustomerID,
+		SupplierID:  trx.SupplierID,
+		TotalAmount: trx.TotalAmount,
+		CreatedAt:   trx.CreatedAt,
+	}
 }

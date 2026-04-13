@@ -643,3 +643,377 @@ func (r *TransactionRepo) ExecuteTransferTx(
 		Details:     finalAggregate.DestDetails,
 	}, nil
 }
+
+// ExecuteReturnTx handles the DB transaction and coordination for RETURNS (Customer -> Branch).
+func (r *TransactionRepo) ExecuteReturnTx(
+	ctx context.Context,
+	tenantID int,
+	userID int,
+	req dto.CreateReturnRequest,
+	processFn func(loadedItems map[int]model.ProcessReturnItem) (model.FinalReturnAggregate, error),
+) (*model.Transaction, error) {
+
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 0. PRE-PHASE: IDENTITY VALIDATION
+	var exists int
+	err = tx.QueryRow(ctx, `SELECT 1 FROM branches WHERE id = $1 AND tenant_id = $2`, req.BranchID, tenantID).Scan(&exists)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("branch id %d not found for this tenant", req.BranchID)
+		}
+		return nil, fmt.Errorf("failed to validate branch identity: %w", err)
+	}
+
+	if req.CustomerID != nil {
+		err = tx.QueryRow(ctx, `SELECT 1 FROM customers WHERE id = $1 AND tenant_id = $2`, *req.CustomerID, tenantID).Scan(&exists)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return nil, fmt.Errorf("customer id %d not found for this tenant", *req.CustomerID)
+			}
+			return nil, fmt.Errorf("failed to validate customer identity: %w", err)
+		}
+	}
+
+	// 0.1 RESOLVE ORIGINAL TRANSACTION
+	var originalTrxID int
+	err = tx.QueryRow(ctx, `SELECT id FROM transactions WHERE trxno = $1 AND tenant_id = $2`, req.OriginalTrxNo, tenantID).Scan(&originalTrxID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("original transaction %s not found", req.OriginalTrxNo)
+		}
+		return nil, fmt.Errorf("failed to lookup original transaction: %w", err)
+	}
+
+	// 1. PHASE ONE: BULK READ
+	branchItemIDs := make([]int, 0, len(req.Items))
+	for _, item := range req.Items {
+		branchItemIDs = append(branchItemIDs, item.BranchItemID)
+	}
+
+	loadedDbItems := make(map[int]model.ProcessReturnItem)
+	query := `SELECT id, stock FROM branch_items WHERE id = ANY($1) AND branch_id = $2 AND tenant_id = $3 FOR UPDATE`
+	rows, err := tx.Query(ctx, query, branchItemIDs, req.BranchID, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to bulk lookup branch items for return: %w", err)
+	}
+	for rows.Next() {
+		var id, stock int
+		if err := rows.Scan(&id, &stock); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		loadedDbItems[id] = model.ProcessReturnItem{BranchItemID: id, CurrentStock: stock}
+	}
+	rows.Close()
+
+	// 2. PHASE TWO: EXECUTE BUSINESS LOGIC
+	finalAggregate, err := processFn(loadedDbItems)
+	if err != nil {
+		return nil, err
+	}
+	finalAggregate.ReferenceTransactionID = originalTrxID
+
+	// 3. PHASE THREE: WRITE
+	trxNo := fmt.Sprintf("RET-%s", time.Now().Format("20060102150405"))
+	var trxID int
+	err = tx.QueryRow(ctx,
+		`INSERT INTO transactions (tenant_id, trxno, branch_id, customer_id, user_id, trans_type, total_amount, reference_transaction_id, note)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		 RETURNING id`,
+		tenantID, trxNo, req.BranchID, req.CustomerID, userID, model.TxReturn, finalAggregate.TotalAmount, finalAggregate.ReferenceTransactionID, req.Note,
+	).Scan(&trxID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert return header: %w", err)
+	}
+
+	batch := &pgx.Batch{}
+	for _, detail := range finalAggregate.Details {
+		batch.Queue(
+			`INSERT INTO transaction_detail (transaction_id, branch_item_id, quantity, cogs, price, subtotal)
+			 VALUES ($1, $2, $3, $4, $5, $6)`,
+			trxID, detail.BranchItemID, detail.Quantity, detail.COGS, detail.Price, detail.Subtotal,
+		)
+		batch.Queue(
+			`UPDATE branch_items SET stock = stock + $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3`,
+			detail.Quantity, *detail.BranchItemID, tenantID,
+		)
+	}
+
+	// Record Cashflow (OUT - because returning money to customer)
+	batch.Queue(
+		`INSERT INTO branch_cashflow (tenant_id, branch_id, transaction_id, flow_type, direction, amount)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		tenantID, req.BranchID, trxID, model.CflowReturn, "OUT", finalAggregate.TotalAmount,
+	)
+
+	br := tx.SendBatch(ctx, batch)
+	for i := 0; i < batch.Len(); i++ {
+		_, err := br.Exec()
+		if err != nil {
+			br.Close()
+			return nil, fmt.Errorf("return batch failed at query %d: %w", i, err)
+		}
+	}
+	br.Close()
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	branchIDProxy := req.BranchID
+	return &model.Transaction{
+		ID:                     trxID,
+		TrxNo:                  trxNo,
+		TenantID:               tenantID,
+		BranchID:               &branchIDProxy,
+		CustomerID:             req.CustomerID,
+		UserID:                 &userID,
+		TransType:              model.TxReturn,
+		TotalAmount:            finalAggregate.TotalAmount,
+		ReferenceTransactionID: &finalAggregate.ReferenceTransactionID,
+		Note:                   req.Note,
+		CreatedAt:              time.Now(),
+		Details:                finalAggregate.Details,
+	}, nil
+}
+
+// ExecuteAdjustmentTx handles bulk stock adjustments and audit logging.
+func (r *TransactionRepo) ExecuteAdjustmentTx(
+	ctx context.Context,
+	tenantID int,
+	req dto.AdjustStockRequest,
+	processFn func(currentStocks map[int]int) (map[int]int, error),
+) error {
+
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// 0. PRE-PHASE: IDENTITY VALIDATION
+	var exists int
+	if req.LocationType == "branch" {
+		err = tx.QueryRow(ctx, `SELECT 1 FROM branches WHERE id = $1 AND tenant_id = $2`, req.LocationID, tenantID).Scan(&exists)
+	} else {
+		err = tx.QueryRow(ctx, `SELECT 1 FROM warehouses WHERE id = $1 AND tenant_id = $2`, req.LocationID, tenantID).Scan(&exists)
+	}
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return fmt.Errorf("%s id %d not found for this tenant", req.LocationType, req.LocationID)
+		}
+		return fmt.Errorf("failed to validate location identity: %w", err)
+	}
+
+	// 1. PHASE ONE: BULK READ
+	itemIDs := make([]int, 0, len(req.Items))
+	for _, item := range req.Items {
+		itemIDs = append(itemIDs, item.ItemID)
+	}
+
+	currentStocks := make(map[int]int)
+	var query string
+	if req.LocationType == "branch" {
+		query = `SELECT item_id, stock FROM branch_items WHERE item_id = ANY($1) AND branch_id = $2 AND tenant_id = $3 FOR UPDATE`
+	} else {
+		query = `SELECT item_id, stock FROM warehouse_items WHERE item_id = ANY($1) AND warehouse_id = $2 AND tenant_id = $3 FOR UPDATE`
+	}
+
+	rows, err := tx.Query(ctx, query, itemIDs, req.LocationID, tenantID)
+	if err != nil {
+		return fmt.Errorf("failed to bulk lookup items for adjustment: %w", err)
+	}
+	for rows.Next() {
+		var itemID, stock int
+		if err := rows.Scan(&itemID, &stock); err != nil {
+			rows.Close()
+			return err
+		}
+		currentStocks[itemID] = stock
+	}
+	rows.Close()
+
+	// 2. PHASE TWO: EXECUTE BUSINESS LOGIC (Calculate diffs)
+	stockChanges, err := processFn(currentStocks)
+	if err != nil {
+		return err
+	}
+
+	// 3. PHASE THREE: WRITE
+	batch := &pgx.Batch{}
+	for itemID, changeUnit := range stockChanges {
+		if changeUnit == 0 {
+			continue
+		}
+
+		if req.LocationType == "branch" {
+			batch.Queue(`UPDATE branch_items SET stock = stock + $1, updated_at = NOW() WHERE item_id = $2 AND branch_id = $3 AND tenant_id = $4`,
+				changeUnit, itemID, req.LocationID, tenantID)
+			batch.Queue(`INSERT INTO audit_stock (tenant_id, branch_item_id, change_unit, reason) 
+				SELECT $1, id, $2, $3 FROM branch_items WHERE item_id = $4 AND branch_id = $5 AND tenant_id = $6`,
+				tenantID, changeUnit, req.Reason, itemID, req.LocationID, tenantID)
+		} else {
+			batch.Queue(`UPDATE warehouse_items SET stock = stock + $1, updated_at = NOW() WHERE item_id = $2 AND warehouse_id = $3 AND tenant_id = $4`,
+				changeUnit, itemID, req.LocationID, tenantID)
+			batch.Queue(`INSERT INTO audit_stock (tenant_id, warehouse_item_id, change_unit, reason) 
+				SELECT $1, id, $2, $3 FROM warehouse_items WHERE item_id = $4 AND warehouse_id = $5 AND tenant_id = $6`,
+				tenantID, changeUnit, req.Reason, itemID, req.LocationID, tenantID)
+		}
+	}
+
+	br := tx.SendBatch(ctx, batch)
+	for i := 0; i < batch.Len(); i++ {
+		_, err := br.Exec()
+		if err != nil {
+			br.Close()
+			return fmt.Errorf("adjustment batch failed at index %d: %w", i, err)
+		}
+	}
+	br.Close()
+
+	return tx.Commit(ctx)
+}
+
+// List returns a paginated, filtered list of transactions for the tenant.
+func (r *TransactionRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dto.TransactionFilter) ([]model.Transaction, int, error) {
+	args := []any{tenantID}
+	where := "WHERE tenant_id = $1"
+
+	if f.TransType != "" {
+		args = append(args, f.TransType)
+		where += fmt.Sprintf(" AND trans_type = $%d", len(args))
+	}
+
+	if f.BranchID != nil {
+		args = append(args, *f.BranchID)
+		where += fmt.Sprintf(" AND branch_id = $%d", len(args))
+	}
+
+	if f.WarehouseID != nil {
+		args = append(args, *f.WarehouseID)
+		where += fmt.Sprintf(" AND warehouse_id = $%d", len(args))
+	}
+
+	if f.CustomerID != nil {
+		args = append(args, *f.CustomerID)
+		where += fmt.Sprintf(" AND customer_id = $%d", len(args))
+	}
+
+	if f.SupplierID != nil {
+		args = append(args, *f.SupplierID)
+		where += fmt.Sprintf(" AND supplier_id = $%d", len(args))
+	}
+
+	if f.Search != "" {
+		args = append(args, "%"+f.Search+"%")
+		n := len(args)
+		where += fmt.Sprintf(" AND (trxno ILIKE $%d OR note ILIKE $%d)", n, n)
+	}
+
+	if f.DateFrom != nil {
+		args = append(args, *f.DateFrom)
+		where += fmt.Sprintf(" AND created_at >= $%d", len(args))
+	}
+
+	if f.DateTo != nil {
+		args = append(args, *f.DateTo)
+		where += fmt.Sprintf(" AND created_at <= $%d", len(args))
+	}
+
+	args = append(args, q.Limit, q.Offset())
+	limitIdx := len(args) - 1
+	offsetIdx := len(args)
+
+	query := fmt.Sprintf(`
+		SELECT id, tenant_id, trxno, branch_id, warehouse_id, customer_id, supplier_id,
+		       user_id, trans_type, total_amount, tax, discount, reference_transaction_id,
+		       note, created_at,
+		       COUNT(*) OVER() AS total_count
+		FROM transactions
+		%s
+		ORDER BY %s %s
+		LIMIT $%d OFFSET $%d`,
+		where, q.Sort, q.Order, limitIdx, offsetIdx,
+	)
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("singledb.TransactionRepo.List: %w", err)
+	}
+	defer rows.Close()
+
+	var (
+		list  []model.Transaction
+		total int
+	)
+	for rows.Next() {
+		var trx model.Transaction
+		if err := rows.Scan(
+			&trx.ID, &trx.TenantID, &trx.TrxNo, &trx.BranchID, &trx.WarehouseID,
+			&trx.CustomerID, &trx.SupplierID, &trx.UserID, &trx.TransType,
+			&trx.TotalAmount, &trx.Tax, &trx.Discount, &trx.ReferenceTransactionID,
+			&trx.Note, &trx.CreatedAt, &total,
+		); err != nil {
+			return nil, 0, fmt.Errorf("singledb.TransactionRepo.List scan: %w", err)
+		}
+		list = append(list, trx)
+	}
+
+	return list, total, rows.Err()
+}
+
+// GetByID fetches a single transaction with its details joined.
+func (r *TransactionRepo) GetByID(ctx context.Context, tenantID, id int) (*model.Transaction, error) {
+	var trx model.Transaction
+	err := r.db.QueryRow(ctx,
+		`SELECT id, tenant_id, trxno, branch_id, warehouse_id, customer_id, supplier_id,
+		        user_id, trans_type, total_amount, tax, discount, reference_transaction_id,
+		        note, created_at
+		 FROM transactions
+		 WHERE id = $1 AND tenant_id = $2`,
+		id, tenantID,
+	).Scan(
+		&trx.ID, &trx.TenantID, &trx.TrxNo, &trx.BranchID, &trx.WarehouseID,
+		&trx.CustomerID, &trx.SupplierID, &trx.UserID, &trx.TransType,
+		&trx.TotalAmount, &trx.Tax, &trx.Discount, &trx.ReferenceTransactionID,
+		&trx.Note, &trx.CreatedAt,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("transaction not found")
+		}
+		return nil, fmt.Errorf("singledb.TransactionRepo.GetByID (header): %w", err)
+	}
+
+	detailRows, err := r.db.Query(ctx,
+		`SELECT id, transaction_id, branch_item_id, warehouse_item_id,
+		        quantity, cogs, price, subtotal
+		 FROM transaction_detail
+		 WHERE transaction_id = $1
+		 ORDER BY id ASC`,
+		trx.ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("singledb.TransactionRepo.GetByID (details): %w", err)
+	}
+	defer detailRows.Close()
+
+	for detailRows.Next() {
+		var d model.TransactionDetail
+		if err := detailRows.Scan(
+			&d.ID, &d.TransactionID, &d.BranchItemID, &d.WarehouseItemID,
+			&d.Quantity, &d.COGS, &d.Price, &d.Subtotal,
+		); err != nil {
+			return nil, fmt.Errorf("singledb.TransactionRepo.GetByID detail scan: %w", err)
+		}
+		trx.Details = append(trx.Details, d)
+	}
+
+	return &trx, detailRows.Err()
+}

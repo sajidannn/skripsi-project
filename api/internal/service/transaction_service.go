@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	"errors"
+
 	"github.com/sajidannn/pos-api/internal/apierr"
 	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
 	"github.com/sajidannn/pos-api/internal/repository"
 	"github.com/sajidannn/pos-api/internal/tenant"
 	"github.com/shopspring/decimal"
-	"errors"
 )
 
 // TransactionService handles business logic for all POS transactions.
@@ -253,4 +254,101 @@ func (s *TransactionService) CreateTransfer(ctx context.Context, userID int, req
 		return nil, apierr.NotFound(err.Error())
 	}
 	return res, nil
+}
+
+// CreateReturn handles the business logic for customer returns to the branch.
+func (s *TransactionService) CreateReturn(ctx context.Context, userID int, req dto.CreateReturnRequest) (*model.Transaction, error) {
+	tenantID, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, apierr.Internal(err, "failed to resolve tenant")
+	}
+
+	calculateReturnFn := func(loadedItems map[int]model.ProcessReturnItem) (model.FinalReturnAggregate, error) {
+		var trxTotalAmount decimal.Decimal
+		var finalDetails []model.TransactionDetail
+
+		for _, reqItem := range req.Items {
+			_, exists := loadedItems[reqItem.BranchItemID]
+			if !exists {
+				return model.FinalReturnAggregate{}, apierr.NotFound(fmt.Sprintf("item %d not found at branch", reqItem.BranchItemID))
+			}
+
+			// Subtotal logic: Quantity to return * refund price
+			subtotal := decimal.NewFromInt(int64(reqItem.Qty)).Mul(reqItem.Price)
+			trxTotalAmount = trxTotalAmount.Add(subtotal)
+
+			branchItemIDProxy := reqItem.BranchItemID
+			finalDetails = append(finalDetails, model.TransactionDetail{
+				BranchItemID: &branchItemIDProxy,
+				Quantity:     reqItem.Qty,
+				COGS:         decimal.Zero, // Retur tidak mengubah HPP (WAC) master, hanya nambah stok
+				Price:        reqItem.Price,
+				Subtotal:     subtotal,
+			})
+		}
+
+		return model.FinalReturnAggregate{
+			TotalAmount: trxTotalAmount,
+			Details:     finalDetails,
+		}, nil
+	}
+
+	res, err := s.repo.ExecuteReturnTx(ctx, tenantID, userID, req, calculateReturnFn)
+	if err != nil {
+		var appErr *apierr.AppError
+		if errors.As(err, &appErr) {
+			return nil, appErr
+		}
+		return nil, apierr.NotFound(err.Error())
+	}
+	return res, nil
+}
+
+// AdjustStock handles bulk inventory reconciliation.
+func (s *TransactionService) AdjustStock(ctx context.Context, req dto.AdjustStockRequest) error {
+	tenantID, err := tenant.FromContext(ctx)
+	if err != nil {
+		return apierr.Internal(err, "failed to resolve tenant")
+	}
+
+	processAdjustmentFn := func(currentStocks map[int]int) (map[int]int, error) {
+		diffs := make(map[int]int)
+
+		for _, reqItem := range req.Items {
+			// If not found in currentStocks, we assume it's currently 0
+			current := currentStocks[reqItem.ItemID]
+			diff := reqItem.ActualStock - current
+			diffs[reqItem.ItemID] = diff
+		}
+
+		return diffs, nil
+	}
+
+	err = s.repo.ExecuteAdjustmentTx(ctx, tenantID, req, processAdjustmentFn)
+	if err != nil {
+		var appErr *apierr.AppError
+		if errors.As(err, &appErr) {
+			return appErr
+		}
+		return apierr.BadRequest(err.Error())
+	}
+	return nil
+}
+
+// List returns a paginated, filtered list of transactions.
+func (s *TransactionService) List(ctx context.Context, q dto.PageQuery, f dto.TransactionFilter) ([]model.Transaction, int, error) {
+	tenantID, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("TransactionService.List: %w", err)
+	}
+	return s.repo.List(ctx, tenantID, q, f)
+}
+
+// GetByID retrieves a single transaction with details.
+func (s *TransactionService) GetByID(ctx context.Context, id int) (*model.Transaction, error) {
+	tenantID, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("TransactionService.GetByID: %w", err)
+	}
+	return s.repo.GetByID(ctx, tenantID, id)
 }

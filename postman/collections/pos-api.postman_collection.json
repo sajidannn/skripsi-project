@@ -1066,6 +1066,89 @@
       "name": "Transactions",
       "item": [
         {
+          "name": "list transactions",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/transactions?page=1&limit=10&trans_type=SALE",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "trans_type",
+                  "value": "SALE"
+                },
+                {
+                  "key": "branch_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "SALE",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get transaction by id",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/transactions/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "create sale",
           "id": "2de067b1-4f9e-4e8c-843f-5d6c8b9d0a1b",
           "request": {
@@ -1180,6 +1263,86 @@
                 "v1",
                 "transactions",
                 "transfer"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "create return",
+          "id": "3eb0200f-caef-469c-90d5-4502527f7516",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"original_trx_no\": \"SALE-20240101000000\",\n    \"branch_id\": 1,\n    \"customer_id\": null,\n    \"note\": \"test return\",\n    \"items\": [\n        {\n            \"branch_item_id\": 2,\n            \"qty\": 1,\n            \"price\": 12000\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/transactions/return",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions",
+                "return"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "adjust stock",
+          "id": "5bca55cd-6c9f-4def-8b61-dd839a452996",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"location_type\": \"branch\",\n    \"location_id\": 1,\n    \"reason\": \"Opname Bulanan Januari\",\n    \"items\": [\n        {\n            \"item_id\": 1,\n            \"actual_stock\": 50\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/transactions/adjust",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions",
+                "adjust"
               ]
             }
           },
