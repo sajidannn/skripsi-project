@@ -1067,6 +1067,7 @@
       "item": [
         {
           "name": "list transactions",
+          "id": "f441d06f-e794-462f-88e7-a892ac74b5a5",
           "request": {
             "auth": {
               "type": "bearer",
@@ -1120,6 +1121,7 @@
         },
         {
           "name": "get transaction by id",
+          "id": "8c6d09e4-2be6-4ef1-8e27-35044059f241",
           "request": {
             "auth": {
               "type": "bearer",
@@ -1211,7 +1213,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"branch_id\": 3,\n    \"supplier_id\": 1,\n    \"tax\": 0,\n    \"discount\": 0,\n    \"note\": \"test purchase into warehouse\",\n    \"items\": [\n        {\n            \"item_id\": 1,\n            \"cost\": 26000,\n            \"qty\": 101\n        },\n        {\n            \"item_id\": 2,\n            \"cost\": 15500,\n            \"qty\": 54\n        }\n    ]\n}"
+              "raw": "{\n    \"branch_id\": 31,\n    \"supplier_id\": 1,\n    \"tax\": 0,\n    \"discount\": 0,\n    \"note\": \"test purchase into warehouse\",\n    \"items\": [\n        {\n            \"item_id\": 1,\n            \"cost\": 26000,\n            \"qty\": 101\n        },\n        {\n            \"item_id\": 2,\n            \"cost\": 15500,\n            \"qty\": 54\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{host}}/api/v1/transactions/purchase",
