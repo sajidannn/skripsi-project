@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"errors"
 
@@ -351,4 +352,52 @@ func (s *TransactionService) GetByID(ctx context.Context, id int) (*model.Transa
 		return nil, fmt.Errorf("TransactionService.GetByID: %w", err)
 	}
 	return s.repo.GetByID(ctx, tenantID, id)
+}
+
+// Void handles the business logic and reversal activation for a transaction using the closure pattern.
+func (s *TransactionService) Void(ctx context.Context, userID int, id int, req dto.VoidRequest) (*model.Transaction, error) {
+	tenantID, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, apierr.Internal(err, "failed to resolve tenant context")
+	}
+
+	// Delegate execution to Repo, passing the closure for business rule validation.
+	// The atomicity and fetching is completely handled by the repo.
+	return s.repo.ExecuteVoidTx(ctx, tenantID, userID, id, req.Reason, func(data model.ProcessVoidData) error {
+		// BL Rule: Cannot void PURCHASE (WAC concerns)
+		if data.OriginalHeader.TransType == model.TxPurchase {
+			return apierr.BadRequest("VOID PURCHASE is forbidden to maintain WAC integrity. Use Purchase Return instead.")
+		}
+
+		// BL Rule: Cannot void a VOID transaction (Double negative prevention)
+		if data.OriginalHeader.TransType == model.TxVoid {
+			return apierr.BadRequest("cannot void a transaction that is already a VOID type")
+		}
+
+		// BL Rule: Cannot void if already voided
+		if data.AlreadyVoided {
+			return apierr.BadRequest("this transaction has already been voided")
+		}
+
+		// BL Rule: Prevent negative stock during void
+		for _, d := range data.Details {
+			// TRFI and RETURN take stock OUT during void. We must ensure sufficient stock.
+			isTRFI := data.OriginalHeader.TransType == model.TxTransfer && strings.Contains(data.OriginalHeader.TrxNo, "TRFI")
+			isReturn := data.OriginalHeader.TransType == model.TxReturn
+			
+			if isTRFI || isReturn {
+				if d.CurrentStock < d.Detail.Quantity {
+					itemID := 0
+					if d.Detail.BranchItemID != nil {
+						itemID = *d.Detail.BranchItemID
+					} else if d.Detail.WarehouseItemID != nil {
+						itemID = *d.Detail.WarehouseItemID
+					}
+					return apierr.BadRequest(fmt.Sprintf("cannot void transaction: insufficient stock to reverse item_id %d. available: %d, needed: %d", itemID, d.CurrentStock, d.Detail.Quantity))
+				}
+			}
+		}
+
+		return nil
+	})
 }

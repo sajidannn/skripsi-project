@@ -58,4 +58,14 @@ type TransactionRepository interface {
 
 	// GetByID fetches a single transaction with its details joined.
 	GetByID(ctx context.Context, tenantID, id int) (*model.Transaction, error)
+
+	// ExecuteVoidTx handles the DB transaction for voiding a transaction via closure.
+	ExecuteVoidTx(
+		ctx context.Context, 
+		tenantID int, 
+		userID int, 
+		originalTrxID int, 
+		reason string,
+		processFn func(data model.ProcessVoidData) error,
+	) (*model.Transaction, error)
 }

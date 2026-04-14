@@ -198,21 +198,21 @@ func (h *TransactionHandler) GetByID(c *gin.Context) {
 // toTransactionResponse maps internal model to DTO response
 func toTransactionResponse(trx *model.Transaction) dto.TransactionResponse {
 	resp := dto.TransactionResponse{
-		ID:          trx.ID,
-		TrxNo:       trx.TrxNo,
-		TransType:   string(trx.TransType),
-		BranchID:    trx.BranchID,
-		WarehouseID: trx.WarehouseID,
-		CustomerID:  trx.CustomerID,
-		SupplierID:  trx.SupplierID,
-		UserID:      trx.UserID,
-		Tax:         trx.Tax,
-		Discount:    trx.Discount,
-		TotalAmount: trx.TotalAmount,
-		Note:        trx.Note,
+		ID:                     trx.ID,
+		TrxNo:                  trx.TrxNo,
+		TransType:              string(trx.TransType),
+		BranchID:               trx.BranchID,
+		WarehouseID:            trx.WarehouseID,
+		CustomerID:             trx.CustomerID,
+		SupplierID:             trx.SupplierID,
+		UserID:                 trx.UserID,
+		Tax:                    trx.Tax,
+		Discount:               trx.Discount,
+		TotalAmount:            trx.TotalAmount,
+		Note:                   trx.Note,
 		ReferenceTransactionID: trx.ReferenceTransactionID,
-		CreatedAt:   trx.CreatedAt,
-		Details:     make([]dto.TransactionItemResponse, 0, len(trx.Details)),
+		CreatedAt:              trx.CreatedAt,
+		Details:                make([]dto.TransactionItemResponse, 0, len(trx.Details)),
 	}
 
 	for _, d := range trx.Details {
@@ -241,4 +241,35 @@ func toTransactionListResponse(trx *model.Transaction) dto.TransactionListRespon
 		TotalAmount: trx.TotalAmount,
 		CreatedAt:   trx.CreatedAt,
 	}
+}
+
+// Void handles POST /transactions/:id/void.
+func (h *TransactionHandler) Void(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		_ = c.Error(apierr.BadRequest("invalid transaction id format"))
+		return
+	}
+
+	var req dto.VoidRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(apierr.ValidationFailed(validator.ParseBindingError(err)))
+		return
+	}
+
+	userID := c.GetInt("user_id")
+	trx, err := h.svc.Void(c.Request.Context(), userID, id, req)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "transaction voided successfully",
+		"data": gin.H{
+			"void_transaction_id": trx.ID,
+			"void_trxno":          trx.TrxNo,
+		},
+	})
 }

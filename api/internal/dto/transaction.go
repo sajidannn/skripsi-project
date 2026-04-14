@@ -89,6 +89,11 @@ type AdjustStockRequest struct {
 	Items        []AdjustStockItemRequest `json:"items"         binding:"required,min=1,dive"`
 }
 
+// VoidRequest is the validated HTTP request body for POST /transactions/:id/void.
+type VoidRequest struct {
+	Reason string `json:"reason" binding:"required,max=500"`
+}
+
 // ── Filter ────────────────────────────────────────────────────────────────────
 
 // TransactionFilter holds query-string filters for GET /transactions.

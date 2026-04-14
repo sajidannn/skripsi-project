@@ -14,6 +14,7 @@ const (
 	TxPurchase TransactionType = "PURC"
 	TxTransfer TransactionType = "TRANSFER"
 	TxReturn   TransactionType = "RETURN"
+	TxVoid     TransactionType = "VOID"
 )
 
 // CashflowType enum mimics the DB cashflow_type constraint
@@ -26,6 +27,7 @@ const (
 	CflowPurch      CashflowType = "PURC"
 	CflowWithdraw   CashflowType = "WITHDRAW"
 	CflowReturn     CashflowType = "RETURN"
+	CflowVoid       CashflowType = "VOID"
 )
 
 // Transaction represents the main transaction header.
@@ -147,5 +149,19 @@ type FinalReturnAggregate struct {
 	TotalAmount            decimal.Decimal
 	Details                []TransactionDetail
 	ReferenceTransactionID int
+}
+
+// ProcessVoidDetail contains the transaction detail and its current stock in the DB.
+type ProcessVoidDetail struct {
+	Detail       TransactionDetail
+	CurrentStock int
+}
+
+// ProcessVoidData represents the read-only DB data fetched by the Repository
+// to allow the Service to evaluate business rules for voiding.
+type ProcessVoidData struct {
+	OriginalHeader Transaction
+	AlreadyVoided  bool
+	Details        []ProcessVoidDetail
 }
 

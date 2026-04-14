@@ -1349,6 +1349,47 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "void transaction",
+          "id": "a1b2c3d4-e5f6-4789-9012-3a4b5c6d7e8f",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reason\": \"Kasir salah masukin kuantiti\"\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/transactions/2/void",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions",
+                "2",
+                "void"
+              ]
+            }
+          },
+          "response": []
         }
       ],
       "id": "e3b4a56c-7d8e-4f9a-b0c1-d2e3f4a5b6c7"
