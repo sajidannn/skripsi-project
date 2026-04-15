@@ -1179,7 +1179,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"branch_id\": 2,\n    \"customer_id\": null,\n    \"tax\": 0,\n    \"discount\": 0,\n    \"note\": \"test sale\",\n    \"items\": [\n        {\n            \"branch_item_id\": 5,\n            \"qty\": 10\n        }\n    ]\n}"
+              "raw": "{\n    \"branch_id\": 2,\n    \"customer_id\": null,\n    \"tax\": 0,\n    \"discount\": 0,\n    \"note\": \"test sale\",\n    \"items\": [\n        {\n            \"branch_item_id\": 5,\n            \"qty\": 5\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{host}}/api/v1/transactions/sale",
@@ -1259,7 +1259,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"source_type\": \"branch\",\n    \"source_id\": 1,\n    \"dest_type\": \"branch\",\n    \"dest_id\": 2,\n    \"note\": \"test transfer from WH 1 to Branch 1\",\n    \"items\": [\n        {\n            \"item_id\": 2,\n            \"qty\": 2\n        }\n    ]\n}"
+              "raw": "{\n    \"source_type\": \"branch\",\n    \"source_id\": 1,\n    \"dest_type\": \"branch\",\n    \"dest_id\": 2,\n    \"note\": \"test transfer from WH 1 to Branch 1\",\n    \"items\": [\n        {\n            \"item_id\": 2,\n            \"qty\": 5\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{host}}/api/v1/transactions/transfer",
@@ -1299,7 +1299,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"original_trx_no\": \"SALE-20240101000000\",\n    \"branch_id\": 1,\n    \"customer_id\": null,\n    \"note\": \"test return\",\n    \"items\": [\n        {\n            \"branch_item_id\": 2,\n            \"qty\": 1,\n            \"price\": 12000\n        }\n    ]\n}"
+              "raw": "{\n    \"original_trx_no\": \"SALE-20240415...\",\n    \"branch_id\": 1,\n    \"customer_id\": null,\n    \"note\": \"test sale return (price derived from original sale)\",\n    \"items\": [\n        {\n            \"branch_item_id\": 1,\n            \"qty\": 1\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{host}}/api/v1/transactions/return",
@@ -1311,6 +1311,46 @@
                 "v1",
                 "transactions",
                 "return"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "create purchase return",
+          "id": "7a8b9c0d-1e2f-3g4h-5i6j-7k8l9m0n1o2p",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"original_trx_no\": \"PURC-20240415...\",\n    \"branch_id\": 1,\n    \"supplier_id\": 1,\n    \"note\": \"test purchase return (requires return_price from user)\",\n    \"items\": [\n        {\n            \"item_id\": 1,\n            \"qty\": 2,\n            \"return_price\": 50000\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/transactions/purchase-return",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions",
+                "purchase-return"
               ]
             }
           },
@@ -1382,7 +1422,7 @@
               "raw": "{\n    \"reason\": \"Kasir salah masukin kuantiti\"\n}"
             },
             "url": {
-              "raw": "{{host}}/api/v1/transactions/6/void",
+              "raw": "{{host}}/api/v1/transactions/9/void",
               "host": [
                 "{{host}}"
               ],
@@ -1390,7 +1430,7 @@
                 "api",
                 "v1",
                 "transactions",
-                "6",
+                "9",
                 "void"
               ]
             }

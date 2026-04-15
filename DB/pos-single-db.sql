@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS customers (
 CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers(tenant_id);
 
 DO $$ BEGIN
-    CREATE TYPE transaction_type AS ENUM ('SALE', 'PURC', 'TRANSFER', 'RETURN', 'VOID');
+    CREATE TYPE transaction_type AS ENUM ('SALE', 'PURC', 'TRANSFER', 'RETURN', 'RETURN_PURC', 'VOID');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -171,7 +171,7 @@ CREATE TABLE IF NOT EXISTS branch_cashflow (
 CREATE INDEX IF NOT EXISTS idx_branch_cashflow_tenant ON branch_cashflow(tenant_id);
 
 DO $$ BEGIN
-    CREATE TYPE tenant_flow_type AS ENUM ('SALE', 'PURC', 'WITHDRAW', 'ADJUSTMENT', 'RETURN');
+    CREATE TYPE tenant_flow_type AS ENUM ('SALE', 'PURC', 'WITHDRAW', 'ADJUSTMENT', 'RETURN', 'RETURN_PURC');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS tenant_cashflow (

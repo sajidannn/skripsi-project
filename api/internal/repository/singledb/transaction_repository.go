@@ -681,17 +681,43 @@ func (r *TransactionRepo) ExecuteReturnTx(
 		}
 	}
 
-	// 0.1 RESOLVE ORIGINAL TRANSACTION
+	// 0.1 RESOLVE ORIGINAL TRANSACTION (must be a SALE)
 	var originalTrxID int
-	err = tx.QueryRow(ctx, `SELECT id FROM transactions WHERE trxno = $1 AND tenant_id = $2`, req.OriginalTrxNo, tenantID).Scan(&originalTrxID)
+	var originalTransType string
+	err = tx.QueryRow(ctx, `SELECT id, trans_type FROM transactions WHERE trxno = $1 AND tenant_id = $2`, req.OriginalTrxNo, tenantID).Scan(&originalTrxID, &originalTransType)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, apierr.NotFound(fmt.Sprintf("original transaction %s not found", req.OriginalTrxNo))
 		}
 		return nil, fmt.Errorf("failed to lookup original transaction: %w", err)
 	}
+	if originalTransType != string(model.TxSale) {
+		return nil, apierr.BadRequest(fmt.Sprintf("transaction %s is not a SALE (got %s); only SALE transactions can be returned", req.OriginalTrxNo, originalTransType))
+	}
 
 	// 1. PHASE ONE: BULK READ
+	// A. Load original transaction details (price and qty) keyed by branch_item_id
+	type origDetail struct {
+		Price decimal.Decimal
+		Qty   int
+	}
+	originalDetails := make(map[int]origDetail) // branch_item_id -> {price, qty}
+	detailRows, err := tx.Query(ctx, `SELECT branch_item_id, price, quantity FROM transaction_detail WHERE transaction_id = $1 AND branch_item_id IS NOT NULL`, originalTrxID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load original transaction details: %w", err)
+	}
+	for detailRows.Next() {
+		var branchItemID, qty int
+		var price decimal.Decimal
+		if err := detailRows.Scan(&branchItemID, &price, &qty); err != nil {
+			detailRows.Close()
+			return nil, err
+		}
+		originalDetails[branchItemID] = origDetail{Price: price, Qty: qty}
+	}
+	detailRows.Close()
+
+	// B. Lock & load current branch stock for requested items
 	branchItemIDs := make([]int, 0, len(req.Items))
 	for _, item := range req.Items {
 		branchItemIDs = append(branchItemIDs, item.BranchItemID)
@@ -709,7 +735,13 @@ func (r *TransactionRepo) ExecuteReturnTx(
 			rows.Close()
 			return nil, err
 		}
-		loadedDbItems[id] = model.ProcessReturnItem{BranchItemID: id, CurrentStock: stock}
+		orig := originalDetails[id]
+		loadedDbItems[id] = model.ProcessReturnItem{
+			BranchItemID:  id,
+			CurrentStock:  stock,
+			OriginalPrice: orig.Price,
+			OriginalQty:   orig.Qty,
+		}
 	}
 	rows.Close()
 
@@ -777,6 +809,241 @@ func (r *TransactionRepo) ExecuteReturnTx(
 		UserID:                 &userID,
 		TransType:              model.TxReturn,
 		TotalAmount:            finalAggregate.TotalAmount,
+		ReferenceTransactionID: &finalAggregate.ReferenceTransactionID,
+		Note:                   req.Note,
+		CreatedAt:              time.Now(),
+		Details:                finalAggregate.Details,
+	}, nil
+}
+
+// ExecutePurchaseReturnTx handles the DB transaction for returning goods to a supplier.
+// Stock is deducted at current WAC; refund amount is based on user-specified ReturnPrice.
+func (r *TransactionRepo) ExecutePurchaseReturnTx(
+	ctx context.Context,
+	tenantID int,
+	userID int,
+	req dto.CreatePurchaseReturnRequest,
+	processFn func(loadedItems map[int]model.ProcessPurchaseReturnItem) (model.FinalPurchaseReturnAggregate, error),
+) (*model.Transaction, error) {
+
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 0. PRE-PHASE: IDENTITY VALIDATION
+	var exists int
+	if req.BranchID != nil {
+		err = tx.QueryRow(ctx, `SELECT 1 FROM branches WHERE id = $1 AND tenant_id = $2`, *req.BranchID, tenantID).Scan(&exists)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return nil, apierr.NotFound(fmt.Sprintf("branch id %d not found for this tenant", *req.BranchID))
+			}
+			return nil, fmt.Errorf("failed to validate branch identity: %w", err)
+		}
+	} else if req.WarehouseID != nil {
+		err = tx.QueryRow(ctx, `SELECT 1 FROM warehouses WHERE id = $1 AND tenant_id = $2`, *req.WarehouseID, tenantID).Scan(&exists)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return nil, apierr.NotFound(fmt.Sprintf("warehouse id %d not found for this tenant", *req.WarehouseID))
+			}
+			return nil, fmt.Errorf("failed to validate warehouse identity: %w", err)
+		}
+	}
+
+	err = tx.QueryRow(ctx, `SELECT 1 FROM suppliers WHERE id = $1 AND tenant_id = $2`, req.SupplierID, tenantID).Scan(&exists)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, apierr.NotFound(fmt.Sprintf("supplier id %d not found for this tenant", req.SupplierID))
+		}
+		return nil, fmt.Errorf("failed to validate supplier identity: %w", err)
+	}
+
+	// 0.1 RESOLVE ORIGINAL PURCHASE TRANSACTION
+	var originalTrxID int
+	err = tx.QueryRow(ctx, `SELECT id FROM transactions WHERE trxno = $1 AND tenant_id = $2 AND trans_type = 'PURC'`, req.OriginalTrxNo, tenantID).Scan(&originalTrxID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, apierr.NotFound(fmt.Sprintf("original purchase transaction %s not found", req.OriginalTrxNo))
+		}
+		return nil, fmt.Errorf("failed to lookup original purchase transaction: %w", err)
+	}
+
+	// 1. PHASE ONE: BULK READ & LOCK
+	itemIDs := make([]int, 0, len(req.Items))
+	for _, item := range req.Items {
+		itemIDs = append(itemIDs, item.ItemID)
+	}
+
+	loadedDbItems := make(map[int]model.ProcessPurchaseReturnItem)
+
+	// A. Load current WAC (master cost) per item
+	rows, err := tx.Query(ctx, `SELECT id, cost FROM items WHERE id = ANY($1) AND tenant_id = $2`, itemIDs, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load item costs: %w", err)
+	}
+	for rows.Next() {
+		var id int
+		var cost decimal.Decimal
+		if err := rows.Scan(&id, &cost); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		loadedDbItems[id] = model.ProcessPurchaseReturnItem{ItemID: id, CurrentCost: cost}
+	}
+	rows.Close()
+
+	// B. Load OriginalQty from original purchase transaction details (via branch_items or warehouse_items → items)
+	// Using UNION ALL to handle both branch and warehouse purchase records.
+	origQtyRows, err := tx.Query(ctx, `
+		SELECT bi.item_id, td.quantity
+		FROM transaction_detail td
+		JOIN branch_items bi ON td.branch_item_id = bi.id
+		WHERE td.transaction_id = $1 AND bi.item_id = ANY($2) AND bi.tenant_id = $3
+		UNION ALL
+		SELECT wi.item_id, td.quantity
+		FROM transaction_detail td
+		JOIN warehouse_items wi ON td.warehouse_item_id = wi.id
+		WHERE td.transaction_id = $1 AND wi.item_id = ANY($2) AND wi.tenant_id = $3
+	`, originalTrxID, itemIDs, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load original purchase quantities: %w", err)
+	}
+	for origQtyRows.Next() {
+		var itemID, qty int
+		if err := origQtyRows.Scan(&itemID, &qty); err != nil {
+			origQtyRows.Close()
+			return nil, err
+		}
+		ptr := loadedDbItems[itemID]
+		ptr.OriginalQty = qty
+		loadedDbItems[itemID] = ptr
+	}
+	origQtyRows.Close()
+
+	// C. Load & Lock location stock
+	if req.BranchID != nil {
+		locRows, err := tx.Query(ctx, `SELECT id, item_id, stock FROM branch_items WHERE item_id = ANY($1) AND branch_id = $2 AND tenant_id = $3 FOR UPDATE`, itemIDs, *req.BranchID, tenantID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to lock branch items: %w", err)
+		}
+		for locRows.Next() {
+			var locID, itemID, stock int
+			if err := locRows.Scan(&locID, &itemID, &stock); err != nil {
+				locRows.Close()
+				return nil, err
+			}
+			ptr := loadedDbItems[itemID]
+			ptr.LocItemID = locID
+			ptr.CurrentStock = stock
+			loadedDbItems[itemID] = ptr
+		}
+		locRows.Close()
+	} else {
+		locRows, err := tx.Query(ctx, `SELECT id, item_id, stock FROM warehouse_items WHERE item_id = ANY($1) AND warehouse_id = $2 AND tenant_id = $3 FOR UPDATE`, itemIDs, *req.WarehouseID, tenantID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to lock warehouse items: %w", err)
+		}
+		for locRows.Next() {
+			var locID, itemID, stock int
+			if err := locRows.Scan(&locID, &itemID, &stock); err != nil {
+				locRows.Close()
+				return nil, err
+			}
+			ptr := loadedDbItems[itemID]
+			ptr.LocItemID = locID
+			ptr.CurrentStock = stock
+			loadedDbItems[itemID] = ptr
+		}
+		locRows.Close()
+	}
+
+	// 2. PHASE TWO: EXECUTE BUSINESS LOGIC (Closure)
+	finalAggregate, err := processFn(loadedDbItems)
+	if err != nil {
+		return nil, err
+	}
+	finalAggregate.ReferenceTransactionID = originalTrxID
+
+	// 3. PHASE THREE: BULK WRITE
+	trxNo := fmt.Sprintf("RETPURC-%s", time.Now().Format("20060102150405"))
+
+	var finalBranchID, finalWarehouseID *int
+	if req.BranchID != nil {
+		finalBranchID = req.BranchID
+	} else {
+		finalWarehouseID = req.WarehouseID
+	}
+
+	var trxID int
+	err = tx.QueryRow(ctx,
+		`INSERT INTO transactions (tenant_id, trxno, branch_id, warehouse_id, supplier_id, user_id, trans_type, total_amount, reference_transaction_id, note)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		 RETURNING id`,
+		tenantID, trxNo, finalBranchID, finalWarehouseID, req.SupplierID, userID, model.TxReturnPurc, finalAggregate.TotalRefund, finalAggregate.ReferenceTransactionID, req.Note,
+	).Scan(&trxID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert purchase return header: %w", err)
+	}
+
+	batch := &pgx.Batch{}
+
+	for _, detail := range finalAggregate.Details {
+		if req.BranchID != nil {
+			batch.Queue(
+				`INSERT INTO transaction_detail (transaction_id, branch_item_id, quantity, cogs, price, subtotal)
+				 VALUES ($1, $2, $3, $4, $5, $6)`,
+				trxID, detail.BranchItemID, detail.Quantity, detail.COGS, detail.Price, detail.Subtotal,
+			)
+			batch.Queue(
+				`UPDATE branch_items SET stock = stock - $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3`,
+				detail.Quantity, detail.BranchItemID, tenantID,
+			)
+		} else {
+			batch.Queue(
+				`INSERT INTO transaction_detail (transaction_id, warehouse_item_id, quantity, cogs, price, subtotal)
+				 VALUES ($1, $2, $3, $4, $5, $6)`,
+				trxID, detail.WarehouseItemID, detail.Quantity, detail.COGS, detail.Price, detail.Subtotal,
+			)
+			batch.Queue(
+				`UPDATE warehouse_items SET stock = stock - $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3`,
+				detail.Quantity, detail.WarehouseItemID, tenantID,
+			)
+		}
+	}
+
+	// Tenant Cashflow IN (uang kembali dari supplier)
+	batch.Queue(
+		`INSERT INTO tenant_cashflow (tenant_id, transaction_id, flow_type, direction, amount)
+		 VALUES ($1, $2, $3, $4, $5)`,
+		tenantID, trxID, model.CflowReturnPurc, "IN", finalAggregate.TotalRefund,
+	)
+
+	br := tx.SendBatch(ctx, batch)
+	for i := 0; i < batch.Len(); i++ {
+		_, err := br.Exec()
+		if err != nil {
+			br.Close()
+			return nil, fmt.Errorf("failed to execute batch at index %d: %w", i, err)
+		}
+	}
+	br.Close()
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit purchase return transaction: %w", err)
+	}
+
+	return &model.Transaction{
+		ID:                     trxID,
+		TrxNo:                  trxNo,
+		TenantID:               tenantID,
+		BranchID:               finalBranchID,
+		WarehouseID:            finalWarehouseID,
+		SupplierID:             &req.SupplierID,
+		UserID:                 &userID,
+		TransType:              model.TxReturnPurc,
+		TotalAmount:            finalAggregate.TotalRefund,
 		ReferenceTransactionID: &finalAggregate.ReferenceTransactionID,
 		Note:                   req.Note,
 		CreatedAt:              time.Now(),

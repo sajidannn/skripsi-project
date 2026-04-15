@@ -107,6 +107,27 @@ func (h *TransactionHandler) CreateReturn(c *gin.Context) {
 	c.JSON(http.StatusCreated, dto.Success(toTransactionResponse(res)))
 }
 
+// CreatePurchaseReturn handles POST /api/v1/transactions/purchase-return.
+func (h *TransactionHandler) CreatePurchaseReturn(c *gin.Context) {
+	var req dto.CreatePurchaseReturnRequest
+	if err := h.shouldBind(c, &req); err != nil {
+		return
+	}
+
+	userID, ok := h.getUserID(c)
+	if !ok {
+		return
+	}
+
+	res, err := h.svc.CreatePurchaseReturn(c.Request.Context(), userID, req)
+	if err != nil {
+		_ = c.Error(apierr.Wrap(err, "failed to create purchase return"))
+		return
+	}
+
+	c.JSON(http.StatusCreated, dto.Success(toTransactionResponse(res)))
+}
+
 // AdjustStock handles POST /api/v1/transactions/adjust.
 func (h *TransactionHandler) AdjustStock(c *gin.Context) {
 	var req dto.AdjustStockRequest

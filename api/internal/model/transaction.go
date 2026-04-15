@@ -10,24 +10,26 @@ import (
 type TransactionType string
 
 const (
-	TxSale     TransactionType = "SALE"
-	TxPurchase TransactionType = "PURC"
-	TxTransfer TransactionType = "TRANSFER"
-	TxReturn   TransactionType = "RETURN"
-	TxVoid     TransactionType = "VOID"
+	TxSale       TransactionType = "SALE"
+	TxPurchase   TransactionType = "PURC"
+	TxTransfer   TransactionType = "TRANSFER"
+	TxReturn     TransactionType = "RETURN"
+	TxReturnPurc TransactionType = "RETURN_PURC"
+	TxVoid       TransactionType = "VOID"
 )
 
 // CashflowType enum mimics the DB cashflow_type constraint
 type CashflowType string
 
 const (
-	CflowSale       CashflowType = "SALE"
-	CflowTransfer   CashflowType = "TRANSFER"
-	CflowAdjustment CashflowType = "ADJUSTMENT"
-	CflowPurch      CashflowType = "PURC"
-	CflowWithdraw   CashflowType = "WITHDRAW"
-	CflowReturn     CashflowType = "RETURN"
-	CflowVoid       CashflowType = "VOID"
+	CflowSale        CashflowType = "SALE"
+	CflowTransfer    CashflowType = "TRANSFER"
+	CflowAdjustment  CashflowType = "ADJUSTMENT"
+	CflowPurch       CashflowType = "PURC"
+	CflowWithdraw    CashflowType = "WITHDRAW"
+	CflowReturn      CashflowType = "RETURN"
+	CflowReturnPurc  CashflowType = "RETURN_PURC"
+	CflowVoid        CashflowType = "VOID"
 )
 
 // Transaction represents the main transaction header.
@@ -138,10 +140,12 @@ type FinalTransferAggregate struct {
 	DestDetails   []TransactionDetail
 }
 
-// ProcessReturnItem represents the data needed to process a return.
+// ProcessReturnItem represents the data needed to process a customer return.
 type ProcessReturnItem struct {
-	BranchItemID int
-	CurrentStock int
+	BranchItemID  int             // branch_item_id at the return location
+	CurrentStock  int             // current stock at branch (to validate no negative after void)
+	OriginalPrice decimal.Decimal // price from original sale transaction_detail
+	OriginalQty   int             // qty sold in original transaction (cap for return)
 }
 
 // FinalReturnAggregate represents the result of return calculations.
@@ -163,5 +167,22 @@ type ProcessVoidData struct {
 	OriginalHeader Transaction
 	AlreadyVoided  bool
 	Details        []ProcessVoidDetail
+}
+
+// ProcessPurchaseReturnItem represents a location-specific item record
+// (branch_item or warehouse_item) loaded for purchase return validation.
+type ProcessPurchaseReturnItem struct {
+	ItemID       int             // master item_id
+	LocItemID    int             // branch_item_id or warehouse_item_id
+	CurrentStock int             // available stock at the return location
+	CurrentCost  decimal.Decimal // current WAC from master items table (used for stock valuation)
+	OriginalQty  int             // qty originally purchased (cap for return qty)
+}
+
+// FinalPurchaseReturnAggregate represents the calculation result for a Purchase Return.
+type FinalPurchaseReturnAggregate struct {
+	TotalRefund            decimal.Decimal   // Total uang yang kembali dari supplier (sum of price*qty)
+	Details                []TransactionDetail
+	ReferenceTransactionID int
 }
 

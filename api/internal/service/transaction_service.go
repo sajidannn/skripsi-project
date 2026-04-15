@@ -269,21 +269,32 @@ func (s *TransactionService) CreateReturn(ctx context.Context, userID int, req d
 		var finalDetails []model.TransactionDetail
 
 		for _, reqItem := range req.Items {
-			_, exists := loadedItems[reqItem.BranchItemID]
+			dbItem, exists := loadedItems[reqItem.BranchItemID]
 			if !exists {
-				return model.FinalReturnAggregate{}, apierr.NotFound(fmt.Sprintf("item %d not found at branch", reqItem.BranchItemID))
+				return model.FinalReturnAggregate{}, apierr.NotFound(fmt.Sprintf("item branch_item_id %d not found at branch %d", reqItem.BranchItemID, req.BranchID))
 			}
 
-			// Subtotal logic: Quantity to return * refund price
-			subtotal := decimal.NewFromInt(int64(reqItem.Qty)).Mul(reqItem.Price)
+			// BL Rule: Item must be part of the original transaction
+			if dbItem.OriginalQty == 0 {
+				return model.FinalReturnAggregate{}, apierr.BadRequest(fmt.Sprintf("item branch_item_id %d was not part of the original transaction %s", reqItem.BranchItemID, req.OriginalTrxNo))
+			}
+
+			// BL Rule: Cannot return more than originally sold
+			if reqItem.Qty > dbItem.OriginalQty {
+				return model.FinalReturnAggregate{}, apierr.BadRequest(fmt.Sprintf("return qty %d for item %d exceeds original sale qty %d", reqItem.Qty, reqItem.BranchItemID, dbItem.OriginalQty))
+			}
+
+			// Price is sourced from the original transaction, NOT from user input.
+			price := dbItem.OriginalPrice
+			subtotal := decimal.NewFromInt(int64(reqItem.Qty)).Mul(price)
 			trxTotalAmount = trxTotalAmount.Add(subtotal)
 
 			branchItemIDProxy := reqItem.BranchItemID
 			finalDetails = append(finalDetails, model.TransactionDetail{
 				BranchItemID: &branchItemIDProxy,
 				Quantity:     reqItem.Qty,
-				COGS:         decimal.Zero, // Retur tidak mengubah HPP (WAC) master, hanya nambah stok
-				Price:        reqItem.Price,
+				COGS:         decimal.Zero, // Return tidak mengubah HPP (WAC) master
+				Price:        price,
 				Subtotal:     subtotal,
 			})
 		}
@@ -301,6 +312,76 @@ func (s *TransactionService) CreateReturn(ctx context.Context, userID int, req d
 			return nil, appErr
 		}
 		return nil, apierr.NotFound(err.Error())
+	}
+	return res, nil
+}
+
+// CreatePurchaseReturn handles Purchase Return (retur barang ke supplier) business logic.
+// Stock is reduced at current WAC; refund is based on user ReturnPrice.
+func (s *TransactionService) CreatePurchaseReturn(ctx context.Context, userID int, req dto.CreatePurchaseReturnRequest) (*model.Transaction, error) {
+	tenantID, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, apierr.Internal(err, "failed to resolve tenant")
+	}
+
+	calculateReturnFn := func(loadedItems map[int]model.ProcessPurchaseReturnItem) (model.FinalPurchaseReturnAggregate, error) {
+		var totalRefund decimal.Decimal
+		var details []model.TransactionDetail
+
+		for _, reqItem := range req.Items {
+			dbItem, exists := loadedItems[reqItem.ItemID]
+			if !exists {
+				return model.FinalPurchaseReturnAggregate{}, apierr.NotFound(fmt.Sprintf("item %d not found at given location", reqItem.ItemID))
+			}
+
+			// BL Rule: Item must have been part of the original purchase
+			if dbItem.OriginalQty == 0 {
+				return model.FinalPurchaseReturnAggregate{}, apierr.BadRequest(fmt.Sprintf("item %d was not part of the original purchase transaction %s", reqItem.ItemID, req.OriginalTrxNo))
+			}
+
+			// BL Rule: Cannot return more than originally purchased
+			if reqItem.Qty > dbItem.OriginalQty {
+				return model.FinalPurchaseReturnAggregate{}, apierr.BadRequest(fmt.Sprintf("return qty %d for item %d exceeds original purchase qty %d", reqItem.Qty, reqItem.ItemID, dbItem.OriginalQty))
+			}
+
+			// BL Rule: Sufficient stock at return location
+			if dbItem.CurrentStock < reqItem.Qty {
+				return model.FinalPurchaseReturnAggregate{}, apierr.BadRequest(fmt.Sprintf("insufficient stock for item %d: available %d, returning %d", reqItem.ItemID, dbItem.CurrentStock, reqItem.Qty))
+			}
+
+			// COGS = current WAC (for internal stock valuation; WAC of remaining stock unchanged)
+			subtotal := reqItem.ReturnPrice.Mul(decimal.NewFromInt(int64(reqItem.Qty)))
+			totalRefund = totalRefund.Add(subtotal)
+
+			detail := model.TransactionDetail{
+				Quantity: reqItem.Qty,
+				COGS:     dbItem.CurrentCost,  // WAC today, for internal accuracy
+				Price:    reqItem.ReturnPrice,  // Refund price agreed with supplier
+				Subtotal: subtotal,
+			}
+			if req.BranchID != nil {
+				locID := dbItem.LocItemID
+				detail.BranchItemID = &locID
+			} else {
+				locID := dbItem.LocItemID
+				detail.WarehouseItemID = &locID
+			}
+			details = append(details, detail)
+		}
+
+		return model.FinalPurchaseReturnAggregate{
+			TotalRefund: totalRefund,
+			Details:     details,
+		}, nil
+	}
+
+	res, err := s.repo.ExecutePurchaseReturnTx(ctx, tenantID, userID, req, calculateReturnFn)
+	if err != nil {
+		var appErr *apierr.AppError
+		if errors.As(err, &appErr) {
+			return nil, appErr
+		}
+		return nil, apierr.Internal(err, "failed to process purchase return")
 	}
 	return res, nil
 }

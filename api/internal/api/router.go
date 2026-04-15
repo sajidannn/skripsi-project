@@ -103,6 +103,7 @@ func NewRouter(jwtSecret string, debug bool, h Handlers) *gin.Engine {
 			transactions.POST("/purchase", middleware.RequireRole("owner", "manager"), h.Transaction.CreatePurchase)
 			transactions.POST("/transfer", middleware.RequireRole("owner", "manager"), h.Transaction.CreateTransfer)
 			transactions.POST("/return", middleware.RequireRole("owner", "manager", "cashier"), h.Transaction.CreateReturn)
+			transactions.POST("/purchase-return", middleware.RequireRole("owner", "manager"), h.Transaction.CreatePurchaseReturn)
 			transactions.POST("/adjust", middleware.RequireRole("owner", "manager"), h.Transaction.AdjustStock)
 			transactions.POST("/:id/void", middleware.RequireRole("owner", "manager"), h.Transaction.Void)
 		}

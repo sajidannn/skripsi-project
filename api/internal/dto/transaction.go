@@ -60,10 +60,10 @@ type CreateTransferRequest struct {
 }
 
 // ReturnItemRequest defines a single item in a return payload.
+// Price is NOT required from the client — it is fetched from the original transaction.
 type ReturnItemRequest struct {
-	BranchItemID int             `json:"branch_item_id" binding:"required"`
-	Qty          int             `json:"qty"            binding:"required,min=1"`
-	Price        decimal.Decimal `json:"price"          binding:"required,min=0"`
+	BranchItemID int `json:"branch_item_id" binding:"required"`
+	Qty          int `json:"qty"            binding:"required,min=1"`
 }
 
 // CreateReturnRequest is for POST /transactions/return.
@@ -92,6 +92,23 @@ type AdjustStockRequest struct {
 // VoidRequest is the validated HTTP request body for POST /transactions/:id/void.
 type VoidRequest struct {
 	Reason string `json:"reason" binding:"required,max=500"`
+}
+
+// PurchaseReturnItemRequest defines a single item in a purchase return payload.
+type PurchaseReturnItemRequest struct {
+	ItemID      int             `json:"item_id"      binding:"required"`
+	Qty         int             `json:"qty"          binding:"required,min=1"`
+	ReturnPrice decimal.Decimal `json:"return_price" binding:"required,min=0"` // Harga refund dari supplier
+}
+
+// CreatePurchaseReturnRequest is for POST /transactions/purchase-return.
+type CreatePurchaseReturnRequest struct {
+	OriginalTrxNo string                      `json:"original_trx_no" binding:"required"`
+	WarehouseID   *int                        `json:"warehouse_id"    binding:"required_without=BranchID"`
+	BranchID      *int                        `json:"branch_id"       binding:"required_without=WarehouseID"`
+	SupplierID    int                         `json:"supplier_id"     binding:"required"`
+	Note          string                      `json:"note"            binding:"omitempty,max=1000"`
+	Items         []PurchaseReturnItemRequest `json:"items"           binding:"required,min=1,dive"`
 }
 
 // ── Filter ────────────────────────────────────────────────────────────────────

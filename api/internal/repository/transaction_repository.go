@@ -54,6 +54,15 @@ type TransactionRepository interface {
 		processFn func(currentStocks map[int]int) (map[int]int, error),
 	) error
 
+	// ExecutePurchaseReturnTx handles the DB transaction for returning goods to a supplier.
+	ExecutePurchaseReturnTx(
+		ctx context.Context,
+		tenantID int,
+		userID int,
+		req dto.CreatePurchaseReturnRequest,
+		processFn func(loadedItems map[int]model.ProcessPurchaseReturnItem) (model.FinalPurchaseReturnAggregate, error),
+	) (*model.Transaction, error)
+
 	// List returns a paginated, filtered list of transactions for the tenant.
 	List(ctx context.Context, tenantID int, q dto.PageQuery, f dto.TransactionFilter) ([]model.Transaction, int, error)
 
