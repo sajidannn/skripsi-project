@@ -1063,6 +1063,200 @@
       "id": "68405302-173f-4f1a-8c95-e93bedbb29ca"
     },
     {
+      "name": "Suppliers",
+      "item": [
+        {
+          "name": "create supplier",
+          "id": "5f6g7h8i-9j0k-1l2m-3n4o-5p6q7r8s9t0u",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Indofood CBP\",\n  \"phone\": \"021-1234567\",\n  \"address\": \"Sudirman Plaza, Jakarta\"\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/suppliers",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suppliers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "list suppliers",
+          "id": "1a2b3c4d-a1b2-c3d4-e5f6-g7h8i9j0k1l2",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/suppliers",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suppliers"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Indofood",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get supplier by id",
+          "id": "0a1b2c3d-4e5f-6g7h-8i9j-k0l1m2n3o4p5",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/suppliers/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suppliers",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "update supplier",
+          "id": "b1c2d3e4-f5g6-h7i8-j9k0-l1m2n3o4p5q6",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"08111222333\"\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/suppliers/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suppliers",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete supplier",
+          "id": "z1x2c3v4-b5n6-m7q8-w9e0-r1t2y3u4i5o6",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/suppliers/1",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "suppliers",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6"
+    },
+    {
       "name": "Transactions",
       "item": [
         {
@@ -1299,7 +1493,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"original_trx_no\": \"SALE-20240415...\",\n    \"branch_id\": 1,\n    \"customer_id\": null,\n    \"note\": \"test sale return (price derived from original sale)\",\n    \"items\": [\n        {\n            \"branch_item_id\": 1,\n            \"qty\": 1\n        }\n    ]\n}"
+              "raw": "{\n    \"original_trx_no\": \"SALE-20260415220719\",\n    \"branch_id\": 2,\n    \"customer_id\": null,\n    \"note\": \"test sale return (price derived from original sale)\",\n    \"items\": [\n        {\n            \"branch_item_id\": 5,\n            \"qty\": 1\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{host}}/api/v1/transactions/return",

@@ -16,6 +16,7 @@ type Handlers struct {
 	Inventory *handler.InventoryHandler
 	User        *handler.UserHandler
 	Customer    *handler.CustomerHandler
+	Supplier    *handler.SupplierHandler
 	Transaction *handler.TransactionHandler
 }
 
@@ -92,6 +93,16 @@ func NewRouter(jwtSecret string, debug bool, h Handlers) *gin.Engine {
 			customers.GET("/:id", middleware.RequireRole("owner", "manager", "cashier"), h.Customer.GetByID)
 			customers.PUT("/:id", middleware.RequireRole("owner", "manager", "cashier"), h.Customer.Update)
 			customers.DELETE("/:id", middleware.RequireRole("owner", "manager"), h.Customer.Delete)
+		}
+
+		// Suppliers
+		suppliers := api.Group("/suppliers")
+		{
+			suppliers.POST("", middleware.RequireRole("owner", "manager"), h.Supplier.Create)
+			suppliers.GET("", middleware.RequireRole("owner", "manager", "cashier"), h.Supplier.List)
+			suppliers.GET("/:id", middleware.RequireRole("owner", "manager"), h.Supplier.GetByID)
+			suppliers.PUT("/:id", middleware.RequireRole("owner", "manager"), h.Supplier.Update)
+			suppliers.DELETE("/:id", middleware.RequireRole("owner", "manager"), h.Supplier.Delete)
 		}
 
 		// Transactions

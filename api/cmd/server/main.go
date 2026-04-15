@@ -37,6 +37,7 @@ func main() {
 		inventoryRepo repository.InventoryRepository
 		userRepo      repository.UserRepository
 		customerRepo  repository.CustomerRepository
+		supplierRepo  repository.SupplierRepository
 		transRepo     repository.TransactionRepository
 	)
 
@@ -57,6 +58,7 @@ func main() {
 		inventoryRepo = repoSingle.NewInventoryRepo(pool)
 		userRepo = repoSingle.NewUserRepo(pool)
 		customerRepo = repoSingle.NewCustomerRepo(pool)
+		supplierRepo = repoSingle.NewSupplierRepo(pool)
 		transRepo = repoSingle.NewTransactionRepo(pool)
 
 	case config.DBModeMulti:
@@ -80,6 +82,7 @@ func main() {
 		inventoryRepo = repoMulti.NewInventoryRepo(mgr)
 		userRepo = repoMulti.NewUserRepo(mgr)
 		customerRepo = repoMulti.NewCustomerRepo(mgr)
+		supplierRepo = repoMulti.NewSupplierRepo(mgr)
 		transRepo = repoMulti.NewTransactionRepo(mgr)
 
 	default:
@@ -96,6 +99,7 @@ func main() {
 	inventorySvc := service.NewInventoryService(inventoryRepo)
 	userSvc := service.NewUserService(userRepo, cfg.JWTSecret)
 	customerSvc := service.NewCustomerService(customerRepo)
+	supplierSvc := service.NewSupplierService(supplierRepo)
 	transSvc := service.NewTransactionService(transRepo)
 
 	handlers := api.Handlers{
@@ -106,6 +110,7 @@ func main() {
 		Inventory: handler.NewInventoryHandler(inventorySvc),
 		User:      handler.NewUserHandler(userSvc),
 		Customer:  handler.NewCustomerHandler(customerSvc),
+		Supplier:  handler.NewSupplierHandler(supplierSvc),
 		Transaction: handler.NewTransactionHandler(transSvc),
 	}
 
