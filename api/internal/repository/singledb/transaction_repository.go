@@ -1035,142 +1035,189 @@ func (r *TransactionRepo) ExecuteVoidTx(
 	}
 	defer tx.Rollback(ctx)
 
-	// 1. Fetch original transaction header & Locke it
-	var original model.Transaction
-	err = tx.QueryRow(ctx,
-		`SELECT id, trxno, branch_id, warehouse_id, customer_id, supplier_id, user_id, trans_type, total_amount, tax, discount, note, created_at
-		 FROM transactions
-		 WHERE id = $1 AND tenant_id = $2 FOR UPDATE`,
-		originalTrxID, tenantID,
-	).Scan(
-		&original.ID, &original.TrxNo, &original.BranchID, &original.WarehouseID,
-		&original.CustomerID, &original.SupplierID, &original.UserID, &original.TransType,
-		&original.TotalAmount, &original.Tax, &original.Discount, &original.Note, &original.CreatedAt,
-	)
+	// 1. Identify target IDs (Single or Pair if Transfer)
+	var targets []int
+	targets = append(targets, originalTrxID)
+
+	// Preliminary check to see if we need a partner
+	var transType model.TransactionType
+	var trxNo string
+	err = tx.QueryRow(ctx, `SELECT trans_type, trxno FROM transactions WHERE id = $1 AND tenant_id = $2`, originalTrxID, tenantID).Scan(&transType, &trxNo)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, apierr.NotFound(fmt.Sprintf("original transaction id %d not found for this tenant", originalTrxID))
+			return nil, apierr.NotFound(fmt.Sprintf("transaction id %d not found", originalTrxID))
 		}
-		return nil, fmt.Errorf("failed to fetch original transaction: %w", err)
-	}
-
-	// 2. Check if already voided
-	var alreadyVoided bool
-	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM transactions WHERE reference_transaction_id = $1 AND trans_type = 'VOID')`, originalTrxID).Scan(&alreadyVoided)
-	if err != nil {
 		return nil, err
 	}
 
+	if transType == model.TxTransfer {
+		suffix := ""
+		partnerNo := ""
+		if strings.HasPrefix(trxNo, "TRFO-") {
+			suffix = strings.TrimPrefix(trxNo, "TRFO-")
+			partnerNo = "TRFI-" + suffix
+		} else if strings.HasPrefix(trxNo, "TRFI-") {
+			suffix = strings.TrimPrefix(trxNo, "TRFI-")
+			partnerNo = "TRFO-" + suffix
+		}
 
-	// 3. Fetch details WITH current stock info to allow service-level validation
-	var processDetails []model.ProcessVoidDetail
-	rows, err := tx.Query(ctx, `
-		SELECT td.branch_item_id, td.warehouse_item_id, td.quantity, td.cogs, td.price, td.subtotal,
-		       COALESCE(bi.stock, wi.stock, 0) AS current_stock
-		FROM transaction_detail td
-		LEFT JOIN branch_items bi ON td.branch_item_id = bi.id
-		LEFT JOIN warehouse_items wi ON td.warehouse_item_id = wi.id
-		WHERE td.transaction_id = $1`, originalTrxID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch original details: %w", err)
+		if partnerNo != "" {
+			var partnerID int
+			err = tx.QueryRow(ctx, `SELECT id FROM transactions WHERE trxno = $1 AND tenant_id = $2`, partnerNo, tenantID).Scan(&partnerID)
+			if err == nil {
+				targets = append(targets, partnerID)
+			}
+		}
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var pvd model.ProcessVoidDetail
-		var d model.TransactionDetail
-		err := rows.Scan(
-			&d.BranchItemID, &d.WarehouseItemID,
-			&d.Quantity, &d.COGS, &d.Price, &d.Subtotal,
-			&pvd.CurrentStock,
+	batch := &pgx.Batch{}
+	var requestedResult *model.Transaction
+
+	for _, targetID := range targets {
+
+		// 1. Fetch transaction header & Lock it
+		var original model.Transaction
+		err = tx.QueryRow(ctx,
+			`SELECT id, trxno, branch_id, warehouse_id, customer_id, supplier_id, user_id, trans_type, total_amount, tax, discount, note, created_at
+			 FROM transactions
+			 WHERE id = $1 AND tenant_id = $2 FOR UPDATE`,
+			targetID, tenantID,
+		).Scan(
+			&original.ID, &original.TrxNo, &original.BranchID, &original.WarehouseID,
+			&original.CustomerID, &original.SupplierID, &original.UserID, &original.TransType,
+			&original.TotalAmount, &original.Tax, &original.Discount, &original.Note, &original.CreatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan original detail: %w", err)
+			return nil, fmt.Errorf("failed to fetch transaction %d: %w", targetID, err)
 		}
-		pvd.Detail = d
-		processDetails = append(processDetails, pvd)
-	}
-	if rows.Err() != nil {
-		return nil, fmt.Errorf("error iterating details: %w", rows.Err())
-	}
 
-	// 3.5. EXEUCUTE CLOSURE FOR BUSINESS RULES (Moved after details fetch to include them)
-	err = processFn(model.ProcessVoidData{
-		OriginalHeader: original,
-		AlreadyVoided:  alreadyVoided,
-		Details:        processDetails,
-	})
-	if err != nil {
-		return nil, err // Service rejected the void
-	}
+		// 2. Check if already voided
+		var alreadyVoided bool
+		err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM transactions WHERE reference_transaction_id = $1 AND trans_type = 'VOID')`, targetID).Scan(&alreadyVoided)
+		if err != nil {
+			return nil, err
+		}
 
-	// 4. Create VOID record
-	voidTrxNo := fmt.Sprintf("VOID-%s", time.Now().Format("20060102150405"))
-	var voidID int
-	err = tx.QueryRow(ctx,
-		`INSERT INTO transactions (tenant_id, trxno, branch_id, warehouse_id, customer_id, supplier_id, user_id, trans_type, total_amount, tax, discount, reference_transaction_id, note)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-		 RETURNING id`,
-		tenantID, voidTrxNo, original.BranchID, original.WarehouseID, original.CustomerID, original.SupplierID, userID, model.TxVoid, original.TotalAmount, original.Tax, original.Discount, original.ID, reason,
-	).Scan(&voidID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to insert void transaction: %w", err)
-	}
 
-	// 5. Update original note
-	newNote := fmt.Sprintf("%s [VOIDED]", original.Note)
-	_, err = tx.Exec(ctx, `UPDATE transactions SET note = $1 WHERE id = $2`, newNote, original.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	// 6. Reverse Stock & Cashflow
-	batch := &pgx.Batch{}
-
-	for _, pvd := range processDetails {
-		d := pvd.Detail
-		// Map back to transaction_detail for the void record (mirroring the original)
-		batch.Queue(`INSERT INTO transaction_detail (transaction_id, branch_item_id, warehouse_item_id, quantity, cogs, price, subtotal)
-		             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-			voidID, d.BranchItemID, d.WarehouseItemID, d.Quantity, d.COGS, d.Price, d.Subtotal)
-
-		switch original.TransType {
-		case model.TxSale:
-			batch.Queue(`UPDATE branch_items SET stock = stock + $1, updated_at = NOW() WHERE id = $2`, d.Quantity, *d.BranchItemID)
-		case model.TxTransfer:
-			if strings.Contains(original.TrxNo, "TRFI") {
-				// Transfer In -> Take stock out of DESTINATION
-				if d.BranchItemID != nil {
-					batch.Queue(`UPDATE branch_items SET stock = stock - $1, updated_at = NOW() WHERE id = $2`, d.Quantity, *d.BranchItemID)
-				} else {
-					batch.Queue(`UPDATE warehouse_items SET stock = stock - $1, updated_at = NOW() WHERE id = $2`, d.Quantity, *d.WarehouseItemID)
-				}
-			} else if strings.Contains(original.TrxNo, "TRFO") {
-				// Transfer Out -> Put stock back to SOURCE
-				if d.BranchItemID != nil {
-					batch.Queue(`UPDATE branch_items SET stock = stock + $1, updated_at = NOW() WHERE id = $2`, d.Quantity, *d.BranchItemID)
-				} else {
-					batch.Queue(`UPDATE warehouse_items SET stock = stock + $1, updated_at = NOW() WHERE id = $2`, d.Quantity, *d.WarehouseItemID)
-				}
+		// 3. Fetch details WITH current stock info
+		var processDetails []model.ProcessVoidDetail
+		rows, err := tx.Query(ctx, `
+			SELECT td.branch_item_id, td.warehouse_item_id, td.quantity, td.cogs, td.price, td.subtotal,
+				   COALESCE(bi.stock, wi.stock, 0) AS current_stock
+			FROM transaction_detail td
+			LEFT JOIN branch_items bi ON td.branch_item_id = bi.id
+			LEFT JOIN warehouse_items wi ON td.warehouse_item_id = wi.id
+			WHERE td.transaction_id = $1`, targetID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch details for %d: %w", targetID, err)
+		}
+		for rows.Next() {
+			var pvd model.ProcessVoidDetail
+			var d model.TransactionDetail
+			err := rows.Scan(
+				&d.BranchItemID, &d.WarehouseItemID,
+				&d.Quantity, &d.COGS, &d.Price, &d.Subtotal,
+				&pvd.CurrentStock,
+			)
+			if err != nil {
+				rows.Close()
+				return nil, err
 			}
-		case model.TxReturn:
-			// Return (Customer -> Branch) -> Voiding it means taking stock back OUT of branch
-			batch.Queue(`UPDATE branch_items SET stock = stock - $1, updated_at = NOW() WHERE id = $2`, d.Quantity, *d.BranchItemID)
+			pvd.Detail = d
+			processDetails = append(processDetails, pvd)
 		}
-	}
+		rows.Close()
 
-	// 7. Reverse Cashflow (Sale & Return impact cashflow)
-	if original.BranchID != nil {
-		switch original.TransType {
-		case model.TxSale:
-			batch.Queue(`INSERT INTO branch_cashflow (tenant_id, branch_id, transaction_id, flow_type, direction, amount)
-					VALUES ($1, $2, $3, $4, $5, $6)`,
-				tenantID, *original.BranchID, voidID, model.CflowVoid, "OUT", original.TotalAmount)
-		case model.TxReturn:
-			// Return reversal means money goes back IN to the branch (since return took money OUT)
-			batch.Queue(`INSERT INTO branch_cashflow (tenant_id, branch_id, transaction_id, flow_type, direction, amount)
-					VALUES ($1, $2, $3, $4, $5, $6)`,
-				tenantID, *original.BranchID, voidID, model.CflowVoid, "IN", original.TotalAmount)
+		// 4. Validate via Closure
+		err = processFn(model.ProcessVoidData{
+			OriginalHeader: original,
+			AlreadyVoided:  alreadyVoided,
+			Details:        processDetails,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		// 5. Create VOID record
+		// Use partial seconds to avoid unique constraint if many voids happen same tiny second
+		voidTrxNo := fmt.Sprintf("VOID-%s", time.Now().Format("20060102150405.000")) 
+		if targetID != originalTrxID {
+			voidTrxNo += "-PAIR"
+		}
+		
+		var voidID int
+		err = tx.QueryRow(ctx,
+			`INSERT INTO transactions (tenant_id, trxno, branch_id, warehouse_id, customer_id, supplier_id, user_id, trans_type, total_amount, tax, discount, reference_transaction_id, note)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+			 RETURNING id`,
+			tenantID, voidTrxNo, original.BranchID, original.WarehouseID, original.CustomerID, original.SupplierID, userID, model.TxVoid, original.TotalAmount, original.Tax, original.Discount, original.ID, reason,
+		).Scan(&voidID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to insert void for %d: %w", targetID, err)
+		}
+
+		// 6. Update original note
+		newNote := fmt.Sprintf("%s [VOIDED]", original.Note)
+		batch.Queue(`UPDATE transactions SET note = $1 WHERE id = $2`, newNote, original.ID)
+
+		// 7. Queue Stock & Cashflow reversals
+		for _, pvd := range processDetails {
+			d := pvd.Detail
+			batch.Queue(`INSERT INTO transaction_detail (transaction_id, branch_item_id, warehouse_item_id, quantity, cogs, price, subtotal)
+						 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+				voidID, d.BranchItemID, d.WarehouseItemID, d.Quantity, d.COGS, d.Price, d.Subtotal)
+
+			switch original.TransType {
+			case model.TxSale:
+				batch.Queue(`UPDATE branch_items SET stock = stock + $1, updated_at = NOW() WHERE id = $2`, d.Quantity, *d.BranchItemID)
+			case model.TxTransfer:
+				if strings.Contains(original.TrxNo, "TRFI") {
+					if d.BranchItemID != nil {
+						batch.Queue(`UPDATE branch_items SET stock = stock - $1, updated_at = NOW() WHERE id = $2`, d.Quantity, *d.BranchItemID)
+					} else {
+						batch.Queue(`UPDATE warehouse_items SET stock = stock - $1, updated_at = NOW() WHERE id = $2`, d.Quantity, *d.WarehouseItemID)
+					}
+				} else if strings.Contains(original.TrxNo, "TRFO") {
+					if d.BranchItemID != nil {
+						batch.Queue(`UPDATE branch_items SET stock = stock + $1, updated_at = NOW() WHERE id = $2`, d.Quantity, *d.BranchItemID)
+					} else {
+						batch.Queue(`UPDATE warehouse_items SET stock = stock + $1, updated_at = NOW() WHERE id = $2`, d.Quantity, *d.WarehouseItemID)
+					}
+				}
+			case model.TxReturn:
+				batch.Queue(`UPDATE branch_items SET stock = stock - $1, updated_at = NOW() WHERE id = $2`, d.Quantity, *d.BranchItemID)
+			}
+		}
+
+		if original.BranchID != nil {
+			switch original.TransType {
+			case model.TxSale:
+				batch.Queue(`INSERT INTO branch_cashflow (tenant_id, branch_id, transaction_id, flow_type, direction, amount)
+						VALUES ($1, $2, $3, $4, $5, $6)`,
+					tenantID, *original.BranchID, voidID, model.CflowVoid, "OUT", original.TotalAmount)
+			case model.TxReturn:
+				batch.Queue(`INSERT INTO branch_cashflow (tenant_id, branch_id, transaction_id, flow_type, direction, amount)
+						VALUES ($1, $2, $3, $4, $5, $6)`,
+					tenantID, *original.BranchID, voidID, model.CflowVoid, "IN", original.TotalAmount)
+			}
+		}
+
+		if targetID == originalTrxID {
+			requestedResult = &model.Transaction{
+				ID:                     voidID,
+				TrxNo:                  voidTrxNo,
+				TenantID:               tenantID,
+				BranchID:               original.BranchID,
+				WarehouseID:            original.WarehouseID,
+				CustomerID:             original.CustomerID,
+				SupplierID:             original.SupplierID,
+				UserID:                 &userID,
+				TransType:              model.TxVoid,
+				TotalAmount:            original.TotalAmount,
+				ReferenceTransactionID: &original.ID,
+				Note:                   reason,
+				CreatedAt:              time.Now(),
+			}
 		}
 	}
 
@@ -1179,7 +1226,7 @@ func (r *TransactionRepo) ExecuteVoidTx(
 		_, err := br.Exec()
 		if err != nil {
 			br.Close()
-			return nil, fmt.Errorf("void batch execution failed at index %d: %w", i, err)
+			return nil, fmt.Errorf("void batch failed: %w", err)
 		}
 	}
 	br.Close()
@@ -1188,12 +1235,5 @@ func (r *TransactionRepo) ExecuteVoidTx(
 		return nil, err
 	}
 
-	return &model.Transaction{
-		ID:          voidID,
-		TrxNo:       voidTrxNo,
-		TenantID:    tenantID,
-		TransType:   model.TxVoid,
-		TotalAmount: original.TotalAmount,
-		CreatedAt:   time.Now(),
-	}, nil
+	return requestedResult, nil
 }

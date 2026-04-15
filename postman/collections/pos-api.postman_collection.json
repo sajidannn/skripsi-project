@@ -828,10 +828,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Kasir Senior\"\n}"
+              "raw": "{\n  \"name\": \"Kasir Senior (tes)\"\n}"
             },
             "url": {
-              "raw": "{{host}}/api/v1/users/1",
+              "raw": "{{host}}/api/v1/users/4",
               "host": [
                 "{{host}}"
               ],
@@ -839,7 +839,7 @@
                 "api",
                 "v1",
                 "users",
-                "1"
+                "4"
               ]
             }
           },
@@ -1082,7 +1082,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{host}}/api/v1/transactions?page=1&limit=10&trans_type=SALE",
+              "raw": "{{host}}/api/v1/transactions",
               "host": [
                 "{{host}}"
               ],
@@ -1094,15 +1094,21 @@
               "query": [
                 {
                   "key": "page",
-                  "value": "1"
+                  "value": "1",
+                  "uuid": "a35b64af-d515-455c-acf2-aa736535e204",
+                  "disabled": true
                 },
                 {
                   "key": "limit",
-                  "value": "10"
+                  "value": "10",
+                  "uuid": "5303f059-fbfa-4d94-a59d-9046c6aadf5b",
+                  "disabled": true
                 },
                 {
                   "key": "trans_type",
-                  "value": "SALE"
+                  "value": "SALE",
+                  "uuid": "40f24ac5-7b29-4ca5-9e9e-e9d778f44d21",
+                  "disabled": true
                 },
                 {
                   "key": "branch_id",
@@ -1136,7 +1142,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{host}}/api/v1/transactions/1",
+              "raw": "{{host}}/api/v1/transactions/5",
               "host": [
                 "{{host}}"
               ],
@@ -1144,7 +1150,7 @@
                 "api",
                 "v1",
                 "transactions",
-                "1"
+                "5"
               ]
             }
           },
@@ -1253,7 +1259,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"source_type\": \"branch\",\n    \"source_id\": 1,\n    \"dest_type\": \"branch\",\n    \"dest_id\": 4,\n    \"note\": \"test transfer from WH 1 to Branch 1\",\n    \"items\": [\n        {\n            \"item_id\": 1,\n            \"qty\": 11\n        }\n    ]\n}"
+              "raw": "{\n    \"source_type\": \"branch\",\n    \"source_id\": 1,\n    \"dest_type\": \"branch\",\n    \"dest_id\": 2,\n    \"note\": \"test transfer from WH 1 to Branch 1\",\n    \"items\": [\n        {\n            \"item_id\": 2,\n            \"qty\": 1\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{host}}/api/v1/transactions/transfer",
@@ -1376,7 +1382,7 @@
               "raw": "{\n    \"reason\": \"Kasir salah masukin kuantiti\"\n}"
             },
             "url": {
-              "raw": "{{host}}/api/v1/transactions/2/void",
+              "raw": "{{host}}/api/v1/transactions/6/void",
               "host": [
                 "{{host}}"
               ],
@@ -1384,7 +1390,7 @@
                 "api",
                 "v1",
                 "transactions",
-                "2",
+                "6",
                 "void"
               ]
             }
