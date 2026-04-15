@@ -306,7 +306,7 @@ func (s *TransactionService) CreateReturn(ctx context.Context, userID int, req d
 }
 
 // AdjustStock handles bulk inventory reconciliation.
-func (s *TransactionService) AdjustStock(ctx context.Context, req dto.AdjustStockRequest) error {
+func (s *TransactionService) AdjustStock(ctx context.Context, userID int, req dto.AdjustStockRequest) error {
 	tenantID, err := tenant.FromContext(ctx)
 	if err != nil {
 		return apierr.Internal(err, "failed to resolve tenant")
@@ -325,7 +325,7 @@ func (s *TransactionService) AdjustStock(ctx context.Context, req dto.AdjustStoc
 		return diffs, nil
 	}
 
-	err = s.repo.ExecuteAdjustmentTx(ctx, tenantID, req, processAdjustmentFn)
+	err = s.repo.ExecuteAdjustmentTx(ctx, tenantID, userID, req, processAdjustmentFn)
 	if err != nil {
 		var appErr *apierr.AppError
 		if errors.As(err, &appErr) {

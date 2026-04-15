@@ -1142,7 +1142,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{host}}/api/v1/transactions/5",
+              "raw": "{{host}}/api/v1/transactions/1",
               "host": [
                 "{{host}}"
               ],
@@ -1150,7 +1150,7 @@
                 "api",
                 "v1",
                 "transactions",
-                "5"
+                "1"
               ]
             }
           },
@@ -1179,7 +1179,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"branch_id\": 1,\n    \"customer_id\": null,\n    \"tax\": 0,\n    \"discount\": 0,\n    \"note\": \"test sale\",\n    \"items\": [\n        {\n            \"branch_item_id\": 2,\n            \"qty\": 6\n        }\n    ]\n}"
+              "raw": "{\n    \"branch_id\": 2,\n    \"customer_id\": null,\n    \"tax\": 0,\n    \"discount\": 0,\n    \"note\": \"test sale\",\n    \"items\": [\n        {\n            \"branch_item_id\": 5,\n            \"qty\": 10\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{host}}/api/v1/transactions/sale",
@@ -1259,7 +1259,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"source_type\": \"branch\",\n    \"source_id\": 1,\n    \"dest_type\": \"branch\",\n    \"dest_id\": 2,\n    \"note\": \"test transfer from WH 1 to Branch 1\",\n    \"items\": [\n        {\n            \"item_id\": 2,\n            \"qty\": 1\n        }\n    ]\n}"
+              "raw": "{\n    \"source_type\": \"branch\",\n    \"source_id\": 1,\n    \"dest_type\": \"branch\",\n    \"dest_id\": 2,\n    \"note\": \"test transfer from WH 1 to Branch 1\",\n    \"items\": [\n        {\n            \"item_id\": 2,\n            \"qty\": 2\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{host}}/api/v1/transactions/transfer",

@@ -788,6 +788,7 @@ func (r *TransactionRepo) ExecuteReturnTx(
 func (r *TransactionRepo) ExecuteAdjustmentTx(
 	ctx context.Context,
 	tenantID int,
+	userID int,
 	req dto.AdjustStockRequest,
 	processFn func(currentStocks map[int]int) (map[int]int, error),
 ) error {
@@ -856,15 +857,15 @@ func (r *TransactionRepo) ExecuteAdjustmentTx(
 		if req.LocationType == "branch" {
 			batch.Queue(`UPDATE branch_items SET stock = stock + $1, updated_at = NOW() WHERE item_id = $2 AND branch_id = $3 AND tenant_id = $4`,
 				changeUnit, itemID, req.LocationID, tenantID)
-			batch.Queue(`INSERT INTO audit_stock (tenant_id, branch_item_id, change_unit, reason) 
-				SELECT $1, id, $2, $3 FROM branch_items WHERE item_id = $4 AND branch_id = $5 AND tenant_id = $6`,
-				tenantID, changeUnit, req.Reason, itemID, req.LocationID, tenantID)
+			batch.Queue(`INSERT INTO audit_stock (tenant_id, branch_item_id, change_unit, reason, user_id) 
+				SELECT $1, id, $2, $3, $4 FROM branch_items WHERE item_id = $5 AND branch_id = $6 AND tenant_id = $7`,
+				tenantID, changeUnit, req.Reason, userID, itemID, req.LocationID, tenantID)
 		} else {
 			batch.Queue(`UPDATE warehouse_items SET stock = stock + $1, updated_at = NOW() WHERE item_id = $2 AND warehouse_id = $3 AND tenant_id = $4`,
 				changeUnit, itemID, req.LocationID, tenantID)
-			batch.Queue(`INSERT INTO audit_stock (tenant_id, warehouse_item_id, change_unit, reason) 
-				SELECT $1, id, $2, $3 FROM warehouse_items WHERE item_id = $4 AND warehouse_id = $5 AND tenant_id = $6`,
-				tenantID, changeUnit, req.Reason, itemID, req.LocationID, tenantID)
+			batch.Queue(`INSERT INTO audit_stock (tenant_id, warehouse_item_id, change_unit, reason, user_id) 
+				SELECT $1, id, $2, $3, $4 FROM warehouse_items WHERE item_id = $5 AND warehouse_id = $6 AND tenant_id = $7`,
+				tenantID, changeUnit, req.Reason, userID, itemID, req.LocationID, tenantID)
 		}
 	}
 

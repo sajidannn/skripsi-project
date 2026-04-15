@@ -148,9 +148,11 @@ CREATE TABLE IF NOT EXISTS audit_stock (
     branch_item_id    INT REFERENCES branch_items(id),
     change_unit       INT NOT NULL,
     reason            TEXT,
+    user_id           INT REFERENCES users(id),
     created_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_audit_stock_tenant ON audit_stock(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_audit_stock_user ON audit_stock(user_id);
 
 DO $$ BEGIN
     CREATE TYPE cashflow_type AS ENUM ('SALE', 'TRANSFER', 'ADJUSTMENT', 'RETURN', 'VOID');

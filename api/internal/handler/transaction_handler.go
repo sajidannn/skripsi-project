@@ -31,10 +31,8 @@ func (h *TransactionHandler) CreateSale(c *gin.Context) {
 		return
 	}
 
-	userID := c.GetInt("user_id")
-
-	if userID == 0 {
-		_ = c.Error(apierr.Unauthorized("unable to resolve user_id from token"))
+	userID, ok := h.getUserID(c)
+	if !ok {
 		return
 	}
 
@@ -55,7 +53,10 @@ func (h *TransactionHandler) CreatePurchase(c *gin.Context) {
 		return
 	}
 
-	userID := c.GetInt("user_id")
+	userID, ok := h.getUserID(c)
+	if !ok {
+		return
+	}
 	res, err := h.svc.CreatePurchase(c.Request.Context(), userID, req)
 	if err != nil {
 		_ = c.Error(apierr.Wrap(err, "failed to create purchase"))
@@ -73,7 +74,10 @@ func (h *TransactionHandler) CreateTransfer(c *gin.Context) {
 		return
 	}
 
-	userID := c.GetInt("user_id")
+	userID, ok := h.getUserID(c)
+	if !ok {
+		return
+	}
 	res, err := h.svc.CreateTransfer(c.Request.Context(), userID, req)
 	if err != nil {
 		_ = c.Error(apierr.Wrap(err, "failed to create transfer"))
@@ -90,7 +94,10 @@ func (h *TransactionHandler) CreateReturn(c *gin.Context) {
 		return
 	}
 
-	userID := c.GetInt("user_id")
+	userID, ok := h.getUserID(c)
+	if !ok {
+		return
+	}
 	res, err := h.svc.CreateReturn(c.Request.Context(), userID, req)
 	if err != nil {
 		_ = c.Error(apierr.Wrap(err, "failed to create return"))
@@ -107,13 +114,27 @@ func (h *TransactionHandler) AdjustStock(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.AdjustStock(c.Request.Context(), req)
+	userID, ok := h.getUserID(c)
+	if !ok {
+		return
+	}
+
+	err := h.svc.AdjustStock(c.Request.Context(), userID, req)
 	if err != nil {
 		_ = c.Error(apierr.Wrap(err, "failed to adjust stock"))
 		return
 	}
 
 	c.JSON(http.StatusOK, dto.Success("stock adjusted successfully"))
+}
+
+func (h *TransactionHandler) getUserID(c *gin.Context) (int, bool) {
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		_ = c.Error(apierr.Unauthorized("unable to resolve user_id from token or missing login session"))
+		return 0, false
+	}
+	return userID, true
 }
 
 // shouldBind is a helper to bind and handle validation errors.
@@ -258,7 +279,10 @@ func (h *TransactionHandler) Void(c *gin.Context) {
 		return
 	}
 
-	userID := c.GetInt("user_id")
+	userID, ok := h.getUserID(c)
+	if !ok {
+		return
+	}
 	trx, err := h.svc.Void(c.Request.Context(), userID, id, req)
 	if err != nil {
 		_ = c.Error(err)

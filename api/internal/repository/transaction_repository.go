@@ -49,6 +49,7 @@ type TransactionRepository interface {
 	ExecuteAdjustmentTx(
 		ctx context.Context,
 		tenantID int,
+		userID int,
 		req dto.AdjustStockRequest,
 		processFn func(currentStocks map[int]int) (map[int]int, error),
 	) error
