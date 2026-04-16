@@ -413,7 +413,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{host}}/api/v1/items",
+              "raw": "{{host}}/api/v1/items?page=2",
               "host": [
                 "{{host}}"
               ],
@@ -425,8 +425,7 @@
               "query": [
                 {
                   "key": "page",
-                  "value": "2",
-                  "disabled": true
+                  "value": "2"
                 },
                 {
                   "key": "limit",
