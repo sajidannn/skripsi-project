@@ -135,15 +135,40 @@ func (h *InventoryHandler) ListByWarehouse(c *gin.Context) {
 
 // toBranchItemResponse maps a domain model to the HTTP response DTO.
 func toBranchItemResponse(bi *model.BranchItem) dto.BranchItemResponse {
+	// Calculate margin
+	finalPrice := bi.BasePrice
+	if bi.BranchPrice != nil {
+		finalPrice = *bi.BranchPrice
+	}
+
+	marginPercent := 0.0
+	costF, _ := bi.Cost.Float64()
+	if costF > 0 {
+		finalPriceF, _ := finalPrice.Float64()
+		marginPercent = ((finalPriceF - costF) / costF) * 100.0
+	}
+
+	thresholdF, _ := bi.MarginThreshold.Float64()
+	marginWarning := false
+	if thresholdF > 0 && marginPercent <= thresholdF {
+		marginWarning = true
+	}
+
 	return dto.BranchItemResponse{
-		ID:        bi.ID,
-		BranchID:  bi.BranchID,
-		ItemID:    bi.ItemID,
-		ItemName:  bi.ItemName,
-		SKU:       bi.SKU,
-		Price:     bi.Price,
-		Stock:     bi.Stock,
-		UpdatedAt: bi.UpdatedAt,
+		ID:              bi.ID,
+		BranchID:        bi.BranchID,
+		ItemID:          bi.ItemID,
+		ItemName:        bi.ItemName,
+		SKU:             bi.SKU,
+		Stock:           bi.Stock,
+		Cost:            bi.Cost,
+		BasePrice:       bi.BasePrice,
+		BranchPrice:     bi.BranchPrice,
+		FinalPrice:      finalPrice,
+		MarginPercent:   marginPercent,
+		MarginWarning:   marginWarning,
+		MarginThreshold: bi.MarginThreshold,
+		UpdatedAt:       bi.UpdatedAt,
 	}
 }
 
@@ -155,8 +180,37 @@ func toWarehouseItemResponse(wi *model.WarehouseItem) dto.WarehouseItemResponse 
 		ItemID:      wi.ItemID,
 		ItemName:    wi.ItemName,
 		SKU:         wi.SKU,
+		Cost:        wi.Cost,
 		Price:       wi.Price,
 		Stock:       wi.Stock,
 		UpdatedAt:   wi.UpdatedAt,
 	}
+}
+
+// UpdateBranchItemPrice handles PUT /inventory/branch/:branch_id/item/:item_id/price
+func (h *InventoryHandler) UpdateBranchItemPrice(c *gin.Context) {
+	branchID, err := strconv.Atoi(c.Param("branch_id"))
+	if err != nil {
+		_ = c.Error(apierr.BadRequest("invalid branch id"))
+		return
+	}
+	itemID, err := strconv.Atoi(c.Param("item_id"))
+	if err != nil {
+		_ = c.Error(apierr.BadRequest("invalid item id"))
+		return
+	}
+
+	var req dto.UpdateBranchItemPriceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid request payload"))
+		return
+	}
+
+	bi, err := h.svc.UpdateBranchItemPrice(c.Request.Context(), branchID, itemID, req)
+	if err != nil {
+		_ = c.Error(apierr.Wrap(err, "failed to update branch item price"))
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Success(toBranchItemResponse(bi)))
 }

@@ -23,11 +23,11 @@ func NewItemRepo(db *pgxpool.Pool) *ItemRepo {
 func (r *ItemRepo) Create(ctx context.Context, tenantID int, req dto.CreateItemRequest) (*model.Item, error) {
 	var it model.Item
 	err := r.db.QueryRow(ctx,
-		`INSERT INTO items (tenant_id, name, sku, cost, price, description)
-		 VALUES ($1, $2, $3, $4, $5)
-		 RETURNING id, tenant_id, name, sku, price, COALESCE(description,''), created_at, updated_at`,
-		tenantID, req.Name, req.SKU, req.Cost, req.Price, req.Description,
-	).Scan(&it.ID, &it.TenantID, &it.Name, &it.SKU, &it.Price, &it.Description, &it.CreatedAt, &it.UpdatedAt)
+		`INSERT INTO items (tenant_id, name, sku, cost, price, margin_threshold, description)
+		 VALUES ($1, $2, $3, $4, $5, COALESCE(NULLIF($6::numeric, 0), 10.00), $7)
+		 RETURNING id, tenant_id, name, sku, cost, price, margin_threshold, COALESCE(description,''), created_at, updated_at`,
+		tenantID, req.Name, req.SKU, req.Cost, req.Price, req.MarginThreshold, req.Description,
+	).Scan(&it.ID, &it.TenantID, &it.Name, &it.SKU, &it.Cost, &it.Price, &it.MarginThreshold, &it.Description, &it.CreatedAt, &it.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("singledb.ItemRepo.Create: %w", err)
 	}
@@ -38,11 +38,11 @@ func (r *ItemRepo) Create(ctx context.Context, tenantID int, req dto.CreateItemR
 func (r *ItemRepo) GetByID(ctx context.Context, tenantID, id int) (*model.Item, error) {
 	var it model.Item
 	err := r.db.QueryRow(ctx,
-		`SELECT id, tenant_id, name, sku, cost, price, COALESCE(description,''), created_at, updated_at
+		`SELECT id, tenant_id, name, sku, cost, price, margin_threshold, COALESCE(description,''), created_at, updated_at
 		 FROM items
 		 WHERE id = $1 AND tenant_id = $2`,
 		id, tenantID,
-	).Scan(&it.ID, &it.TenantID, &it.Name, &it.SKU, &it.Cost, &it.Price, &it.Description, &it.CreatedAt, &it.UpdatedAt)
+	).Scan(&it.ID, &it.TenantID, &it.Name, &it.SKU, &it.Cost, &it.Price, &it.MarginThreshold, &it.Description, &it.CreatedAt, &it.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("singledb.ItemRepo.GetByID: %w", err)
 	}
@@ -109,7 +109,7 @@ func (r *ItemRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dt
 	offsetIdx := len(args)
 
 	query := fmt.Sprintf(`
-		SELECT id, tenant_id, name, sku, cost, price, COALESCE(description,''), created_at, updated_at,
+		SELECT id, tenant_id, name, sku, cost, price, margin_threshold, COALESCE(description,''), created_at, updated_at,
 		       COUNT(*) OVER() AS total_count
 		FROM items
 		%s
@@ -131,7 +131,7 @@ func (r *ItemRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dt
 	for rows.Next() {
 		var it model.Item
 		if err := rows.Scan(&it.ID, &it.TenantID, &it.Name, &it.SKU, &it.Cost, &it.Price,
-			&it.Description, &it.CreatedAt, &it.UpdatedAt, &total); err != nil {
+			&it.MarginThreshold, &it.Description, &it.CreatedAt, &it.UpdatedAt, &total); err != nil {
 			return nil, 0, fmt.Errorf("singledb.ItemRepo.List scan: %w", err)
 		}
 		list = append(list, it)
@@ -150,11 +150,12 @@ func (r *ItemRepo) Update(ctx context.Context, tenantID, id int, req dto.UpdateI
 			 cost        = CASE WHEN NOT $3::numeric = 0 THEN $3 ELSE cost END,
 		     price       = CASE WHEN NOT $4::numeric = 0 THEN $4 ELSE price END,
 		     description = COALESCE(NULLIF($5,''), description),
+		     margin_threshold = CASE WHEN NOT $6::numeric = 0 THEN $6 ELSE margin_threshold END,
 		     updated_at  = NOW()
-		 WHERE id = $6 AND tenant_id = $7
-		 RETURNING id, tenant_id, name, sku, cost, price, COALESCE(description,''), created_at, updated_at`,
-		req.Name, req.SKU, req.Cost, req.Price, req.Description, id, tenantID,
-	).Scan(&it.ID, &it.TenantID, &it.Name, &it.SKU, &it.Cost, &it.Price, &it.Description, &it.CreatedAt, &it.UpdatedAt)
+		 WHERE id = $7 AND tenant_id = $8
+		 RETURNING id, tenant_id, name, sku, cost, price, margin_threshold, COALESCE(description,''), created_at, updated_at`,
+		req.Name, req.SKU, req.Cost, req.Price, req.Description, req.MarginThreshold, id, tenantID,
+	).Scan(&it.ID, &it.TenantID, &it.Name, &it.SKU, &it.Cost, &it.Price, &it.MarginThreshold, &it.Description, &it.CreatedAt, &it.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("singledb.ItemRepo.Update: %w", err)
 	}

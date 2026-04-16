@@ -43,18 +43,20 @@ type ItemFilter struct {
 type CreateItemRequest struct {
 	Name        string          `json:"name"        binding:"required,min=1,max=255"`
 	SKU         string          `json:"sku"         binding:"omitempty,max=100"`
-	Cost        decimal.Decimal `json:"cost"        binding:"required"`
-	Price       decimal.Decimal `json:"price"       binding:"required"`
-	Description string          `json:"description" binding:"omitempty,max=1000"`
+	Cost            decimal.Decimal `json:"cost"             binding:"required"`
+	Price           decimal.Decimal `json:"price"            binding:"required"`
+	MarginThreshold decimal.Decimal `json:"margin_threshold" binding:"omitempty"`
+	Description     string          `json:"description"      binding:"omitempty,max=1000"`
 }
 
 // UpdateItemRequest is the validated HTTP request body for PUT /items/:id.
 type UpdateItemRequest struct {
 	Name        string           `json:"name"        binding:"omitempty,min=1,max=255"`
 	SKU         string           `json:"sku"         binding:"omitempty,max=100"`
-	Cost        *decimal.Decimal `json:"cost"        binding:"omitempty"`
-	Price       *decimal.Decimal `json:"price"       binding:"omitempty"`
-	Description string           `json:"description" binding:"omitempty,max=1000"`
+	Cost            *decimal.Decimal `json:"cost"             binding:"omitempty"`
+	Price           *decimal.Decimal `json:"price"            binding:"omitempty"`
+	MarginThreshold *decimal.Decimal `json:"margin_threshold" binding:"omitempty"`
+	Description     string           `json:"description"      binding:"omitempty,max=1000"`
 }
 
 // ── Response ─────────────────────────────────────────────────────────────────
@@ -64,9 +66,10 @@ type ItemResponse struct {
 	ID          int             `json:"id"`
 	Name        string          `json:"name"`
 	SKU         string          `json:"sku"`
-	Cost        decimal.Decimal `json:"cost"`
-	Price       decimal.Decimal `json:"price"`
-	Description string          `json:"description"`
+	Cost            decimal.Decimal `json:"cost"`
+	Price           decimal.Decimal `json:"price"`
+	MarginThreshold decimal.Decimal `json:"margin_threshold"`
+	Description     string          `json:"description"`
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
 }

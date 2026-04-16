@@ -13,10 +13,13 @@ type BranchItem struct {
 	BranchID  int             `json:"branch_id"`
 	ItemID    int             `json:"item_id"`
 	ItemName  string          `json:"item_name"`
-	SKU       string          `json:"sku"`
-	Price     decimal.Decimal `json:"price"`
-	Stock     int             `json:"stock"`
-	UpdatedAt time.Time       `json:"updated_at"`
+	SKU             string           `json:"sku"`
+	Stock           int              `json:"stock"`
+	Cost            decimal.Decimal  `json:"cost"`
+	BasePrice       decimal.Decimal  `json:"base_price"`
+	BranchPrice     *decimal.Decimal `json:"branch_price,omitempty"`
+	MarginThreshold decimal.Decimal  `json:"margin_threshold"`
+	UpdatedAt       time.Time        `json:"updated_at"`
 }
 
 // WarehouseItem represents a product's stock level at a specific warehouse.
@@ -27,6 +30,7 @@ type WarehouseItem struct {
 	ItemID      int             `json:"item_id"`
 	ItemName    string          `json:"item_name"`
 	SKU         string          `json:"sku"`
+	Cost        decimal.Decimal `json:"cost"`
 	Price       decimal.Decimal `json:"price"`
 	Stock       int             `json:"stock"`
 	UpdatedAt   time.Time       `json:"updated_at"`

@@ -14,4 +14,7 @@ type InventoryRepository interface {
 
 	// ListByWarehouse returns a paginated, filtered list of inventory entries for a given warehouse.
 	ListByWarehouse(ctx context.Context, tenantID, warehouseID int, q dto.PageQuery, f dto.InventoryFilter) (entries []model.WarehouseItem, total int, err error)
+
+	// UpdateBranchItemPrice updates the price and/or margin threshold override for a branch item.
+	UpdateBranchItemPrice(ctx context.Context, tenantID, branchID, itemID int, req dto.UpdateBranchItemPriceRequest) (*model.BranchItem, error)
 }

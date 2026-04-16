@@ -496,7 +496,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{host}}/api/v1/items/1",
+              "raw": "{{host}}/api/v1/items/5000",
               "host": [
                 "{{host}}"
               ],
@@ -504,7 +504,7 @@
                 "api",
                 "v1",
                 "items",
-                "1"
+                "5000"
               ]
             }
           },
@@ -660,6 +660,50 @@
                   "value": "true",
                   "disabled": true
                 }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "update branch item price",
+          "id": "673d4505-d7b1-4b99-b800-ee2b9700b6a2",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"price\": 16500.00,\n    \"margin_threshold\": 15.00\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/inventory/branch/1/item/2/price",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "branch",
+                "1",
+                "item",
+                "2",
+                "price"
               ]
             }
           },
@@ -1335,7 +1379,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{host}}/api/v1/transactions/1",
+              "raw": "{{host}}/api/v1/transactions/6932",
               "host": [
                 "{{host}}"
               ],
@@ -1343,7 +1387,7 @@
                 "api",
                 "v1",
                 "transactions",
-                "1"
+                "6932"
               ]
             }
           },

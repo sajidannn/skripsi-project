@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS items (
     sku         TEXT NOT NULL UNIQUE,
     cost        NUMERIC(12,2) NOT NULL DEFAULT 0,
     price       NUMERIC(12,2) NOT NULL DEFAULT 0,
+    margin_threshold NUMERIC(5,2) NOT NULL DEFAULT 10.00,
     description TEXT,
     created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -43,6 +44,8 @@ CREATE TABLE IF NOT EXISTS branch_items (
     branch_id  INT NOT NULL REFERENCES branches(id),
     item_id    INT NOT NULL REFERENCES items(id),
     stock      INT NOT NULL DEFAULT 0,
+    price       NUMERIC(12,2) DEFAULT NULL,
+    margin_threshold NUMERIC(5,2) DEFAULT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE (branch_id, item_id)
 );

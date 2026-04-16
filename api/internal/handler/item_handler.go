@@ -167,9 +167,10 @@ func toItemResponse(it *model.Item) dto.ItemResponse {
 		Name:        it.Name,
 		SKU:         it.SKU,
 		Cost:        it.Cost,
-		Price:       it.Price,
-		Description: it.Description,
-		CreatedAt:   it.CreatedAt,
-		UpdatedAt:   it.UpdatedAt,
+		Price:           it.Price,
+		MarginThreshold: it.MarginThreshold,
+		Description:     it.Description,
+		CreatedAt:       it.CreatedAt,
+		UpdatedAt:       it.UpdatedAt,
 	}
 }

@@ -30,9 +30,15 @@ type BranchItemResponse struct {
 	ItemID    int             `json:"item_id"`
 	ItemName  string          `json:"item_name"`
 	SKU       string          `json:"sku"`
-	Price     decimal.Decimal `json:"price"`
 	Stock     int             `json:"stock"`
-	UpdatedAt time.Time       `json:"updated_at"`
+	Cost            decimal.Decimal  `json:"cost"`
+	BasePrice       decimal.Decimal  `json:"base_price"`
+	BranchPrice     *decimal.Decimal `json:"branch_price,omitempty"`
+	FinalPrice      decimal.Decimal  `json:"final_price"`
+	MarginPercent   float64          `json:"margin_percent"`
+	MarginWarning   bool             `json:"margin_warning"`
+	MarginThreshold decimal.Decimal  `json:"margin_threshold"`
+	UpdatedAt       time.Time        `json:"updated_at"`
 }
 
 // WarehouseItemResponse is the outbound representation of a warehouse inventory entry.
@@ -42,7 +48,16 @@ type WarehouseItemResponse struct {
 	ItemID      int             `json:"item_id"`
 	ItemName    string          `json:"item_name"`
 	SKU         string          `json:"sku"`
-	Price       decimal.Decimal `json:"price"`
 	Stock       int             `json:"stock"`
+	Cost        decimal.Decimal `json:"cost"`
+	Price       decimal.Decimal `json:"price"`
 	UpdatedAt   time.Time       `json:"updated_at"`
+}
+
+// ── Request ──────────────────────────────────────────────────────────────────
+
+// UpdateBranchItemPriceRequest is the validated body for PUT /inventory/branch/{branch_id}/item/{item_id}
+type UpdateBranchItemPriceRequest struct {
+	Price           *decimal.Decimal `json:"price"            binding:"omitempty"`
+	MarginThreshold *decimal.Decimal `json:"margin_threshold" binding:"omitempty"`
 }

@@ -13,8 +13,9 @@ type Item struct {
 	Name        string          `json:"name"`
 	SKU         string          `json:"sku"`
 	Cost        decimal.Decimal `json:"cost"`
-	Price       decimal.Decimal `json:"price"`
-	Description string          `json:"description"`
+	Price           decimal.Decimal `json:"price"`
+	MarginThreshold decimal.Decimal `json:"margin_threshold"`
+	Description     string          `json:"description"`
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
 }

@@ -70,8 +70,9 @@ func (r *TransactionRepo) ExecuteSaleTx(
 	loadedDbItems := make(map[int]model.ProcessSaleItem)
 
 	// Single query to lookup all branch items and their master pricing info!
+	// 2-Level Price Resolution algorithm implemented natively in SQL via COALESCE.
 	query := `
-		SELECT b.id, b.stock, i.cost, i.price 
+		SELECT b.id, b.stock, i.cost, COALESCE(b.price, i.price) 
 		FROM branch_items b
 		JOIN items i ON b.item_id = i.id
 		WHERE b.id = ANY($1) AND b.branch_id = $2 AND b.tenant_id = $3 

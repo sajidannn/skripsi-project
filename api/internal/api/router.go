@@ -68,11 +68,12 @@ func NewRouter(jwtSecret string, debug bool, h Handlers) *gin.Engine {
 			items.DELETE("/:id", h.Item.Delete)
 		}
 
-		// Inventory (read-only stock view per location)
+		// Inventory (stock view and price override per location)
 		inventory := api.Group("/inventory")
 		{
 			inventory.GET("/branch/:id", h.Inventory.ListByBranch)
 			inventory.GET("/warehouse/:id", h.Inventory.ListByWarehouse)
+			inventory.PUT("/branch/:branch_id/item/:item_id/price", middleware.RequireRole("owner", "manager"), h.Inventory.UpdateBranchItemPrice)
 		}
 
 		// Users (employee management)

@@ -37,3 +37,12 @@ func (s *InventoryService) ListByWarehouse(ctx context.Context, warehouseID int,
 	}
 	return s.repo.ListByWarehouse(ctx, tenantID, warehouseID, q, f)
 }
+
+// UpdateBranchItemPrice updates the override price and margin threshold for a branch item.
+func (s *InventoryService) UpdateBranchItemPrice(ctx context.Context, branchID, itemID int, req dto.UpdateBranchItemPriceRequest) (*model.BranchItem, error) {
+	tenantID, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("InventoryService.UpdateBranchItemPrice: %w", err)
+	}
+	return s.repo.UpdateBranchItemPrice(ctx, tenantID, branchID, itemID, req)
+}

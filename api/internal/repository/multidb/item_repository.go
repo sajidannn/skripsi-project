@@ -28,11 +28,11 @@ func (r *ItemRepo) Create(ctx context.Context, tenantID int, req dto.CreateItemR
 
 	var it model.Item
 	err = pool.QueryRow(ctx,
-		`INSERT INTO items (name, sku, cost, price, description)
-		 VALUES ($1, $2, $3, $4)
-		 RETURNING id, name, sku, cost, price, COALESCE(description,''), created_at, updated_at`,
-		req.Name, req.SKU, req.Cost, req.Price, req.Description,
-	).Scan(&it.ID, &it.Name, &it.SKU, &it.Cost, &it.Price, &it.Description, &it.CreatedAt, &it.UpdatedAt)
+		`INSERT INTO items (name, sku, cost, price, margin_threshold, description)
+		 VALUES ($1, $2, $3, $4, COALESCE(NULLIF($5::numeric, 0), 10.00), $6)
+		 RETURNING id, name, sku, cost, price, margin_threshold, COALESCE(description,''), created_at, updated_at`,
+		req.Name, req.SKU, req.Cost, req.Price, req.MarginThreshold, req.Description,
+	).Scan(&it.ID, &it.Name, &it.SKU, &it.Cost, &it.Price, &it.MarginThreshold, &it.Description, &it.CreatedAt, &it.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("multidb.ItemRepo.Create: %w", err)
 	}
@@ -49,10 +49,10 @@ func (r *ItemRepo) GetByID(ctx context.Context, tenantID, id int) (*model.Item, 
 
 	var it model.Item
 	err = pool.QueryRow(ctx,
-		`SELECT id, name, sku, cost, price, COALESCE(description,''), created_at, updated_at
+		`SELECT id, name, sku, cost, price, margin_threshold, COALESCE(description,''), created_at, updated_at
 		 FROM items WHERE id = $1`,
 		id,
-	).Scan(&it.ID, &it.Name, &it.SKU, &it.Cost, &it.Price, &it.Description, &it.CreatedAt, &it.UpdatedAt)
+	).Scan(&it.ID, &it.Name, &it.SKU, &it.Cost, &it.Price, &it.MarginThreshold, &it.Description, &it.CreatedAt, &it.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("multidb.ItemRepo.GetByID: %w", err)
 	}
@@ -123,7 +123,7 @@ func (r *ItemRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dt
 	offsetIdx := len(args)
 
 	query := fmt.Sprintf(`
-		SELECT id, name, sku, cost, price, COALESCE(description,''), created_at, updated_at,
+		SELECT id, name, sku, cost, price, margin_threshold, COALESCE(description,''), created_at, updated_at,
 		       COUNT(*) OVER() AS total_count
 		FROM items
 		%s
@@ -145,7 +145,7 @@ func (r *ItemRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dt
 	for rows.Next() {
 		var it model.Item
 		if err := rows.Scan(&it.ID, &it.Name, &it.SKU, &it.Cost, &it.Price,
-			&it.Description, &it.CreatedAt, &it.UpdatedAt, &total); err != nil {
+			&it.MarginThreshold, &it.Description, &it.CreatedAt, &it.UpdatedAt, &total); err != nil {
 			return nil, 0, fmt.Errorf("multidb.ItemRepo.List scan: %w", err)
 		}
 		it.TenantID = tenantID
@@ -170,11 +170,12 @@ func (r *ItemRepo) Update(ctx context.Context, tenantID, id int, req dto.UpdateI
 			 cost		 = CASE WHEN NOT $3::numeric = 0 THEN $3 ELSE cost END,
 		     price       = CASE WHEN NOT $4::numeric = 0 THEN $4 ELSE price END,
 		     description = COALESCE(NULLIF($5,''), description),
+		     margin_threshold = CASE WHEN NOT $6::numeric = 0 THEN $6 ELSE margin_threshold END,
 		     updated_at  = NOW()
-		 WHERE id = $6
-		 RETURNING id, name, sku, cost, price, COALESCE(description,''), created_at, updated_at`,
-		req.Name, req.SKU, req.Cost, req.Price, req.Description, id,
-	).Scan(&it.ID, &it.Name, &it.SKU, &it.Cost, &it.Price, &it.Description, &it.CreatedAt, &it.UpdatedAt)
+		 WHERE id = $7
+		 RETURNING id, name, sku, cost, price, margin_threshold, COALESCE(description,''), created_at, updated_at`,
+		req.Name, req.SKU, req.Cost, req.Price, req.Description, req.MarginThreshold, id,
+	).Scan(&it.ID, &it.Name, &it.SKU, &it.Cost, &it.Price, &it.MarginThreshold, &it.Description, &it.CreatedAt, &it.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("multidb.ItemRepo.Update: %w", err)
 	}
