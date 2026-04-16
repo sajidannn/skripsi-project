@@ -25,6 +25,9 @@ coverage.html
 *.swo
 *~
 
+# Postman
+.postman/
+
 # OS
 .DS_Store
 Thumbs.db
