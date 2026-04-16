@@ -10,13 +10,29 @@ services:
       - "5432:5432"
     volumes:
       - pgdata_single:/var/lib/postgresql/data
-      - ./pos-single-db.sql:/docker-entrypoint-initdb.d/pos-single-db.sql
-      - ./seed-single.sql:/docker-entrypoint-initdb.d/seed-single.sql
+      # Schema-only init — no seeder SQL here; data comes from the seeder service
+      - ./schema/single-db.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d pos_single"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 15
+
+  seeder:
+    build:
+      context: ./seeder
+      dockerfile: Dockerfile
+    container_name: pos-seeder-single
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - SEED_MODE=single
+      - SEED_SCALE=${SCALE:-small}
+      - DATABASE_URL=postgres://postgres:supersecret@db:5432/pos_single?sslmode=disable
+    volumes:
+      - ./schema:/app/schema:ro
+    restart: "no"   # run once then exit (seeder is a one-shot job)
 
 volumes:
   pgdata_single:

@@ -1,6 +1,7 @@
 -- ─── Multi-DB master schema ──────────────────────────────────────────────────
 -- Run this ONCE against the MASTER database (pos_master).
 -- Stores tenant routing information: which DB / credentials each tenant uses.
+-- Run: mounted to /docker-entrypoint-initdb.d/ → auto-applied on first start.
 
 CREATE TABLE IF NOT EXISTS tenants (
     id          SERIAL PRIMARY KEY,

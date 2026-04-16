@@ -10,15 +10,30 @@ services:
       - "5433:5432"
     volumes:
       - pgdata_multi:/var/lib/postgresql/data
-      - ./pos-multi-db-master.sql:/docker-entrypoint-initdb.d/pos-multi-db-master.sql
-      - ./pos-multi-db-tenant.sql:/docker-entrypoint-initdb.d/pos-multi-db-tenant.sql
-      - ./seed-multi-db-master.sql:/docker-entrypoint-initdb.d/seed-multi-db-master.sql
-      - ./seed-multi-db-tenant.sql:/docker-entrypoint-initdb.d/seed-multi-db-tenant.sql
+      # Only master schema here; tenant schemas are applied by the seeder per tenant DB
+      - ./schema/multi-db-master.sql:/docker-entrypoint-initdb.d/01-master-schema.sql:ro
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d pos_master" ]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_master"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 15
+
+  seeder:
+    build:
+      context: ./seeder
+      dockerfile: Dockerfile
+    container_name: pos-seeder-multi
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - SEED_MODE=multi
+      - SEED_SCALE=${SCALE:-small}
+      - DATABASE_URL=postgres://postgres:supersecret@db:5432/pos_master?sslmode=disable
+      - TENANT_SCHEMA_PATH=/app/schema/multi-db-tenant.sql
+    volumes:
+      - ./schema:/app/schema:ro
+    restart: "no"   # run once then exit (seeder is a one-shot job)
 
 volumes:
   pgdata_multi:

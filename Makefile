@@ -1,10 +1,16 @@
 .PHONY: api-run-single api-run-multi api-run api-build api-tidy \
-        api-up-single api-down-single api-logs-single \
-        api-up-multi api-down-multi api-logs-multi \
+        api-docker-build \
+        api-single-up api-single-down api-single-logs \
+        api-multi-up api-multi-down api-multi-logs \
         api-clean \
-        db-up-single db-down-single db-logs-single \
-        db-up-multi db-down-multi db-logs-multi \
+        db-single-up db-single-down db-single-clean db-single-logs db-single-logs-seeder \
+        db-multi-up db-multi-down db-multi-clean db-multi-logs db-multi-logs-seeder \
+        db-single-reseed db-multi-reseed \
         db-clean
+
+# Data scale for seeding: small | medium | large  (default: small)
+# Usage: make db-single-up SCALE=medium
+SCALE ?= small
 
 # ==============================================================================
 # API COMMANDS (Local Execution)
@@ -56,25 +62,52 @@ api-clean:
 
 # ==============================================================================
 # DB COMMANDS (Docker Compose) - VM 2
+# Override data scale with: make db-single-up SCALE=medium
 # ==============================================================================
+
+# ── Single-DB ─────────────────────────────────────────────────────────────────
 db-single-up:
-	cd DB && docker compose -f docker-compose.single.yml up -d
+	cd DB && SCALE=$(SCALE) docker compose -f docker-compose.single.yml up --build -d
 
 db-single-down:
 	cd DB && docker compose -f docker-compose.single.yml down
 
+db-single-clean:
+	cd DB && docker compose -f docker-compose.single.yml down -v
+
 db-single-logs:
 	cd DB && docker compose -f docker-compose.single.yml logs -f
 
+db-single-logs-seeder:
+	cd DB && docker compose -f docker-compose.single.yml logs -f seeder
+
+# Clean data + re-seed with chosen scale (forces fresh Postgres volume)
+db-single-reseed:
+	cd DB && docker compose -f docker-compose.single.yml down -v
+	cd DB && SCALE=$(SCALE) docker compose -f docker-compose.single.yml up --build -d
+
+# ── Multi-DB ──────────────────────────────────────────────────────────────────
 db-multi-up:
-	cd DB && docker compose -f docker-compose.multi.yml up -d
+	cd DB && SCALE=$(SCALE) docker compose -f docker-compose.multi.yml up --build -d
 
 db-multi-down:
 	cd DB && docker compose -f docker-compose.multi.yml down
 
+db-multi-clean:
+	cd DB && docker compose -f docker-compose.multi.yml down -v
+
 db-multi-logs:
 	cd DB && docker compose -f docker-compose.multi.yml logs -f
 
+db-multi-logs-seeder:
+	cd DB && docker compose -f docker-compose.multi.yml logs -f seeder
+
+# Clean data + re-seed with chosen scale (forces fresh Postgres volume)
+db-multi-reseed:
+	cd DB && docker compose -f docker-compose.multi.yml down -v
+	cd DB && SCALE=$(SCALE) docker compose -f docker-compose.multi.yml up --build -d
+
+# ── Both ──────────────────────────────────────────────────────────────────────
 db-clean:
 	cd DB && docker compose -f docker-compose.single.yml down -v
 	cd DB && docker compose -f docker-compose.multi.yml down -v
