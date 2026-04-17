@@ -155,10 +155,10 @@ func seedTenantDB(ctx context.Context, pool *pgxpool.Pool, gen *Generator, tenan
 	for i, it := range items {
 		localID := i + 1
 		itemIDMap[it.ID] = localID
-		itemRows[i] = []any{localID, it.Name, it.SKU, fmt.Sprintf("%d.00", it.Cost), fmt.Sprintf("%d.00", it.Price), it.Description, ts, ts}
+		itemRows[i] = []any{localID, it.Name, it.SKU, fmt.Sprintf("%d.00", it.Cost), fmt.Sprintf("%d.00", it.Price), it.MarginThreshold, it.Description, ts, ts}
 	}
 	if _, err := pool.CopyFrom(ctx, pgx.Identifier{"items"},
-		[]string{"id", "name", "sku", "cost", "price", "description", "created_at", "updated_at"}, pgx.CopyFromRows(itemRows)); err != nil {
+		[]string{"id", "name", "sku", "cost", "price", "margin_threshold", "description", "created_at", "updated_at"}, pgx.CopyFromRows(itemRows)); err != nil {
 		return fmt.Errorf("items: %w", err)
 	}
 
@@ -203,10 +203,10 @@ func seedTenantDB(ctx context.Context, pool *pgxpool.Pool, gen *Generator, tenan
 	}
 	brItemRows := make([][]any, len(brItems))
 	for i, bi := range brItems {
-		brItemRows[i] = []any{i + 1, brIDMap[bi.BranchID], itemIDMap[bi.ItemID], bi.Stock, ts}
+		brItemRows[i] = []any{i + 1, brIDMap[bi.BranchID], itemIDMap[bi.ItemID], bi.Stock, bi.Price, bi.MarginThreshold, ts}
 	}
 	if _, err := pool.CopyFrom(ctx, pgx.Identifier{"branch_items"},
-		[]string{"id", "branch_id", "item_id", "stock", "updated_at"}, pgx.CopyFromRows(brItemRows)); err != nil {
+		[]string{"id", "branch_id", "item_id", "stock", "price", "margin_threshold", "updated_at"}, pgx.CopyFromRows(brItemRows)); err != nil {
 		return fmt.Errorf("branch_items: %w", err)
 	}
 

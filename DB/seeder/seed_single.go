@@ -162,12 +162,13 @@ func insertItemsSingle(ctx context.Context, pool *pgxpool.Pool, gen *Generator) 
 			it.ID, it.TenantID, it.Name, it.SKU,
 			fmt.Sprintf("%d.00", it.Cost),
 			fmt.Sprintf("%d.00", it.Price),
+			it.MarginThreshold,
 			it.Description, ts, ts,
 		}
 	}
 	_, err := pool.CopyFrom(ctx,
 		pgx.Identifier{"items"},
-		[]string{"id", "tenant_id", "name", "sku", "cost", "price", "description", "created_at", "updated_at"},
+		[]string{"id", "tenant_id", "name", "sku", "cost", "price", "margin_threshold", "description", "created_at", "updated_at"},
 		pgx.CopyFromRows(rows),
 	)
 	return err
@@ -224,11 +225,11 @@ func insertBranchItemsSingle(ctx context.Context, pool *pgxpool.Pool, gen *Gener
 		batch := gen.BranchItems[start:end]
 		rows := make([][]any, len(batch))
 		for i, bi := range batch {
-			rows[i] = []any{bi.ID, bi.TenantID, bi.BranchID, bi.ItemID, bi.Stock, ts}
+			rows[i] = []any{bi.ID, bi.TenantID, bi.BranchID, bi.ItemID, bi.Stock, bi.Price, bi.MarginThreshold, ts}
 		}
 		_, err := pool.CopyFrom(ctx,
 			pgx.Identifier{"branch_items"},
-			[]string{"id", "tenant_id", "branch_id", "item_id", "stock", "updated_at"},
+			[]string{"id", "tenant_id", "branch_id", "item_id", "stock", "price", "margin_threshold", "updated_at"},
 			pgx.CopyFromRows(rows),
 		)
 		if err != nil {

@@ -107,13 +107,14 @@ type BranchRow struct {
 }
 
 type ItemRow struct {
-	ID          int
-	TenantID    int
-	Name        string
-	SKU         string
-	Cost        int64 // in IDR, stored as NUMERIC(12,2) → multiply by 100
-	Price       int64
-	Description string
+	ID              int
+	TenantID        int
+	Name            string
+	SKU             string
+	Cost            int64 // in IDR, stored as NUMERIC(12,2) → multiply by 100
+	Price           int64
+	MarginThreshold string
+	Description     string
 }
 
 type SupplierRow struct {
@@ -151,11 +152,13 @@ type WarehouseItemRow struct {
 }
 
 type BranchItemRow struct {
-	ID       int
-	TenantID int
-	BranchID int
-	ItemID   int
-	Stock    int
+	ID              int
+	TenantID        int
+	BranchID        int
+	ItemID          int
+	Stock           int
+	Price           *string
+	MarginThreshold *string
 }
 
 // ─── Constructor ──────────────────────────────────────────────────────────────
@@ -243,13 +246,14 @@ func (g *Generator) genItems() {
 			price := cost * int64(margin) / 100
 			price = ((price + 499) / 500) * 500 // round up to nearest 500
 			g.Items = append(g.Items, ItemRow{
-				ID:          id,
-				TenantID:    t.ID,
-				Name:        fmt.Sprintf("%s Produk %05d", cat, i+1),
-				SKU:         fmt.Sprintf("T%03d-SKU-%05d", t.ID, i+1),
-				Cost:        cost,
-				Price:       price,
-				Description: fmt.Sprintf("Deskripsi produk %s nomor %d untuk tenant %d", cat, i+1, t.ID),
+				ID:              id,
+				TenantID:        t.ID,
+				Name:            fmt.Sprintf("%s Produk %05d", cat, i+1),
+				SKU:             fmt.Sprintf("T%03d-SKU-%05d", t.ID, i+1),
+				Cost:            cost,
+				Price:           price,
+				MarginThreshold: fmt.Sprintf("%d.00", 10+g.rng.Intn(6)), // 10% to 15%
+				Description:     fmt.Sprintf("Deskripsi produk %s nomor %d untuk tenant %d", cat, i+1, t.ID),
 			})
 			id++
 		}
@@ -370,12 +374,21 @@ func (g *Generator) genBranchItems() {
 		sampled := g.sampleItems(items, branchItemsPerBR)
 		for _, item := range sampled {
 			stock := g.rng.Intn(g.cfg.StockBR) + 10 // 10 to StockBR+10
+			var price, margin *string
+			if g.rng.Intn(2) == 0 { // 50% chance a branch overrides price/margin
+				p := fmt.Sprintf("%d.00", item.Price+int64(g.rng.Intn(5)*1000))
+				price = &p
+				m := fmt.Sprintf("%d.00", 12+g.rng.Intn(4))
+				margin = &m
+			}
 			g.BranchItems = append(g.BranchItems, BranchItemRow{
-				ID:       id,
-				TenantID: br.TenantID,
-				BranchID: br.ID,
-				ItemID:   item.ID,
-				Stock:    stock,
+				ID:              id,
+				TenantID:        br.TenantID,
+				BranchID:        br.ID,
+				ItemID:          item.ID,
+				Stock:           stock,
+				Price:           price,
+				MarginThreshold: margin,
 			})
 			id++
 		}
