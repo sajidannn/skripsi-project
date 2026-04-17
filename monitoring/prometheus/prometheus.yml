@@ -1,0 +1,49 @@
+global:
+  scrape_interval: 15s       # seberapa sering scrape
+  evaluation_interval: 15s   # seberapa sering evaluate rules
+  scrape_timeout: 10s
+
+# ─── Scrape jobs ──────────────────────────────────────────────────────────────
+
+scrape_configs:
+
+  # VM 1: Prometheus itself
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          vm: vm1
+          role: monitoring
+
+  # VM 1: Host (OS-level) metrics — CPU, memory, disk, network
+  - job_name: node_exporter_api
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          vm: vm1
+          role: api_server
+
+  # VM 1: Per-container metrics — isolate pos-api-single / pos-api-multi
+  - job_name: cadvisor_api
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          vm: vm1
+          role: api_server
+
+  # VM 2: Host metrics (DB server)
+  # Prometheus di VM 1 scrape node_exporter yang jalan di VM 2
+  - job_name: node_exporter_db
+    static_configs:
+      - targets: ['192.168.10.243:9100']
+        labels:
+          vm: vm2
+          role: db_server
+
+  # VM 2: PostgreSQL metrics
+  - job_name: postgres_exporter
+    static_configs:
+      - targets: ['192.168.10.243:9187']
+        labels:
+          vm: vm2
+          role: db_server

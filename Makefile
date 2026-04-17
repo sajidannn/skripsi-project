@@ -6,7 +6,9 @@
         db-single-up db-single-down db-single-clean db-single-logs db-single-logs-seeder \
         db-multi-up db-multi-down db-multi-clean db-multi-logs db-multi-logs-seeder \
         db-single-reseed db-multi-reseed \
-        db-clean
+        db-clean \
+        db-exporters-up db-exporters-down db-exporters-single db-exporters-multi \
+        monitoring-up monitoring-down monitoring-logs monitoring-reload
 
 # Data scale for seeding: small | medium | large  (default: small)
 # Usage: make db-single-up SCALE=medium
@@ -111,3 +113,57 @@ db-multi-reseed:
 db-clean:
 	cd DB && docker compose -f docker-compose.single.yml down -v
 	cd DB && docker compose -f docker-compose.multi.yml down -v
+
+
+# ==============================================================================
+# DB EXPORTERS (Docker Compose) - VM 2
+# Deploy node_exporter + postgres_exporter agar bisa di-scrape Prometheus VM 1
+# Jalankan SEKALI dan biarkan berjalan selama semua eksperimen
+# ==============================================================================
+
+# Start exporters pointing ke single-DB postgres (port 5432)
+db-exporters-single:
+	cd DB && docker compose -f docker-compose.exporters.yml down 2>/dev/null || true
+	cd DB && DATA_SOURCE_NAME="postgresql://postgres:supersecret@localhost:5432/pos_single?sslmode=disable" \
+		docker compose -f docker-compose.exporters.yml up -d
+	@echo "DB exporters started → scrape target: pos_single (port 5432)"
+
+# Start exporters pointing ke multi-DB postgres (port 5433)
+db-exporters-multi:
+	cd DB && docker compose -f docker-compose.exporters.yml down 2>/dev/null || true
+	cd DB && DATA_SOURCE_NAME="postgresql://postgres:supersecret@localhost:5433/pos_master?sslmode=disable" \
+		docker compose -f docker-compose.exporters.yml up -d
+	@echo "DB exporters started → scrape target: pos_master (port 5433)"
+
+# Alias: sama dengan db-exporters-single (default)
+db-exporters-up: db-exporters-single
+
+db-exporters-down:
+	cd DB && docker compose -f docker-compose.exporters.yml down
+
+
+# ==============================================================================
+# MONITORING STACK (Docker Compose) - VM 1
+# Deploy Prometheus + Grafana + Node Exporter + cAdvisor
+# Jalankan SEKALI sebelum mulai eksperimen, biarkan berjalan
+# Grafana: http://localhost:3000 (admin/admin)
+# Prometheus: http://localhost:9090
+# ==============================================================================
+
+monitoring-up:
+	cd monitoring && docker compose up -d
+	@echo ""
+	@echo "=== Monitoring stack started ==="
+	@echo "  Grafana:    http://localhost:3000  (admin/admin)"
+	@echo "  Prometheus: http://localhost:9090"
+	@echo ""
+
+monitoring-down:
+	cd monitoring && docker compose down
+
+monitoring-logs:
+	cd monitoring && docker compose logs -f
+
+# Reload Prometheus config tanpa restart (berguna saat edit prometheus.yml)
+monitoring-reload:
+	curl -X POST http://localhost:9090/-/reload
