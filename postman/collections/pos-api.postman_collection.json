@@ -533,10 +533,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Chitato Mi Goreng\",\n  \"price\": 14000\n}"
+              "raw": "{\n    \"name\": \"Elektronik Produk 00011\",\n    \"sku\": \"T001-SKU-00011\",\n    \"cost\": \"80340\",\n    \"price\": \"80500\",\n    \"margin_threshold\": \"12\",\n    \"description\": \"Deskripsi produk Elektronik nomor 11 untuk tenant 1\"\n}"
             },
             "url": {
-              "raw": "{{host}}/api/v1/items/1",
+              "raw": "{{host}}/api/v1/items/11",
               "host": [
                 "{{host}}"
               ],
@@ -544,7 +544,7 @@
                 "api",
                 "v1",
                 "items",
-                "1"
+                "11"
               ]
             }
           },
@@ -620,6 +620,11 @@
                   "key": "low_stock",
                   "value": "true",
                   "disabled": true
+                },
+                {
+                  "key": "margin_warning",
+                  "value": "true",
+                  "disabled": true
                 }
               ]
             }
@@ -688,10 +693,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"price\": 16500.00,\n    \"margin_threshold\": 15.00\n}"
+              "raw": "{\n    \"price\": 55800.00,\n    \"margin_threshold\": 10.00\n}"
             },
             "url": {
-              "raw": "{{host}}/api/v1/inventory/branch/1/item/2/price",
+              "raw": "{{host}}/api/v1/inventory/branch/1/item/7/price",
               "host": [
                 "{{host}}"
               ],
@@ -702,7 +707,7 @@
                 "branch",
                 "1",
                 "item",
-                "2",
+                "7",
                 "price"
               ]
             }

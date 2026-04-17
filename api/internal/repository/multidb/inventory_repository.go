@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/sajidannn/pos-api/internal/apierr"
 	"github.com/sajidannn/pos-api/internal/db/multidb"
 	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
@@ -32,6 +33,9 @@ func (r *InventoryRepo) ListByBranch(ctx context.Context, tenantID, branchID int
 
 	if f.LowStock {
 		where += ` AND bi.stock <= 0`
+	}
+	if f.MarginWarning {
+		where += ` AND COALESCE(bi.margin_threshold, it.margin_threshold) > 0 AND (((COALESCE(bi.price, it.price) - it.cost) / NULLIF(it.cost, 0)) * 100.0) <= COALESCE(bi.margin_threshold, it.margin_threshold)`
 	}
 	if f.Search != "" {
 		args = append(args, "%"+f.Search+"%")
@@ -176,7 +180,7 @@ func (r *InventoryRepo) UpdateBranchItemPrice(ctx context.Context, tenantID, bra
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, fmt.Errorf("multidb.InventoryRepo.UpdateBranchItemPrice: branch item not found")
+			return nil, apierr.NotFound("branch item not found")
 		}
 		return nil, fmt.Errorf("multidb.InventoryRepo.UpdateBranchItemPrice: %w", err)
 	}

@@ -16,6 +16,9 @@ type InventoryFilter struct {
 	// LowStock returns only items with stock <= 0 (or some threshold) when true.
 	LowStock bool `form:"low_stock"`
 
+	// MarginWarning returns only items that fall below their margin threshold.
+	MarginWarning bool `form:"margin_warning"`
+
 	// DateFrom / DateTo bound the updated_at column (inclusive).
 	DateFrom *time.Time
 	DateTo   *time.Time
