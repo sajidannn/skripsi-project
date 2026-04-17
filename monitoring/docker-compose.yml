@@ -1,5 +1,5 @@
 services:
-  # ── Prometheus ─────────────────────────────────────────────────────────────
+  # ── Prometheus (Lokal / Laptop) ───────────────────────────────────────────
   prometheus:
     image: prom/prometheus:v2.52.0
     container_name: pos-prometheus
@@ -15,7 +15,7 @@ services:
       - "9090:9090"
     restart: unless-stopped
 
-  # ── Grafana ────────────────────────────────────────────────────────────────
+  # ── Grafana (Lokal / Laptop) ──────────────────────────────────────────────
   grafana:
     image: grafana/grafana:10.4.2
     container_name: pos-grafana
@@ -32,40 +32,6 @@ services:
       - "3000:3000"
     depends_on:
       - prometheus
-    restart: unless-stopped
-
-  # ── Node Exporter (VM 1 host metrics) ─────────────────────────────────────
-  node-exporter:
-    image: prom/node-exporter:v1.8.1
-    container_name: pos-node-exporter-api
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - --path.procfs=/host/proc
-      - --path.rootfs=/rootfs
-      - --path.sysfs=/host/sys
-      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
-    ports:
-      - "9100:9100"
-    restart: unless-stopped
-
-  # ── cAdvisor (VM 1 per-container metrics) ──────────────────────────────────
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
-    container_name: pos-cadvisor
-    privileged: true
-    devices:
-      - /dev/kmsg:/dev/kmsg
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker:/var/lib/docker:ro
-      - /cgroup:/cgroup:ro
-    ports:
-      - "8081:8080"
     restart: unless-stopped
 
 volumes:

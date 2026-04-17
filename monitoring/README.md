@@ -1,122 +1,74 @@
-# Monitoring Stack — POS Skripsi
+# Monitoring Stack — Remote Exporter Pattern
 
-Prometheus + Grafana + exporters untuk capture resource utilization selama pengujian TPC-C.
+Prometheus dan Grafana berjalan di **Laptop Lokal (Monitoring Hub)**, menarik metrik dari **VM 1 (API)** dan **VM 2 (DB)** melalui jaringan.
 
 ## Arsitektur
 
 ```
-┌─────────────────────────────────┐   ┌────────────────────────────────┐
-│         VM 1 (API Server)       │   │        VM 2 (DB Server)        │
-│                                 │   │                                │
-│  monitoring/                    │   │  DB/docker-compose.exporters   │
-│  ├─ Prometheus  :9090   ────────┼───┤──▶ node_exporter       :9100  │
-│  ├─ Grafana     :3000           │   │──▶ postgres_exporter   :9187  │
-│  ├─ node-exporter :9100  ◀──┐   │   │                                │
-│  └─ cAdvisor     :8081  ◀──┘   │   │  DB containers                 │
-│                           │    │   │  ├─ pg-pos-single  :5432       │
-│  pos-api container  ──────┘    │   │  └─ pg-pos-multi   :5433       │
-└─────────────────────────────────┘   └────────────────────────────────┘
+┌────────────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
+│     Laptop Lokal       │      │         VM 1           │      │         VM 2           │
+│   (Monitoring Hub)     │      │     (API Server)       │      │     (DB Server)        │
+│                        │      │                        │      │                        │
+│ ┌────────────────┐     │      │ ┌────────────────┐     │      │ ┌────────────────┐     │
+│ │ Prometheus     │─────┼──────▶│ Node Exporter  │     │      │ │ Node Exporter  │     │
+│ └────────────────┘     │      │ ├────────────────┤     │      │ ├────────────────┤     │
+│ ┌────────────────┐     │      │ │ cAdvisor       │     │      │ │ Postgres Exp   │     │
+│ │ Grafana        │     │      │ └────────────────┘     │      │ └────────────────┘     │
+│ └────────────────┘     │      │                        │      │                        │
+└────────────────────────┘      └────────────────────────┘      └────────────────────────┘
 ```
 
 ---
 
 ## Cara Pakai
 
-### VM 2 (DB Server) — jalankan sekali sebelum eksperimen
+Ikuti urutan ini untuk setup awal:
 
+### 1. VM 1 (API Server) — Jalankan Exporters
+Buka terminal di VM 1, lalu jalankan:
 ```bash
-# Skenario S1/S3/S4 (single-DB)
-make db-exporters-single
-
-# Skenario S2/S5/S6 (multi-DB)
-make db-exporters-multi
+make exporters-api-up
 ```
+Ini akan menjalankan **Node Exporter** (host metrics) dan **cAdvisor** (container metrics).
 
-### VM 1 (API Server) — jalankan sekali sebelum eksperimen
+### 2. VM 2 (DB Server) — Jalankan Exporters
+Buka terminal di VM 2, lalu jalankan sesuai skenario:
+```bash
+# Untuk skenario Single DB
+make exporters-db-single
 
+# Untuk skenario Multi DB
+make exporters-db-multi
+```
+Ini akan menjalankan **Node Exporter** dan **Postgres Exporter** (dengan fitur *auto-discovery* untuk semua tenant DB).
+
+### 3. Laptop Lokal — Jalankan Monitoring Hub
+Di terminal laptop kamu, jalankan:
 ```bash
 make monitoring-up
 ```
-
-Buka Grafana: **http://VM1_IP:3000** (login: `admin` / `admin`)
-
-Dua dashboard sudah ter-import otomatis:
-- **POS — API Server (VM 1)** — CPU host, Memory, Container CPU/Memory, Network I/O
-- **POS — DB Server (VM 2)** — CPU, Memory, Disk I/O, Disk Latency, PostgreSQL stats
-
-### Verifikasi targets di Prometheus
-
-```bash
-# Cek semua scrape targets statusnya UP
-curl -s http://localhost:9090/api/v1/targets | python3 -c "
-import json,sys
-d = json.load(sys.stdin)
-for t in d['data']['activeTargets']:
-    print(t['labels']['job'], '->', t['health'], t['lastError'] or '')
-"
-```
+Buka Grafana: **http://localhost:3000** (login: `admin` / `admin`).
 
 ---
 
-## Metrik yang Di-capture (sesuai Proposal Tabel 3.9)
+## Verifikasi di Prometheus (Laptop)
 
-| Komponen | Metrik | Exporter |
-|---|---|---|
-| **API Server (VM 1)** | CPU usage (host) | node_exporter |
-| | Memory usage (host) | node_exporter |
-| | CPU per container (pos-api) | cAdvisor |
-| | Memory per container (pos-api) | cAdvisor |
-| | Network I/O | node_exporter |
-| **DB Server (VM 2)** | CPU usage | node_exporter |
-| | Memory usage | node_exporter |
-| | **Disk I/O throughput** (read/write bytes/s) | node_exporter |
-| | Disk latency | node_exporter |
-| | PostgreSQL connections | postgres_exporter |
-| | Tuples insert/update/read rate | postgres_exporter |
-| | Lock wait count | postgres_exporter |
-
-> Response time, Throughput, Error rate → dari **Locust** (client-side), bukan Prometheus.
+Buka **http://localhost:9090/targets** di browser laptop kamu. Pastikan semua target berikut berstatus **UP**:
+- `prometheus` (localhost)
+- `node_exporter_api` (192.168.10.183:9100)
+- `cadvisor_api` (192.168.10.183:8081)
+- `node_exporter_db` (192.168.10.243:9100)
+- `postgres_exporter` (192.168.10.243:9187)
 
 ---
 
-## Alur Eksperimen (Workflow)
-
-```
-1. make db-single-reseed SCALE=small   # VM 2: seed data
-2. make db-exporters-single             # VM 2: start exporters (sekali saja)
-3. make monitoring-up                   # VM 1: start monitoring (sekali saja)
-4. make api-single-up                   # VM 1: start API
-5. Jalankan Locust dari perangkat lain  # workload generator
-6. Buka Grafana, amati dashboard selama Locust jalan
-7. Export data dari Locust (CSV) + screenshot Grafana graphs
-8. make db-single-reseed SCALE=medium  # VM 2: ganti skala, ulangi
-```
-
----
-
-## Konfigurasi
-
-### Ganti DB Server IP
-
-Edit `monitoring/prometheus/prometheus.yml`:
-```yaml
-- job_name: node_exporter_db
-  static_configs:
-    - targets: ['<IP_VM2>:9100']   # ganti di sini
-
-- job_name: postgres_exporter
-  static_configs:
-    - targets: ['<IP_VM2>:9187']   # ganti di sini
-```
-
-Lalu reload Prometheus (tanpa restart):
+## Konfigurasi IP
+Jika IP VM berubah, edit file `monitoring/prometheus/prometheus.yml` dan sesuaikan bagian `static_configs` targets. Setelah simpan, jalankan:
 ```bash
 make monitoring-reload
 ```
 
-### Akses Grafana dari luar VM
-
-Port 3000 sudah di-expose. Buka dari browser di perangkat Locust:
-```
-http://192.168.10.xxx:3000
-```
+## Metrik yang Di-capture
+Sesuai Proposal Tabel 3.9, semua resource utilization (CPU, Memory, Disk I/O) dari kedua VM akan terkumpul di satu dashboard pusat di laptop kamu.
+- **Dashboard API Server**: Fokus ke performa VM 1 dan isolasi container `pos-api`.
+- **Dashboard DB Server**: Fokus ke performa disk I/O dan kesehatan PostgreSQL.

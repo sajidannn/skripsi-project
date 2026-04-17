@@ -7,8 +7,9 @@
         db-multi-up db-multi-down db-multi-clean db-multi-logs db-multi-logs-seeder \
         db-single-reseed db-multi-reseed \
         db-clean \
-        db-exporters-up db-exporters-down db-exporters-single db-exporters-multi \
-        monitoring-up monitoring-down monitoring-logs monitoring-reload
+        exporters-api-up exporters-api-down \
+        exporters-db-single-up exporters-db-multi-up exporters-db-down \
+        monitoring-up monitoring-down monitoring-reload
 
 # Data scale for seeding: small | medium | large  (default: small)
 # Usage: make db-single-up SCALE=medium
@@ -116,44 +117,35 @@ db-clean:
 
 
 # ==============================================================================
-# DB EXPORTERS (Docker Compose) - VM 2
-# Deploy node_exporter + postgres_exporter agar bisa di-scrape Prometheus VM 1
-# Jalankan SEKALI dan biarkan berjalan selama semua eksperimen
+# REMOTES MONITORING SETUP
 # ==============================================================================
 
-# Start exporters pointing ke single-DB postgres (port 5432)
-db-exporters-single:
-	cd DB && docker compose -f docker-compose.exporters.yml down 2>/dev/null || true
-	cd DB && DATA_SOURCE_NAME="postgresql://postgres:supersecret@localhost:5432/pos_single?sslmode=disable" \
-		docker compose -f docker-compose.exporters.yml up -d
+# VM 1: Start API Exporters (Node Exporter + cAdvisor)
+exporters-api-up:
+	cd monitoring && docker compose -f docker-compose.api-exporters.yml up -d
+
+exporters-api-down:
+	cd monitoring && docker compose -f docker-compose.api-exporters.yml down
+
+# VM 2: Start DB Exporters (Node Exporter + Postgres Exporter)
+exporters-db-single-up:
+	cd monitoring && DATA_SOURCE_NAME="postgresql://postgres:supersecret@localhost:5432/pos_single?sslmode=disable" \
+		docker compose -f docker-compose.db-exporters.yml up -d
 	@echo "DB exporters started → scrape target: pos_single (port 5432)"
 
-# Start exporters pointing ke multi-DB postgres (port 5433)
-db-exporters-multi:
-	cd DB && docker compose -f docker-compose.exporters.yml down 2>/dev/null || true
-	cd DB && DATA_SOURCE_NAME="postgresql://postgres:supersecret@localhost:5433/pos_master?sslmode=disable" \
-		docker compose -f docker-compose.exporters.yml up -d
+exporters-db-multi-up:
+	cd monitoring && DATA_SOURCE_NAME="postgresql://postgres:supersecret@localhost:5433/pos_master?sslmode=disable" \
+		docker compose -f docker-compose.db-exporters.yml up -d
 	@echo "DB exporters started → scrape target: pos_master (port 5433)"
 
-# Alias: sama dengan db-exporters-single (default)
-db-exporters-up: db-exporters-single
+exporters-db-down:
+	cd monitoring && docker compose -f docker-compose.db-exporters.yml down
 
-db-exporters-down:
-	cd DB && docker compose -f docker-compose.exporters.yml down
-
-
-# ==============================================================================
-# MONITORING STACK (Docker Compose) - VM 1
-# Deploy Prometheus + Grafana + Node Exporter + cAdvisor
-# Jalankan SEKALI sebelum mulai eksperimen, biarkan berjalan
-# Grafana: http://localhost:3000 (admin/admin)
-# Prometheus: http://localhost:9090
-# ==============================================================================
-
+# LAPTOP: Start Central Monitoring (Prometheus + Grafana)
 monitoring-up:
 	cd monitoring && docker compose up -d
 	@echo ""
-	@echo "=== Monitoring stack started ==="
+	@echo "=== Monitoring Hub started (LOCAL) ==="
 	@echo "  Grafana:    http://localhost:3000  (admin/admin)"
 	@echo "  Prometheus: http://localhost:9090"
 	@echo ""
@@ -161,9 +153,5 @@ monitoring-up:
 monitoring-down:
 	cd monitoring && docker compose down
 
-monitoring-logs:
-	cd monitoring && docker compose logs -f
-
-# Reload Prometheus config tanpa restart (berguna saat edit prometheus.yml)
 monitoring-reload:
 	curl -X POST http://localhost:9090/-/reload

@@ -1,0 +1,29 @@
+services:
+  # ── Node Exporter (VM 2) ──────────────────────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: pos-node-exporter-db
+    network_mode: host
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.rootfs=/rootfs
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+      - --collector.diskstats
+      - --collector.meminfo
+    restart: unless-stopped
+
+  # ── Postgres Exporter (VM 2) ──────────────────────────────────────────────
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: pos-postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "${DATA_SOURCE_NAME:-postgresql://postgres:supersecret@localhost:5432/pos_single?sslmode=disable}"
+      PG_EXPORTER_AUTO_DISCOVER_DATABASES: "true"
+    network_mode: host
+    restart: unless-stopped

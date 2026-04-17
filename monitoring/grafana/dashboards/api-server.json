@@ -102,7 +102,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus" },
-          "expr": "rate(container_cpu_usage_seconds_total{job=\"cadvisor_api\",name=~\"pos-api.*\"}[$__rate_interval]) * 100",
+          "expr": "rate(container_cpu_usage_seconds_total{job=\"cadvisor_api\",name=~\"/?.?pos-api.*\"}[$__rate_interval]) * 100",
           "legendFormat": "{{name}} CPU %",
           "refId": "A"
         }
@@ -126,7 +126,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus" },
-          "expr": "container_memory_working_set_bytes{job=\"cadvisor_api\",name=~\"pos-api.*\"}",
+          "expr": "container_memory_working_set_bytes{job=\"cadvisor_api\",name=~\"/?.?pos-api.*\"}",
           "legendFormat": "{{name}} Memory (WSS)",
           "refId": "A"
         }
