@@ -9,7 +9,8 @@
         db-clean \
         exporters-api-up exporters-api-down \
         exporters-db-single-up exporters-db-multi-up exporters-db-down \
-        monitoring-up monitoring-down monitoring-reload
+        monitoring-up monitoring-down monitoring-reload \
+        workload-small workload-medium workload-large
 
 # Data scale for seeding: small | medium | large  (default: small)
 # Usage: make db-single-up SCALE=medium
@@ -155,3 +156,18 @@ monitoring-down:
 
 monitoring-reload:
 	curl -X POST http://localhost:9090/-/reload
+
+# ==============================================================================
+# WORKLOAD GENERATOR (Locust)
+# ==============================================================================
+
+WORKLOAD_API_URL ?= http://192.168.10.183:8080
+
+workload-small:
+	@API_URL=$(WORKLOAD_API_URL) SCALE=1 USERS=5 ./workload/run_test.sh
+
+workload-medium:
+	@API_URL=$(WORKLOAD_API_URL) SCALE=10 USERS=50 ./workload/run_test.sh
+
+workload-large:
+	@API_URL=$(WORKLOAD_API_URL) SCALE=50 USERS=250 ./workload/run_test.sh

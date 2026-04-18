@@ -93,8 +93,8 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID int, req dto
 		if errors.As(err, &appErr) {
 			return nil, appErr
 		}
-		// Otherwise, treat repo validation errors as NotFound/BadRequest
-		return nil, apierr.NotFound(err.Error())
+		// Otherwise, treat repo validation errors as internal failures but keep the message
+		return nil, apierr.Internal(err, err.Error())
 	}
 	return res, nil
 }
@@ -174,7 +174,7 @@ func (s *TransactionService) CreatePurchase(ctx context.Context, userID int, req
 		if errors.As(err, &appErr) {
 			return nil, appErr
 		}
-		return nil, apierr.NotFound(err.Error())
+		return nil, apierr.Internal(err, err.Error())
 	}
 	return res, nil
 }
@@ -252,7 +252,7 @@ func (s *TransactionService) CreateTransfer(ctx context.Context, userID int, req
 		if errors.As(err, &appErr) {
 			return nil, appErr
 		}
-		return nil, apierr.NotFound(err.Error())
+		return nil, apierr.Internal(err, err.Error())
 	}
 	return res, nil
 }
@@ -311,7 +311,7 @@ func (s *TransactionService) CreateReturn(ctx context.Context, userID int, req d
 		if errors.As(err, &appErr) {
 			return nil, appErr
 		}
-		return nil, apierr.NotFound(err.Error())
+		return nil, apierr.Internal(err, err.Error())
 	}
 	return res, nil
 }

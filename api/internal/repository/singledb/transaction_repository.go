@@ -3,6 +3,7 @@ package singledb
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -66,6 +67,7 @@ func (r *TransactionRepo) ExecuteSaleTx(
 	for _, item := range req.Items {
 		branchItemIDs = append(branchItemIDs, item.BranchItemID)
 	}
+	sort.Ints(branchItemIDs) // Prevent deadlocks by locking in consistent order
 
 	loadedDbItems := make(map[int]model.ProcessSaleItem)
 
@@ -112,7 +114,7 @@ func (r *TransactionRepo) ExecuteSaleTx(
 	}
 
 	// 3. PHASE THREE: WRITE & PIPELINING (Avoiding N+1 Insert & Update)
-	trxNo := fmt.Sprintf("SALE-%s", time.Now().Format("20060102150405"))
+	trxNo := fmt.Sprintf("SALE-%s", time.Now().Format("20060102150405.000000"))
 
 	// Insert Header `transactions`
 	var trxID int
@@ -237,6 +239,7 @@ func (r *TransactionRepo) ExecutePurchaseTx(
 	for _, item := range req.Items {
 		itemIDs = append(itemIDs, item.ItemID)
 	}
+	sort.Ints(itemIDs)
 
 	loadedDbItems := make(map[int]model.ProcessPurchaseItem)
 
@@ -323,7 +326,7 @@ func (r *TransactionRepo) ExecutePurchaseTx(
 	}
 
 	// 3. PHASE THREE: BULK WRITE
-	trxNo := fmt.Sprintf("PURC-%s", time.Now().Format("20060102150405"))
+	trxNo := fmt.Sprintf("PURC-%s", time.Now().Format("20060102150405.000000"))
 
 	// Insert Header (Explicitly ensure mutual exclusivity for safety)
 	var finalBranchID, finalWarehouseID *int
@@ -466,6 +469,7 @@ func (r *TransactionRepo) ExecuteTransferTx(
 	for _, item := range req.Items {
 		itemIDs = append(itemIDs, item.ItemID)
 	}
+	sort.Ints(itemIDs)
 
 	loadedDbItems := make(map[int]model.ProcessTransferItem)
 
@@ -547,7 +551,7 @@ func (r *TransactionRepo) ExecuteTransferTx(
 	}
 
 	// 3. PHASE THREE: DOUBLE-ENTRY WRITE
-	timestamp := time.Now().Format("20060102150405")
+	timestamp := time.Now().Format("20060102150405.000000")
 	trxNoBase := timestamp
 	trfoNo := fmt.Sprintf("TRFO-%s", trxNoBase)
 	trfiNo := fmt.Sprintf("TRFI-%s", trxNoBase)
@@ -723,6 +727,7 @@ func (r *TransactionRepo) ExecuteReturnTx(
 	for _, item := range req.Items {
 		branchItemIDs = append(branchItemIDs, item.BranchItemID)
 	}
+	sort.Ints(branchItemIDs)
 
 	loadedDbItems := make(map[int]model.ProcessReturnItem)
 	query := `SELECT id, stock FROM branch_items WHERE id = ANY($1) AND branch_id = $2 AND tenant_id = $3 FOR UPDATE`
@@ -754,7 +759,7 @@ func (r *TransactionRepo) ExecuteReturnTx(
 	finalAggregate.ReferenceTransactionID = originalTrxID
 
 	// 3. PHASE THREE: WRITE
-	trxNo := fmt.Sprintf("RET-%s", time.Now().Format("20060102150405"))
+	trxNo := fmt.Sprintf("RET-%s", time.Now().Format("20060102150405.000000"))
 	var trxID int
 	err = tx.QueryRow(ctx,
 		`INSERT INTO transactions (tenant_id, trxno, branch_id, customer_id, user_id, trans_type, total_amount, reference_transaction_id, note)

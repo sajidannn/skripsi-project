@@ -604,7 +604,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{host}}/api/v1/inventory/branch/1?margin_warning=true",
+              "raw": "{{host}}/api/v1/inventory/branch/1",
               "host": [
                 "{{host}}"
               ],
@@ -624,7 +624,8 @@
                 {
                   "key": "margin_warning",
                   "value": "true",
-                  "uuid": "63c1bc57-0d17-47ed-8fb9-1d9483ff4c20"
+                  "uuid": "63c1bc57-0d17-47ed-8fb9-1d9483ff4c20",
+                  "disabled": true
                 }
               ]
             }
