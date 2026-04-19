@@ -1,74 +1,48 @@
-# POS API — Backend Service
+# API Service — Golang Backend
 
-Backend Point of Sale (POS) yang dibangun dengan **Go 1.22** dan framework **Gin Gonic**. API ini dirancang untuk menangani beban transaksi tinggi dengan pattern yang konsisten untuk kedua mode multi-tenancy.
+Komponen `api/` ini adalah denyut nadi dari sisi server Point of Sale (POS) yang dirancang secara khusus (**Memory-safe & Concurrent-safe**) untuk mengeksekusi beban skenario pengujian TPC-C (hingga lebih dari ribuan Request dalam waktu 5 Menit).
 
----
-
-## 🛠️ Arsitektur
-
-### Repository Pattern
-Kode dipisahkan berdasarkan tanggung jawabnya:
-- **Handler**: Menangani request HTTP, validasi input (DTO), dan mapping error.
-- **Service**: Berisi business logic utama (cabang/item/transaksi).
-- **Repository**: Abstraksi data akses.
-  - `singledb/`: Implementasi SQL dengan filter `tenant_id`.
-  - `multidb/`: Implementasi SQL dengan dynamic connection pool per tenant.
-
-### Teknologi
-- **Database Driver**: `jackc/pgx/v5` (High performance Postgres driver).
-- **Web Framework**: `Gin` (Router & Middleware).
-- **Auth**: JWT (JSON Web Token) dengan Role-Based Access Control (RBAC).
+Backend ini ditulis murni menggunakan **Golang 1.25**, dipisahkan dengan *Clean Architecture (Handler-Service-Repository Pattern)* demi mempermudah *switch-over* perbandingan dua mode arsitektur: **Single DB** (Logical isolation) dan **Multi DB** (Physical/Schema isolation).
 
 ---
 
-## ⚙️ Konfigurasi (Environment Variables)
-
-Salin `.env.example` menjadi `.env` dan sesuaikan nilainya:
-
-| Variable | Deskripsi | Nilai Default |
-|---|---|---|
-| `DB_MODE` | Mode multi-tenancy: `single` atau `multi`. | `single` |
-| `SINGLE_DSN` | URL koneksi Postgres untuk mode single. | `postgres://...` |
-| `TENANT_DB_HOST` | Host PostgreSQL untuk tenant DB (multi mode). | `localhost` |
-| `JWT_SECRET` | Secret key untuk signing token JWT. | - |
-| `DEBUG` | Jika `true`, error internal akan muncul di response API. | `false` |
+## 🛠️ Stack Teknologi Indeks
+- **Engine Router**: `Gin Gonic` (Efisien dalam penanganan alur router berdaya tinggi).
+- **Driver Database**: `jackc/pgx/v5` dan `pgxpool` (Konektor PostgreSQL asli berbasis native pool yang amat menekan overhead I/O Disk).
+- **Sistem Autentikasi / RBAC**: Bearer *JSON Web Token* (JWT).
 
 ---
 
-## 🚀 Cara Menjalankan (Lokal)
+## 🧩 Modus Arsitektur (Multi-Tenancy)
 
-1. Pastikan sudah menjalankan database (lihat README root).
-2. Install dependensi:
-   ```bash
-   go mod tidy
-   ```
-3. Jalankan server:
-   ```bash
-   # Mode Single-DB
-   DB_MODE=single go run ./cmd/server/...
-   ```
+Logika konektivitas sangat krusial agar gesekan pemrosesan (deadlock dan latensi RAM) tidak terjadi. API mengadopsi 2 *Repository Pattern*:
+
+1. **`singledb/` Repository Layer**
+   Semua beban koneksi dipusatkan pada SATU kolam koneksi (Connection Pooler). Setiap fungsi (misal Update Stok atau Cek HPP Barang) wajib menarik Parameter `tenant_id` ke dalam query `WHERE`.
+   
+2. **`multidb/` Repository Layer**
+   API akan secara dinamis membuka *Connection Pooler* mikro sejumlah target yang ada (`tenant_1`, `tenant_2`, ...). Driver pgx akan memanggil `Search Path` yang sesuai pada saat memvalidasi JWT middleware. Query SQL sangat ramping tanpa validasi `WHERE tenant_id`.
 
 ---
 
-## 📦 Endpoint Utama
+## ⚙️ Variabel Lingkungan (`.env`)
 
-- **Auth**: `POST /api/v1/auth/login`
-- **Master Data**: `/api/v1/items`, `/api/v1/branches`, `/api/v1/warehouses`, `/api/v1/suppliers`
-- **Transactions**:
-  - `POST /api/v1/transactions/sale`: Penjualan kasir.
-  - `POST /api/v1/transactions/purchase`: Pembelian stok dari supplier.
-  - `POST /api/v1/transactions/transfer`: Perpindahan stok antar lokasi.
-  - `POST /api/v1/transactions/return`: Retur penjualan/pembelian.
-- **Inventory**: `GET /api/v1/inventory/branch/:id`
+Untuk berjalan secara lokal maupun di container (Node VM 1), salin berkas `.env.example` menjadi `.env` kemudian sesuaikan nilai konfigurasi utamanya:
 
-Semua request wajib menyertakan Header `Authorization: Bearer <token>` kecuali endpoint Login.
+| Variabel | Penjelasan Fokus Skripsi |
+|---|---|
+| `DB_MODE` | Diatur menggunakan `single` atau `multi`. Otomatis merubah jalur *Dependency Injection* ke layer *Service*. |
+| `SINGLE_DSN` | Postgres Connect String bila `DB_MODE` adalah `single`. |
+| `TENANT_DB_HOST` | Host Address PostgreSQL bila `DB_MODE` adalah `multi` (serta setting Password & Port tambahannya). |
+| `JWT_SECRET` | Secret cipher key untuk signing otentikasi login kasir & pengelola toko. |
 
 ---
 
-## 🧪 Deployment (Docker)
+## 📦 Rentang Endpoint TPC-C Equivalent
 
-API ini dapat di-deploy menggunakan Docker:
-```bash
-docker build -t pos-api .
-docker run -p 8080:8080 --env-file .env pos-api
-```
+Semua alur `api/v1/` akan dipukul terus menerus oleh Workload Generator Locust, menyimulasikan transaksi harian ritel POS yang mirip dengan *standard of measure* badan TPC-C internasional. Di dalam file skripsi, diatur sesuai pembagian berikut (pastikan mencocokkannya di postman):
+
+*   **`POST /transactions/sale`** -> Beban Terbesar (*New-Order*: 65%). Mencabut stok pesanan ganda dan mencatat nilai tukar pendapatan.
+*   **`POST /transactions/purchase` \ `POST /transactions/transfer`** -> Beban Menengah (*Payment/Restock*: 23%). Validasi otorisasi lintas cabang toko / restock *Warehouse*.
+*   **`GET /inventory/branch/{id}`** -> Beban Analisis Cepat (*Stock-Level*: 4%). Pemanggilan nilai hitung persediaan kotor real-time.
+*   **`GET /transactions?trans_type=SALE`** -> Beban Pengecekan Riwayat (*Order-Status/Billing*: 4%).

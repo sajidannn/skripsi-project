@@ -1,79 +1,55 @@
-# POS API Multi-Tenant System
+# 🛒 Point of Sale (POS) TPC-C Benchmark System
 
-Sistem Point of Sale (POS) backend dengan arsitektur multi-tenant yang fleksibel, mendukung dua mode deployment: **Single-DB (Shared Schema)** dan **Multi-DB (Database-per-Tenant)**. Dibangun menggunakan Go (Gin) dan PostgreSQL untuk performa dan skalabilitas tinggi.
+[![Go Version](https://img.shields.io/badge/Go-1.25-blue.svg)](https://golang.org)
+[![PostgreSQL](https://img.shields.io/badge/Postgres-16.0-blue.svg)](https://postgresql.org/)
+[![Multi-Tenant](https://img.shields.io/badge/Architecture-Multi--Tenant-green.svg)]()
+
+Repositori ini adalah implementasi dari skripsi berfokus pada **Analisis Komparatif Performa Database Multi-Tenant**. Sistem POS ini bertindak sebagai API yang diuji (SUT - *System Under Test*) melalui beban simulasi dari pola model **TPC-C**, untuk menemukan perbedaan latensi, skalabilitas, dan efisiensi resource.
+
+Sistem dirancang untuk mendukung **dua isolasi arsitektur multi-tenant**:
+1. **Single-DB (Shared Schema):** Semua data tenant bersatu dalam satu *schema* database dengan isolasi melalui validasi kolom `tenant_id`.
+2. **Multi-DB (Database-per-Tenant):** Setiap tenant memiliki ruang database / skema eksklusif (contoh: `tenant_1`, `tenant_2`), terisolasi penuh secara fisik/logis untuk mereduksi *data contention*.
 
 ---
 
-## 📂 Struktur Proyek
+## 📂 Struktur Repositori
+
+Setiap bagian subsistem dikelompokkan dengan tanggung jawab / *concern* masing-masing agar perbandingannya jelas:
 
 ```bash
 .
-├── api/          # Backend service (Go, Gin, pgxpool)
-├── DB/           # Schema database, Docker Compose, dan Go Seeder
-├── postman/      # Koleksi API Postman dan Environment
-├── Makefile      # Shortcut perintah operasional
-└── monitoring/   # (Optional) Konfigurasi untuk monitoring/benchmark
+├── api/          # ⚙️ Layanan Backend (Golang, Gin, pgxpool). Fokus pada logika bisnis & konektivitas DB.
+├── db/           # 🗄️ Infrastruktur Database. Berisi File SQL schema, migrasi, Docker Compose, & alat Seeding.
+├── workload/     # 🔫 TPC-C Load Generator (Python/Locust). Membombardir API secara realistis layaknya kasir ritel.
+├── monitoring/   # 📊 Stack Observabilitas Terdistribusi (Prometheus, Grafana, Exporters).
+├── postman/      # 🧪 Postman Collection & Environtment variables untuk testing.
+└── Makefile      # 🧰 Kumpulan pintasan operasional Makefile untuk orkestrasi skenario.
 ```
 
----
-
-## 🚀 Persiapan Cepat
-
-### Prasyarat
-- Docker & Docker Compose
-- Go 1.22+ (untuk running lokal)
-- Make (opsional, tapi sangat disarankan)
-
-### Menjalankan Database
-Pilih salah satu mode database. Mode **Single-DB** paling ringan untuk pengembangan awal.
-
-```bash
-# Menjalankan Single-DB (Small scale by default)
-make db-single-up
-
-# Jika ingin skala data lebih besar (medium/large):
-make db-single-up SCALE=medium
-```
-
-### Menjalankan API (Lokal)
-Setelah database up dan seeding selesai, jalankan API dengan mode yang sesuai:
-
-```bash
-# Running API mode Single-DB
-make api-single-run
-
-# Atau mode Multi-DB
-make api-multi-run
-```
-
-Akses health check di: `http://localhost:8080/health`
+Dipersilakan merujuk ke setiap direktori untuk membaca **instruksi mendalam** dari masing-masing subsistem (contoh: buka `api/README.md` untuk menjalankan backend).
 
 ---
 
-## 📊 Skala Data (Seeding)
-Proyek ini mendukung seeding otomatis dengan parameter skala berikut:
+## 📈 Parameter Skala Data & Skenario Uji
 
-| Skala | Tenants | Items/Tenant | Estimasi Total Rows |
-|---|---|---|---|
-| **Small** | 5 | 1.000 | ~37rb |
-| **Medium**| 10 | 3.000 | ~345rb |
-| **Large** | 50 | 5.000 | ~4,7jt |
+Proyek ini telah dikonfigurasi agar sesuai dengan **Tabel Parameter TPC-C** yang diusulkan. Pengujian (*Benchmark*) dilakukan secara otomatis menggunakan Seeder Golang dan pemanggilan skrip pembobot di `workload`.
 
-Gunakan `make db-single-reseed SCALE=large` untuk menghapus data lama dan mengisi ulang dengan skala baru.
+### 1. Skala Pengisian Database (Seeder)
+Digunakan pada saat menyiapkan infrastruktur database (misal `make db-single-up SCALE=medium`):
 
----
+| Skala Pengujian | Total Tenants | Total Kasir | Jumlah Cabang per Tenant | Stok Baris / Barang Awal |
+|---|---|---|---|---|
+| **Small**  | 5 | 50 (Kasir) | 2 | 1.000 Jenis x QTY Besar |
+| **Medium** | 10 | 100 (Kasir)| 5 | 3.000 Jenis x QTY Besar |
+| **Large**  | 50 | 200 (Kasir)| 10 | 5.000 Jenis x QTY Besar |
 
-## 🛠️ Perintah Utama (Makefile)
+### 2. Skenario Pengujian Mutlak
+Pengujian dijalankan setelah API Server dan Database menyala sempurna. Alat Generator Beban (*workload*) secara otomatis menyimulasikan transaksi selama batas runtime **5 Menit** per skenario:
 
-| Perintah | Deskripsi |
-|---|---|
-| `make db-single-up` | DB Single: Jalankan kontainer Postgres & Seeder. |
-| `make db-single-logs-seeder` | Lihat progress pengisian data ke database. |
-| `make api-single-run` | Jalankan API lokal dengan koneksi ke Single-DB. |
-| `make api-build` | Kompilasi Go backend ke file biner. |
-| `make db-clean` | Hapus semua data dan kontainer database. |
+*   **Skala Small**: `make workload-small` (Baseline 5 tenant, 50 user, 5 menit)
+*   **Skala Medium**: `make workload-medium` (Skalabilitas 10 tenant, 100 user, 5 menit)
+*   **Skala Large**: `make workload-large` (Maksimum stres 50 tenant, 200 user, 5 menit)
 
 ---
 
-## 📧 Kontak & Pengembangan
-Proyek ini dikembangkan oleh **Sajidannn** sebagai bagian dari tugas akhir (skripsi) mengenai performa database multi-tenant.
+*Proyek Riset Tugas Akhir: **Perbandingan Performa dan Skalabilitas Arsitektur Multi-Tenant Database pada Sistem Backend Point of Sale** — oleh **Ahmad Nur Sajidan**.*
