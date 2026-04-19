@@ -1,161 +1,45 @@
-# DB — Database Server (VM 2)
+# 🗄️ Database & Skema Inventaris POS
 
-Direktori ini berisi schema database dan Go seeder untuk deployment PostgreSQL pada server DB terpisah (VM 2). Dirancang untuk pengujian API POS berbasis workload TPC-C dengan **3 skala data** yang dapat dipilih secara dinamis.
-
-## Struktur
-
-```
-DB/
-├── schema/                       # SQL schema files (single source of truth)
-│   ├── single-db.sql             # Schema shared-schema multi-tenant
-│   ├── multi-db-master.sql       # Schema master DB (tenant routing)
-│   └── multi-db-tenant.sql       # Schema per-tenant DB
-├── seeder/                       # Go seeder program
-│   ├── main.go                   # CLI entry point
-│   ├── config.go                 # Definisi 3 skala data
-│   ├── generator.go              # Deterministic data generation
-│   ├── seed_single.go            # Single-DB seeding logic
-│   ├── seed_multi.go             # Multi-DB seeding logic
-│   ├── go.mod / go.sum
-│   └── Dockerfile                # Multi-stage build
-├── docker-compose.single.yml     # Deploy single-DB mode
-├── docker-compose.multi.yml      # Deploy multi-DB mode
-└── README.md
-```
+Pondasi utama dari analisis komparatif performa ini terletak pada **Container Database (`/db`)** dan program automasi *Data Seeder*. Sistem ini bertumpu pada **PostgreSQL v15.0**, memberikan landasan yang kokoh untuk stabilitas isolasi tingkat *RDBMS* saat ribuan transaksi saling mengunci (*ACID guarantees*).
 
 ---
 
-## Skala Data
+## 🏗️ Topologi Isolasi Skema Multi-Tenant
 
-Berdasarkan **Proposal Tabel 3.6 — Parameter Skala Data**:
+Terdapat perbedaan mendasar dalam struktur data kedua mode arsitektur yang Anda jalankan di skripsi ini:
 
-| Parameter | Small | Medium | Large |
-|---|---|---|---|
-| Tenants | 5 | 10 | 50 |
-| Warehouse/tenant | 5 | 7 | 10 |
-| Branch/warehouse | 1 | 3 | 5 |
-| Items/tenant | 1,000 | 3,000 | 5,000 |
-| Customer/branch | 100 | 200 | 300 |
-| Supplier/tenant | 10 | 30 | 50 |
+### 1. Mode `Single DB` (Tabel Flat / Shared Schema)
+Modus basis data konvensional. Seluruh data dari *Puluhan Perusahaan Tenant* di tampung di dalam **satu kontainer PostgreSQL tunggal** dengan *schema* bernama `pos_single`.
+*   **Risiko Isolasi:** Jika Tenant A membaca tabel, kecepatan bacanya sangat bergantung pada tumpukan jutaan baris milik Tenant B hingga Z di tabel yang sama.
+*   **Level Pertahanan:** Membutuhkan kolom `tenant_id` secara keras (Hard-coded) pada tiap struktur perancangan kueri Backend API. (Logika `WHERE tenant_id = X`).
 
-**Estimasi total rows (single-DB, tanpa transaksi):**
-
-| Skala | Estimasi Rows |
-|---|---|
-| Small | ~37,635 |
-| Medium | ~345,810 |
-| Large | ~4,758,100 |
+### 2. Mode `Multi DB` (Physical Schema / DB-per-Tenant)
+Modus terisolasi dalam satu gugus / *cluster*. Saat sistem dinyalakan, Seeder akan menciptakan **puluhan schema mandiri** dalam instance server (contoh `tenant_001`, `tenant_002`, ... `tenant_050`). 
+*   **Keuntungan (Sesuai Konklusi Tesis):** Memperpendek *Index B-Tree* per tabel karena batas ruang pencarian dibatasi di skema si penyewa. Ini menekan sangat jauh penggunaan memori komputasi saat pencatatan I/O di disk.
+*   **Level Pertahanan:** Diikat dari parameter *search path* driver API ke nama schema spesifik. Query SQL bisa murni (*plain*) tanpa klausa `tenant_id`.
 
 ---
 
-## Cara Penggunaan
+## 🔗 Skema ERD Pokok (*Relational Logic*)
 
-### Via Makefile (dari root project)
+Pada tiap batas otoritas sebuah Tenant, ini merupakan aliran struktur *Node* Data Inventaris.
 
-```bash
-# Default (small scale)
-make db-single-up
-
-# Medium scale
-make db-single-up SCALE=medium
-
-# Large scale
-make db-single-up SCALE=large
-
-# Multi-DB mode
-make db-multi-up SCALE=medium
-
-# Lihat log seeder (progress seeding)
-make db-single-logs-seeder
-make db-multi-logs-seeder
-
-# Clean + rebuild dengan skala baru
-make db-single-reseed SCALE=large
-
-# Hapus semua data (volume dihapus)
-make db-single-clean
-make db-multi-clean
-make db-clean        # keduanya sekaligus
-```
-
-### Via Docker Compose langsung
-
-```bash
-cd DB
-
-# Single-DB, small scale
-SCALE=small docker compose -f docker-compose.single.yml up --build -d
-
-# Multi-DB, medium scale
-SCALE=medium docker compose -f docker-compose.multi.yml up --build -d
-
-# Lihat progress
-docker compose -f docker-compose.single.yml logs -f seeder
-
-# Clean rebuild dengan skala berbeda
-docker compose -f docker-compose.single.yml down -v
-SCALE=large docker compose -f docker-compose.single.yml up --build -d
-```
+*   `users`: Manajer, Pemilik dan Kasir yang terasosiasi ke cabang/tenant terkait.
+*   `warehouses` & `branches`: Logika titik letak fisik stok fisik (Penyimpanan Utama vs Tempat Penjualan). 
+*   `items` / `master_items`: Kamus universal tentang apa saja yang dijual Tenant.
+*   `warehouse_items` & `branch_items`: *Bridge table* memecah stok *master item* menjadi entitas parsial lokasi di mana qty baris dipotong dan harga marjin final ditetapkan.
+*   `transaction_headers` & `transaction_items`: Log pencatatan transaksi mutasi TPC-C Sale/Purchase/Transfer. Sangat rentan *Table Contention/Locks* manakala ratusan beban user menulis stok ganda pada waktu yang sama.
 
 ---
 
-## Alur Kerja
+## 🌱 Go Seeder (Penanam Beban Skala Data)
 
-```
-docker compose up
-  ↓
-Postgres starts
-  ↓ mounts schema SQL → /docker-entrypoint-initdb.d/
-Postgres runs schema init (CREATE TABLE, CREATE INDEX, ...)
-  ↓
-Postgres healthy (pg_isready OK)
-  ↓
-Seeder container starts
-  ↓
-Seeder: pre-compute bcrypt hashes (sekali)
-Seeder: generate all data in memory (deterministic, seed=42)
-Seeder: TRUNCATE CASCADE semua tabel
-Seeder: bulk insert via pgx COPY protocol (batch 50k rows)
-Seeder: reset sequences → siap untuk API insert
-  ↓
-Seeder exits (restart: "no")
-  ↓
-Postgres running, ready to serve API ✓
-```
+Bagian `/db/seeder` adalah mesin *script golang* *single-responsibility* yang ditugaskan khusus menciptakan jutaan *Dummy Record* awal secara instan (Mengkondisikan agar database "tampak sudah penuh" sebelum `Workload Locust` dimulai). 
 
----
+Dijalankan secara terpusat dari argumen docker-compose / Makefile root `SCALE=x`:
 
-## Konsistensi Data
-
-- **Deterministik**: Menggunakan `rand.New(rand.NewSource(42))` — data identik setiap dijalankan pada skala yang sama
-- **FK Valid**: Data di-generate dalam urutan dependency (tenants → warehouses → branches → items → ...)
-- **Bcrypt**: Hash di-compute sekali, bukan per-row (efisiensi tinggi)
-- **Bulk Insert**: Menggunakan PostgreSQL `COPY` protocol via `pgx.CopyFrom()` — jauh lebih cepat dari INSERT biasa
-
-**Password:**
-- Owner: `password123`
-- Cashier: `cashier123`
-
----
-
-## Estimasi Waktu Seeding
-
-| Skala | Single-DB | Multi-DB (per tenant) |
+| Nilai Argument `SCALE` | Arti | Parameter Bebas Ditanam | 
 |---|---|---|
-| Small | ~5 detik | ~10 detik |
-| Medium | ~30 detik | ~60 detik |
-| Large | ~2–3 menit | ~5–8 menit |
-
-> Estimasi untuk server dengan CPU 2-4 core, RAM 4GB, SSD.
-
----
-
-## Update Schema
-
-Jika ada perubahan tabel/kolom:
-
-1. Edit file di `schema/` (single source of truth)
-2. Update `generator.go` dan `seed_single.go` / `seed_multi.go` jika ada kolom baru yang perlu di-seed
-3. Clean rebuild: `make db-single-reseed SCALE=<scale>`
-
-Tidak perlu migration file — setiap rebuild selalu fresh dari schema terbaru.
+| `small` (Tabel 3.6 - Skenario S1/S2)| Baseline (5 Tenant) | 2 Cabang/Tenant,  1.000 Jenis *Items* Master |
+| `medium` (Tabel 3.6 - Skenario S3/S5) | Ekspansi (10 Tenant) | 5 Cabang/Tenant, 3.000 Jenis *Items* Master |
+| `large` (Tabel 3.6 - Skenario S4/S6)| Super-Stress (50 Tenant) | 10 Cabang/Tenant, 5.000 Jenis *Items* Master |
