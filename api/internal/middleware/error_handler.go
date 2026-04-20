@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -52,7 +53,15 @@ func ErrorHandler(debug bool) gin.HandlerFunc {
 			Errors:  appErr.Fields, // nil for non-validation errors → omitted from JSON
 		}
 
-		// Only expose internal detail for 5xx AND only when debug mode is on.
+		// Only expose internal detail to the client for 5xx AND only when debug mode is on.
+		if appErr.HTTPStatus >= http.StatusInternalServerError {
+			if appErr.Detail != "" {
+				log.Printf("[API ERROR] %s: %s", appErr.Message, appErr.Detail)
+			} else {
+				log.Printf("[API ERROR] %s", appErr.Message)
+			}
+		}
+
 		if debug && appErr.HTTPStatus >= http.StatusInternalServerError && appErr.Detail != "" {
 			resp.Detail = appErr.Detail
 		}
