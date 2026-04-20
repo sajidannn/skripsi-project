@@ -1,0 +1,2 @@
+Method,Name,Error,Occurrences
+POST,/transactions/sale,CatchResponseError('sale HTTP 400'),12

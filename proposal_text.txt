@@ -1,0 +1,587 @@
+PERBANDINGAN PERFORMA DAN SKALABILITAS 
+PROPOSAL 
+Oleh
+Ahmad Nur Sajidan
+NIM 
+UNIVERSITAS NEGERI SURABAYA
+FAKULTAS TEKNIK
+PROGRAM STUDI S1 TEKNIK INFORMATIKA
+202
+HALAMAN PERSETUJUAN
+PROPOSAL PENELITIAN
+Usulan Judul Proposal oleh :
+1.
+Nama Mahasiswa
+:
+Ahmad Nur Sajidan
+2.
+NIM
+:
+22051204061
+3.
+Program Studi
+:
+Teknik Informatika
+4.
+Semester
+:
+Tujuh (7)
+5.
+Judul Penelitian
+:
+Perbandingan Performa dan Skalabilitas 
+Ini telah disetujui dan dinyatakan memenuhi syarat untuk diajukan dalam tugas akhir.
+Surabaya
+Pembimbing
+I Made Suartana, S.Kom., M.Kom.
+NIP. 198411242015041003
+HALAMAN PENGESAHAN
+DAFTAR ISI
+ TOC \o "1-3" \h \z \u 
+HALAMAN PENGESAHAN
+DAFTAR ISI
+DAFTAR GAMBAR
+DAFTAR TABEL
+DAFTAR LAMPIRAN
+BAB I PENDAHULUAN
+1.1
+1.2 Rumusan Masalah
+1.3 Tujuan Penelitian
+1.4 Manfaat Penelitian
+1.5 Batasan Penelitian
+BAB II KAJIAN PUSTAKA
+2.1
+2.2
+2.2.1
+2.2.2
+2.2.3
+2.2.4
+2.2.5
+2.2.6
+2.2.7
+BAB III METODE PENELITIAN
+3.1
+3.2
+3.3
+3.3.1
+3.3.2
+3.3.3
+3.4
+3.4.1
+3.4.2
+3.4.3
+3.5
+3.5.1
+3.5.2
+3.6
+3.6.1
+3.6.2
+3.6.3
+DAFTAR PUSTAKA
+LAMPIRAN
+D
+Gambar 2. 1 Arsitektur Shared-database shared-schema
+Gambar 2. 2 Arsitektur Shared-database separate-schema
+Gambar 2. 3 Arsitektur Separate database pertenant
+Gambar 2. 4 Tabel utama benchmark TPC-C
+ TOC \h \z \c "Gambar 3." 
+Gambar 3. 2 Hierarki Entitas Database
+Gambar 3. 3 Arsitektur shared-database
+Gambar 3. 4 Arsitektur multi-database
+Gambar 3. 5 Arsitektur Layer API
+Gambar 3. 6 Arsitektur Monitor dan Testing
+DAFTAR TABEL
+ TOC \h \z \c "Tabel 2." 
+Tabel 2. 2 Transaksi Utama Benchmark TPC-C
+ TOC \h \z \c "Tabel 3." 
+Tabel 3. 2 Kebutuhan Fungsional
+Tabel 3. 3 Kebutuhan Non-Fungsional
+Tabel 3. 4 Rasio Workload
+Tabel 3. 5 Parameter Sistem
+Tabel 3. 6 Parameter Skala Data
+Tabel 3. 7 Skenario Performa
+Tabel 3. 8 Skenario Skalabilitas
+Tabel 3. 9 Metrik Evaluasi Performa
+Tabel 3. 10 Metrik Evaluasi Skalabilitas
+DAFTAR LAMPIRAN
+Lampiran 1 Arsitektur Multi Database
+Lampiran 2 Arsitektur Single Database
+BAB I
+Latar Belakang
+S
+Sistem POS berbasis cloud merupakan salah satu bentuk
+Menurut
+Performa
+Berdasarkan kondisi tersebut
+1.2 Rumusan Masalah
+Bagaimana perbedaan performa
+Bagaimana perbedaan skalabilitas kedua arsitektur ketika jumlah tenant dan volume transaksi meningkat secara signifikan?
+Faktor teknis apa saja yang memengaruhi performa dan skalabilitas masing-masing arsitektur? baik pada lapisan
+Dalam kondisi apa masing-masing arsitektur lebih sesuai untuk diimplementasikan pada sistem POS berbasis multi-tenant, ditinjau dari performa, skalabilitas, dan kebutuhan praktis?
+1.3 Tujuan Penelitian
+Menganalisis dan membandingkan performa aplikasi POS berbasis arsitektur 
+Mengevaluasi skalabilitas kedua arsitektur terhadap peningkatan jumlah tenant dan volume transaksi, melalui skenario beban bertahap
+Mengidentifikasi faktor-faktor teknis yang memengaruhi performa dan skalabilitas pada masing-masing arsitektur di tingkat
+Menentukan arsitektur 
+1.4 Manfaat Penelitian
+Penelitian ini diharapkan dapat memberikan manfaat sebagai berikut:
+Manfaat Teoritis
+Menambah literatur 
+Mengisi celah penelitian yang masih terbatas terkait penerapan aristektur 
+Manfaat Praktis
+Memberikan rekomendasi kepada perusahaan penyedia layanan POS dalam memilih arsitektur database yang sesuai dengan kebutuhan, baik dari aspek performa maupun skalabilitas.
+Membantu praktisi IT dalam memahami faktor
+Memberikan 
+1.5 Batasan Penelitian
+Agar penelitian lebih terarah dan dapat dilaksanakan sesuai dengan keterbatasan waktu, sumber daya, dan ruang lingkup, maka penelitian ini dibatasi pada hal-hal berikut: 
+Ruang Lingkup Sistem
+Penelitian hanya membahas arsitektur 
+Fitur POS yang diuji dibatasi pada fungsi inti, yaitu manajemen produk, transaksi penjualan, serta laporan stok dan penjualan.
+Sistem basis data yang akan digunakan adalah PostgreSQL sebagai representasi 
+Pendekatan Arsitektur Database
+Perbandingan difokuskan pada dua model arsitektur: 
+Variasi lain seperti 
+Metrik Evaluasi
+Evaluasi performa berfokus pada 
+Evaluasi skalabilitas difokuskan pada kemampuan sistem menangani pertambahan jumlah tenant dan volume transaksi.
+Metode Pengujian
+Pengujian dilakukan melalui API
+Data yang digunakan berupa data uji (
+Keterbatasan Penelitian
+Penelitian tidak membahas aspek keamanan (security), privasi data, dan biaya infrastruktur secara mendalam.
+Penelitian juga tidak mencakup evaluasi aspek non-funsional lain seperti 
+BAB II
+Penelitian Terdahulu
+Kajian terhadap penelitian terdahulu berfungsi sebagai landasan teoretis untuk memahami perkembangan konsep multi-tenancy, arsitektur database, performa, serta skalabilitas sistem. Penelitian-penelitian ini membantu mengidentifikasi celah penelitian yang masih belum banyak dieksplorasi, terutama dalam konteks aplikasi POS berbasis SaaS. Beberapa penelitian yang menjadi acuan dalam studi ini ditunjukkan pada tabel berikut
+Tabel 2. 
+Peneliti
+Judul Penelitian
+Hasil Utama
+Sanjeev Kumar Pippal, Sumit Kumar, Ruchi Rani (2024)
+Optimizing multi-tenant database architecture for efficient software as a service delivery
+Penelitian ini mengusulkan arsitektur basis data 
+Ritesh Kumar (2020)
+Multi-Tenant SaaS Architectures: Design Principles and Security Considerations
+Artikel ini menyajikan tinjauan komprehensif mengenai prinsip-prinsip desain arsitektur SaaS, dengan fokus pada perbandingan antara model isolasi data 
+Eurico José Pereira de Sousa (2023)
+Analysis of Multi-Tenancy in Data Warehouse Databases
+Studi ini menganalisis implementasi konsep 
+Djellel Eddine Difallah, Andrew Pavlo,
+OLTP-Bench: An Extensible Testbed for Benchmarking Relational Databases
+Artikel ini memperkenalkan OLTP-Bench, sebuah kerangka kerja pengujian yang mendukung berbagai jenis beban kerja transaksi (termasuk TPC-C) untuk mengevaluasi basis data relasional. Hasil utamanya adalah penyediaan alat ukur yang mampu mensimulasikan kondisi dunia nyata dengan kontrol ketat terhadap campuran transaksi dan kepadatan akses, sehingga memudahkan pengembang untuk membandingkan performa berbagai sistem DBMS secara objektif.
+Toni Taipalus (2024)
+Database management system performance comparisons: A systematic literature review
+Melalui tinjauan pustaka sistematis, artikel ini mengevaluasi metodologi yang digunakan dalam studi perbandingan performa DBMS (Relasional vs NoSQL). Hasilnya menunjukkan bahwa banyak penelitian terdahulu kurang memberikan detail teknis yang cukup untuk replikasi 
+Muhammad Sofyan Daud Pujas,
+Pengukuran Kinerja Database SQL dan NoSQL Pada Aplikasi E-Commerce
+Penelitian ini membandingkan performa antara MySQL (SQL) dan MongoDB (NoSQL) dalam konteks aplikasi 
+Berdasarkan penelitian-penelitian terdahulu tersebut, terlihat bahwa kajian mengenai arsitektur multi-tenant telah banyak membahas aspek isolasi data, efisiensi konsumsi sumber daya, dan performa query pada berbagai model multi-tenant. Namun, sebagian besar penelitian tersebut dilakukan dalam 
+Oleh karena itu, penelitian ini berupaya mengisi celah tersebut dengan membandingkan performa dan skalabilitas aplikasi POS berbasis multi-tenant pada dua arsitektur database, yaitu 
+Kajian Teori
+SaaS
+Software as a Service (SaaS) merupakan model penyediaan perangkat lunak di mana aplikasi di-host, dikelola, dan diperbarui secara terpusat oleh penyedia layanan, sementara pengguna mengaksesnya melalui internet tanpa instalasi lokal 
+Infrastruktur SaaS sendiri biasanya berjalan di atas 
+Namun, dibalik berbagai keunggulan yang dimiliki sistem berbasis SaaS, penerapannya memiliki beberapa tantangan teknis yang tidak dapat diabaikan. Tantangan tersebut mencakup kebutuhan keamanan dan isolasi data, baik antar tenant maupun dari serangan eksternal; keterbatasan dalam kustomisasi dan integrasi dengan sistem lain yang dimiliki oleh pengguna; Serta pengelolahan performa dan skalabilitas sistem agar tetap responsif pada beban tinggi saat jumlah pengguna meningkat. Selain itu, ketergantungan SaaS terhadap 
+Sistem Basis Data
+Sistem basis data merupakan komponen fundamental dalam pengelolaan data terstruktur pada berbagai aplikasi modern, termasuk sistem berbasis 
+Basis data merupakan kumpulan data yang saling berelasi dan disimpan dalam format tertentu, seperti tabel, objek, indeks, dan data aktual yang tersimpan secara fisik di media penyimpanan.
+D
+Dalam
+Relational Database Management System
+RDB
+NoSQL (Not Only SQL)
+Model ini mencakup berbagai model non-relasional seperti 
+NewSQL
+NewSQL menggabungkan konsistensi relasional dengan arsitektur terdistribusi untuk mendukung beban 
+Kinerja
+Konsep Performa
+Secara umum, performa menggambarkan sejauh mana sebuah 
+Untuk melakukan evaluasi performa pa
+Menurut
+Konsep skalabilitas
+Skalabilitas menggambarkan kemampuan sistem untuk menangani peningkatan beban kerja, jumlah pengguna, maupun volume data tanpa mengalami penurunan performa atau ketersediaan layanan. Menurut
+Secara umum, terdapat tiga pendekatan utama dalam mencapai skalabilitas, yaitu 
+Arsitektur 
+Multi-tenancy
+Menurut 
+Shared-databse shared-schema
+Gambar 2. 
+Seluruh tenant berada pada satu struktur dan infrastruktur database yang sama. Untuk membedakan data tiap tenant, ditambahkan kolom tenant_id pada setiap table. Pendekatan ini memiliki tingkat 
+Shared-database separate-schema
+Gambar 2. 
+Pendekatan ini memunginkan tiap tenant untuk saling berbagi satu infrastruktur database yang sama, tetapi masing-masing tenant memiliki skema (struktur table) yang sama. 
+Separate database pertenant
+Gambar 2. 
+Setiap tenant memiliki infrastruktur database-nya sendiri yang terpisah sepenuhnya dengan tenant lain. Pendekatan ini memiliki tingkat isolasi dan keamanan data yang
+Sistem 
+Menurut 
+Dalam praktiknya, sistem POS berbasis SaaS umumnya mencakup beberapa 
+Manajemen Inventaris
+Menangani pencatatan produk sekaligus memastikan ketersediaan data yang konsisten antar cabang
+Transakasi Penjualan
+Modul ini memungkinkan transaksi yang lancar. 
+Analisa Penjualan
+Setelah penjualan dilakukan, data penjualan yang terkumpul akan dibuat tersedia dalam bentuk berbagai grafik. Modul ini memberikan laporan mendalam tentang penjualan, produk yang terjual, dan margin keuntungan, yang membantu pemilik membuat keputusan yang terinformasi dan melacak kemajuan bisnis.
+Customer Relational Manahement
+Melibatkan pelacakan preferensi pelanggan dan riwayat pembelian, serta memungkinkan respons yang lebih cepat terhadap keluhan atau pertanyaan.
+Namun, adopsi sistem POS berbasis SaaS menghadapi sejumlah tantangan, khususnya bagi bisnis kecil. Hambatan utama meliputi biaya 
+TPC-C 
+TPC-C (
+Kinerja sistem dalam TPC-C dinilai menggunakan beberapa metrik utama, yaitu 
+Gambar 2. 
+Struktur model TPC-C terdiri atas sembilan tabel utama, yaitu 
+Benchmark
+Tabel 2. 
+Jenis Transaksi
+Fungsi Utama
+Rasio Eksekusi
+New-Order
+Membuat pesanan baru
+45%
+Payment
+Pembayaran dan pembaruan saldo
+43%
+Order-Status
+Melihat status pesanan
+4%
+Delivery
+Proses pengiriman pesanan
+4%
+Stock-Level
+Mengecek ketersediaan stock barang
+4%
+Kombinasi
+BAB III
+Metodologi
+Gambar 3. 
+Identifikasi Masalah
+Penelitian ini dilakukan untuk menjawab kebutuhan akan pemahaman yang lebih jelas mengenai perbedaan antara dua arsitektur multi-tenant yang banyak digunakan, yaitu 
+Studi Literatur
+Studi literatur dilakukan untuk memahami konsep dasar arsitektur multi-tenant, pengukuran performa sistem, serta teknologi yang digunakan dalam penelitian ini. Literatur menunjukkan bahwa arsitektur 
+Perencanaan Sistem
+Analisis Kebutuhan
+Analisis kebutuhan dilakukan untuk memastikan bahwa sistem yang 
+Kebutuhan Infrastruktur dan Lingkungan Pengujian
+Pengujian dilakukan dengan memisahkan komponen 
+Tabel 3. 
+Komponen
+Fungsi
+Lingkungan
+Spesifikasi Minimum
+Keterangan
+Workload Generator
+Menjalankan Locust untuk simulasi beban.
+Mesin lokal (Laptop Lenovo Ideapad 3 14IML05)
+CPU 4 core, RAM 8
+Tidak menjadi objek evaluasi performa
+Monitoring Server
+Menjalankan Prometheus & Grafana
+Mesin lokal (Laptop 
+CPU 4 core, RAM 8 GB
+Mengumpulkan metrik dari API 
+API Server
+Menjalankan aplikasi POS API
+VM / Server terpisah
+CPU 2-4 core, RAM 4 GB
+1 instance API untuk seluruh skenario
+Database Server
+Menjalankan PostgreSQL
+Vm / Server terpisah
+CPU 2-4 core, RAM 4 GB
+Dijalankan bergantian perskenario
+Mater Database
+Registrasi tenant (khusus multi-database)
+Sama dengan DB server
+Termasuk dalam DB server
+Digunakan hanya pada mode multi db
+Kebutuhan Fungsional
+Tabel 3. 
+No.
+Kebutuhan Fungsional
+Deskripsi
+1.
+Manajemen Produk
+Sistem menyediakan fitur untuk membuat, memperbarui, menghapus, dan mengambil data produk.
+2.
+Transaksi Penjualan
+Sistem harus mampu mencatat transaksi penjualan, menghitung total harga, dan memperbarui stok secara otomatis.
+3.
+Transaksi Pembelia
+Sistem mendukung pencatatan pembelian barang dan menambah stok produk sesuai jumlah pembelian.
+4.
+Laporan Stok
+Sistem menyediakan laporan terkait kesediaan barang.
+5.
+Riwayat Transaksi
+Sistem menyediakan ringkasan transaksi penjualan maupun pembelian.
+6.
+Pola Beban Kerja Representatif
+Seluruh fitur digunakan sebagai dasar pembuatan workload realistis sehingga Locust dapat mensimulasikan interaksi pengguna secara mendekati kondisi sebenarnya.
+7.
+Distribusi Beban Kerja
+Sistem mendukung penerapan pola beban kerja terstandarisasi dengan rasio jenis transaksi tertentu, meniru karakter 
+8.
+Dataset Skala Uji
+Sistem mampu diuji menggunakan dataset dengan ukuran berbeda (kecil, menengah, dan besar) untuk menilai pengaruh pertumbuhan data terhadap performa arsitektur.
+Kebutuhan Non-fungsional
+Tabel 3. 
+No.
+Kebutuhan Non-Fungsional
+Deskripsi
+1.
+Performa
+Sistem mampu menyediakan respons yang dapat diukur, khususnya 
+2.
+Skalabilitas
+Sistem dapat diuji dengan variasi jumlah
+3
+Efisiensi Sumber Daya
+Penggunaan CPU, memori, dan aktivitas I/O 
+4
+Monitoring Terukur
+Sistem kompatibel dengan Prometheus dan Grafana sebagai alat pemantauan metrik secara 
+5
+Konsistensi Lingkungan
+Lingkungan pengujian harus bebas dari gangguan proses eksternal sehingga semua skenario dapat berlangsung konsisten dan dapat direplikasi.
+6
+Konsistensi Transaksi (ACID)
+Seluruh transaksi dieksekusi dengan menjamin 
+Untuk memenuhi seluruh kebutuhan di atas, digunakan seperangkat teknologi yang mendukung proses implementasi, pengujian, serta pemantauan sistem. Bahasa pemrograman Go dipilih karena memiliki performa tinggi dan efisiensi memori yang baik dalam menangani beban permintaan simultan. PostgreSQL digunakan sebagai
+Desain
+Arsitektur 
+Perancangan arsitektur 
+Untuk mendekati kompleksitas TPC-C, penelitian ini menggunakan hierarki entitas:
+Gambar 3. 
+Hierarki ini memungkinkan pembesaran data
+Arsitektur 
+Gambar 3. 
+Pada pendekatan ini selu
+Arsitektur 
+Gambar 3. 
+Pada pendekatan ini setiap ten
+Agar perbandingan antara kedua arsitektur 
+Arsitektur API
+Untuk memastikan proses pengujian berjalan konsisten pada kedua arsitektur database, penelitian ini merancang aplikasi API yang memiliki struktur modular berbasis 
+Struktur API
+Lapisan API terdiri dari:
+Gambar 3. 
+Routes Layer
+Melakukan 
+Handler layer
+Menangani request dari klien, mengekstraksi parameter
+Service Layer
+Mengelola logika bisnis inti seperti proses penjualan, pengurangan stok, perhitungan subtotal, atau validasi entitas terkait.
+Repository Layer
+Mengelola akses
+Mekanisme 
+Implementasi multi-tenant pada aplikasi dilakukan sepenuhnya pada layer repository. Pada arsitektur 
+Pada arsitektur 
+Topologi 
+Arsitektur pengujisan dirancang untuk memungkinkan proses evaluasi performa dan skalabilitas dilakukan secara sistematis, terukur, dan  dapat direplikasi. Pada penelitian ini digunakan tiga komponen utama, yaitu 
+Gambar 3. 
+Workload Generator
+Workload generator
+API Server (
+API server di sini menjadi penghubung antara beban dari Locust dan sistem basis data. Pada mode 
+Database Server
+Lapisan basis data diuji dalam dua konfigurasi, yaitu 
+Sistem Monitoring
+Prometheus bertindak sebagai sistem 
+Dengan arsitektur berikut, memungkinkan untuk dilakukan pemantauan performa dan skalabilitas aplikasi dari sisi aplikasi melalui response aplikasi terhadap 
+Implementasi
+Setelah perancangan arsitektur database dan API dilakukan, tahap selanjutnya adalah mengimplementasikan desain tersebut ke dalam sebuah sistem uji yang berfungsi sebagai objek eksperimen. Implementasi difokuskan pada pengembangan API server berbasis 
+Untuk mendukung perbandingan arsitektur, sistem dikonfigurasi memiliki dua mode koneksi database, yaitu shared-database shared-schema dan multi-database per tenant, yang dapat dipilih melalui konfigurasi aplikasi. Selain itu, disiapkan data uji berupa data tenant, warehouse, branch, 
+Perancangan Skenario Pengujian
+Perancangan skenario pengujian bertujuan untuk memastikan bahwa perbandingan dilakukan secara konsisten, terukur, dan dapat direplikasi. 
+Penelitian ini tidak bertujuan untuk mengimplementasikan TPC-C secara penuh, melainkan mengadaptasi pola interaksi dan pola beban OLTP-nya ke dalam konteks sistem 
+Workload dan Variasi Transaksi
+Workload
+Tabel 3. 
+Jenis Transaksi
+Tujuan Operasional
+Proporsi
+Sale
+Pembuatan transaksi penjualan
+6
+Transfer
+Restock
+23
+Stock-level check
+Pemeriksaan stock barang 
+4
+Billing check
+Cek saldo 
+4
+Order History
+Pemeriksaan riwayat transaksi
+4
+Proporsi tersebut dimaksudkan untuk memicu beban tulis tinggi (
+Parameter
+Parameter Sistem
+Tabel 3. 
+Parameter
+Nilai
+Vitual User
+50, 100, 200
+Ramp-up
+10 user/detik
+Durasi
+5 menit
+Isolation Level
+Database (read committed)
+Parameter Skala Data
+Tabel 3. 
+Parameter
+Nilai
+Jumlah Tenant
+5,
+Warehouse per tenant
+5
+Branch per warehouse
+1
+Item per tenant
+100
+Customer per 
+100-300
+Skenario Pengujian
+Skenario dirancang untuk mengevaluasi tiga aspek utama yaitu, performa dasar, skalabilitas jumlah tenant, serta skalabilitas ukuran data.
+Skenario Performa Dasar
+Tabel 3. 
+Skenario
+Arsitektur
+Tenant
+Deskripsi
+S1
+Shared
+5
+Baseline arsitektur 
+S2
+Multi
+5
+Baseline arsitektur 
+Skenario Skalabilitas Berdasarkan Jumlah Tenant
+Tabel 3. 
+Skenario
+Arsitektur
+Tenant
+Tujuan
+S3
+Shared
+10
+Pengaruh tenant bertambah dalam satu database
+S4
+Shared
+50
+Menguji skalabilitas arsitektur
+S5
+Multi
+10
+Mengukur overhead pemetaan koneksi multi-DB
+S6
+Multi
+50
+Menguji skalabilitas arsitektur
+Pengujian dan Pengumpulan Data
+Tahap pengujian dan pengumpulan data dilakukan untuk memperoleh data empiris yang digunakan dalam evaluasi performa dan skalabilitas arsitektur basis data shared-database shared-schema dan multi-database per tenant. Pengujian dilaksanakan berdasarkan skenario yang telah dirancang pada Subbab 3.4 dengan memastikan bahwa seluruh eksperimen dilakukan pada lingkungan yang terkontrol, konfigurasi sistem yang konsisten, serta parameter beban yang sama pada kedua arsitektur. Proses ini bertujuan agar hasil yang diperoleh dapat dibandingkan secara adil dan objektif.
+Untuk menjamin representasi kondisi operasional yang realistis dan skala data yang memadai, pengujian diawali dengan penyediaan 
+Untuk menjamin representasi kondisi operasional yang realistis dan skala data yang memadai, pengujian diawali dengan penyediaan 
+Metrik Evaluasi
+Metrik evaluasi dalam penelitian ini dibagi menjadi dua kelompok utama, yaitu metrik performa aplikasi dan metrik pemanfaatan sumber daya sistem. Pemisahan ini dilakukan untuk membedakan pengukuran kinerja yang dirasakan oleh pengguna dari kondisi internal sistem selama pengujian berlangsung.
+Tabel 3. 
+Komponen
+Metrik yang Diukur
+Sumber Pengukuran
+Performa Aplikasi
+Response Time
+Locust
+Throughput
+Locust
+Error rate
+Locust
+API Server
+CPU & Memory 
+Prometheus
+Database Server
+CPU & Memory usage
+Prometheus
+Disk I/O throughput
+Prometheus
+Pengukuran response time, throughput, dan error rate sepenuhnya dilakukan dari sisi workload generator (Locust), karena metrik tersebut merepresentasikan performa sistem sebagaimana dirasakan oleh klien. Sementara itu, pemantauan pada API server dan database server difokuskan pada resource utilization, yang digunakan untuk menganalisis efisiensi sistem 
+Evaluasi skalabilitas dilakukan dengan menganalisis perubahan metrik performa aplikasi dan pemanfaatan sumber daya sistem ketika skala pengujian ditingkatkan. Skalabilitas tidak diukur menggunakan satu nilai tunggal, melainkan melalui observasi tren terhadap tiga dimensi utama, yaitu beban kerja, jumlah tenant, dan ukuran data.
+Tabel 3. 
+Dimensi Skalabilitas
+Parameter
+Metrik
+Tujuan Analisis
+Skalabilitas Beban
+Jumlah 
+Response time
+Menilai kemampuan sistem mempertahankan performa saat beban meningkat
+Skalabilitas Tenant
+Jumlah tenant (1, 10, 50)
+Response time
+Mengamati kontensi pada 
+Skalabilitas Data
+J
+Response time
+Menilai dampak pertumbuhan volume data terhadap stabilitas sistem
+Efisiensi Resource
+Peningkatan beban dan tenant
+Throughput
+Membandingkan efisiensi penggunaan sumber daya antar arsitektur
+Dengan pendekatan tersebut, skalabilitas tidak hanya dinilai dari kecepatan sistem, tetapi juga dari efisiensi penggunaan sumber daya dan kemampuan sistem dalam menangani pertumbuhan beban dan data secara berkelanjutan.
+Pelaksanaan Pengujian
+Pengujian dilakukan dengan menjalankan workload generator Locust yang mensimulasikan aktivitas pengguna terhadap API POS berdasarkan skenario yang telah ditentukan. Setiap skenario dijalankan dengan kombinasi parameter berupa jumlah virtual user, jumlah tenant, serta skala data (warehouse dan branch). Selama pengujian berlangsung, Locust mengirimkan permintaan HTTP ke API server sesuai dengan komposisi transaksi yang telah ditetapkan, termasuk transaksi penjualan
+Untuk setiap skenario, pengujian dijalankan dalam durasi tertentu setelah fase ramp-up tercapai, sehingga sistem berada pada kondisi 
+Pengolahan dan Analisis Data
+Data hasil pengujian diperoleh dari workload generator Locust serta sistem monitoring Prometheus dan Grafana. Setiap skenario pengujian dijalankan sebanyak minimal tiga kali, kemudian hasilnya dirata-ratakan untuk mengurangi pengaruh fluktuasi sistem. Pengolahan data difokuskan pada analisis 
+P
+Metrik performa aplikasi dihitung berdasarkan hasil pengukuran dari sisi klien menggunakan 
+Rata-rata 
+RT
+T
+Throughput= 
+Error
+Error rate= 
+Selain nilai rata-rata, response time persentil (P95 dan P99) digunakan untuk merepresentasikan latensi pada kondisi beban tinggi sebagaimana karakteristik sistem OLTP.
+Analisis Efisiensi Sumber Daya
+Efisiensi sistem dianalisis dengan mengaitkan performa aplikasi terhadap pemanfaatan sumber daya pada API server dan 
+Rata-rata penggunaan CPU dan memori dihitung selama durasi pengujian:
+CPU
+Mem
+Efisiensi 
+Ef CPU= 
+Ef Mem= 
+Rasio ini digunakan untuk membandingkan kemampuan masing-masing arsitektur dalam memproses beban transaksi terhadap sumber daya yang digunakan.
+Analisis Skalabilitas Sistem
+Analisis skalabilitas dilakukan dengan mengamati tren perubahan metrik performa dan 
+Skalabilitas beban
+Scale
+Skalabilitas tenant
+Scale
+Skalabilitas terhadap ukuran data
+Sistem dikatakan lebih 
+DAFTAR PUSTAKA
+Agrawal, D., Abbadi, A. El, Das, S., & Elmore, A. J. (2011). 
+Agrawal, S. K., & Aswini, T. (2025). Multi-Tenant Low Latency Scalable Architectures for Large-Scale Customer Data Processing. 
+Ambore, A. K. (2023). Design and Development of a Smart POS App with Cloud. 
+Asrani, H., Vishwakarma, S., Asrani, D., & Asrani, Dr. K. (2024). 
+Bondi, A. B. (2000). 
+Heidelberger, P., & Lavenberg, S. S. (1984). Computer Performance Evaluation Methodology. In 
+Jaka Perdana, I., Prayitno, E., Iskandar, E., & Subagyo, A. A. (2024). 
+José Pereira de Sousa, E., Araújo, F., & Furtado, P. (2023). 
+Kanade Shruti, & Manza Ramesh. (2019). A Comprehensive Study on Multi Tenancy in SAAS  Applications. 
+Lake, P., & Crowther, P. (2013). Database Scalability. In 
+Ni, J., Li, G., Wang, L., Feng, J., Zhang, J., & Li, L. (2014). Adaptive Database Schema Design for Multi-Tenant Data Management. 
+Pallavi, G. B., & Jayarekha, P. (2020). An efficient resource sharing technique for multi-tenant databases. 
+Pippal, S. K., Kumar, S., & Rani, R. (2024). Optimizing multi-tenant database architecture for efficient software as a service delivery. 
+Ritesh Kumar, R. K. (2020). Multi-Tenant SaaS Architectures: Design Principles and Security Considerations. 
+Shah, A., & Bhatt, N. (2024). A systematic review of in-memory database over multi-tenancy. In 
+Sofyan, M., Pujas, D., Ikhsan Amar, M., Arif, M. E., & Mustamin, M. M. (2024). 
+Taipalus, T. (2024). Database management system performance comparisons: A systematic literature review. 
+Tsai, W. T., Bai, X. Y., & Huang, Y. (2014). Software-as-a-service (SaaS): Perspectives and challenges. 
+ 
+LAMPIRAN
+Lampiran 
+428734
+596659
