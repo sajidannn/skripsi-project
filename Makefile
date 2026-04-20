@@ -166,22 +166,22 @@ WORKLOAD_API_URL ?= http://192.168.10.183:8080
 
 # S1/S2 - Baseline (5 tenant, 50 user)
 workload-small:
-	@API_URL=$(WORKLOAD_API_URL) SCALE=5 USERS=50 RUN_TIME=5m ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) TAG=small SCALE=5 USERS=50 RUN_TIME=5m ./workload/run_test.sh
 
 # S3/S5 - Skalabilitas 10 tenant (100 user)
 workload-medium:
-	@API_URL=$(WORKLOAD_API_URL) SCALE=10 USERS=100 RUN_TIME=5m ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) TAG=medium SCALE=10 USERS=100 RUN_TIME=5m ./workload/run_test.sh
 
 # S4/S6 - Skalabilitas 50 tenant (200 user)
 workload-large:
-	@API_URL=$(WORKLOAD_API_URL) SCALE=50 USERS=200 RUN_TIME=5m ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) TAG=large SCALE=50 USERS=200 RUN_TIME=5m ./workload/run_test.sh
 
 # Mode UI untuk monitoring dashboard Locust
 workload-small-ui:
-	@API_URL=$(WORKLOAD_API_URL) SCALE=5 USERS=50 RUN_TIME=5m HEADLESS=false ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) TAG=small SCALE=5 USERS=50 RUN_TIME=5m HEADLESS=false ./workload/run_test.sh
 
 workload-medium-ui:
-	@API_URL=$(WORKLOAD_API_URL) SCALE=10 USERS=100 RUN_TIME=5m HEADLESS=false ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) TAG=medium SCALE=10 USERS=100 RUN_TIME=5m HEADLESS=false ./workload/run_test.sh
 
 workload-large-ui:
-	@API_URL=$(WORKLOAD_API_URL) SCALE=50 USERS=200 RUN_TIME=5m HEADLESS=false ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) TAG=large SCALE=50 USERS=200 RUN_TIME=5m HEADLESS=false ./workload/run_test.sh

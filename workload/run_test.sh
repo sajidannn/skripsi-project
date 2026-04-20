@@ -52,6 +52,14 @@ echo ""
 echo ">>> STEP 2: Menjalankan Locust workload..."
 echo ""
 
+# Tentukan folder dan nama file hasil
+RESULT_DIR="result/locust"
+mkdir -p "$RESULT_DIR"
+
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+TAG=${TAG:-"workload"}
+PREFIX="${TAG}_${SCALE}t_${USERS}u_${TIMESTAMP}"
+
 if [ "$HEADLESS" = "true" ]; then
     locust \
         -f workload/locustfile.py \
@@ -60,7 +68,9 @@ if [ "$HEADLESS" = "true" ]; then
         --spawn-rate="$SPAWN_RATE" \
         --run-time="$RUN_TIME" \
         --headless \
-        --only-summary
+        --only-summary \
+        --csv="$RESULT_DIR/$PREFIX" \
+        --html="$RESULT_DIR/$PREFIX.html"
 else
     echo "Mode UI: Buka http://localhost:8089 di browser kamu."
     echo "  Users target  : $USERS"
@@ -73,5 +83,14 @@ else
         --host="$API_URL" \
         --users="$USERS" \
         --spawn-rate="$SPAWN_RATE" \
-        --run-time="$RUN_TIME"
+        --run-time="$RUN_TIME" \
+        --csv="$RESULT_DIR/$PREFIX" \
+        --html="$RESULT_DIR/$PREFIX.html"
 fi
+
+echo ""
+echo "=========================================================="
+echo "  Selesai! Hasil tersimpan di: $RESULT_DIR"
+echo "  - CSV: $PREFIX*.csv"
+echo "  - HTML: $PREFIX.html"
+echo "=========================================================="
