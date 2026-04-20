@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
-
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +35,11 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	token, err := h.svc.Login(c.Request.Context(), req)
 	if err != nil {
-		_ = c.Error(apierr.Unauthorized(err.Error()))
+		if strings.Contains(err.Error(), "database error") {
+			_ = c.Error(apierr.Internal(err, "database error during login"))
+		} else {
+			_ = c.Error(apierr.Unauthorized(err.Error()))
+		}
 		return
 	}
 

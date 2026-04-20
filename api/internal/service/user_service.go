@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -28,6 +29,10 @@ func NewUserService(repo repository.UserRepository, jwtSecret string) *UserServi
 func (s *UserService) Login(ctx context.Context, req dto.LoginRequest) (string, error) {
 	user, hashed, err := s.repo.GetByEmail(ctx, req.TenantID, req.Email)
 	if err != nil {
+		// Jika error karena query (misal: connection refused, too many clients) -> Lempar Internal Server Error!
+		if err.Error() != "no rows in result set" && !strings.Contains(err.Error(), "no rows in result set") {
+			return "", fmt.Errorf("database error during login: %w", err)
+		}
 		return "", fmt.Errorf("invalid email or password")
 	}
 
