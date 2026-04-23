@@ -14,8 +14,14 @@
         workload-small-ui workload-medium-ui workload-large-ui
 
 # Data scale for seeding: small | medium | large  (default: small)
-# Usage: make db-single-up SCALE=medium
 SCALE ?= small
+
+# DB Mode for testing: single | multi (default: multi)
+DB_MODE ?= multi
+
+# VM IP Addresses - SINGLE SOURCE OF TRUTH
+VM1_IP ?= 192.168.10.183
+VM2_IP ?= 192.168.10.243
 
 # ==============================================================================
 # API COMMANDS (Local Execution)
@@ -145,11 +151,17 @@ exporters-db-down:
 
 # LAPTOP: Start Central Monitoring (Prometheus + Grafana)
 monitoring-up:
+	@echo "Syncing IPs to prometheus.yml..."
+	@sed -i "s/[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}:9100/$(VM1_IP):9100/g" monitoring/prometheus/prometheus.yml
+	@sed -i "s/[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}:8081/$(VM1_IP):8081/g" monitoring/prometheus/prometheus.yml
+	@sed -i "s/[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}:9187/$(VM2_IP):9187/g" monitoring/prometheus/prometheus.yml
+	@# Special case for node_exporter_db which also uses 9100 but on VM2
+	@sed -i '/job_name: node_exporter_db/,/targets:/ s/[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}:9100/$(VM2_IP):9100/' monitoring/prometheus/prometheus.yml
 	cd monitoring && docker compose up -d
 	@echo ""
 	@echo "=== Monitoring Hub started (LOCAL) ==="
 	@echo "  Grafana:    http://localhost:3000  (admin/admin)"
-	@echo "  Prometheus: http://localhost:9090"
+	@echo "  Prometheus: http://localhost:9090 (VM1: $(VM1_IP), VM2: $(VM2_IP))"
 	@echo ""
 
 monitoring-down:
@@ -162,26 +174,80 @@ monitoring-reload:
 # WORKLOAD GENERATOR (Locust)
 # ==============================================================================
 
-WORKLOAD_API_URL ?= http://192.168.10.183:8080
+WORKLOAD_API_URL ?= http://$(VM1_IP):8080
+SKIP_LOGIN ?= false
+
+# Generate token JWT saja tanpa menjalankan Locust (prep sebelum start exporter)
+workload-login-small:
+	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 5
+
+workload-login-medium:
+	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 10
+
+workload-login-large:
+	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 50
 
 # S1/S2 - Baseline (5 tenant, 50 user)
 workload-small:
-	@API_URL=$(WORKLOAD_API_URL) TAG=small SCALE=5 USERS=50 RUN_TIME=5m ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) TAG=small SCALE=5 USERS=50 RUN_TIME=5m ./workload/run_test.sh
 
 # S3/S5 - Skalabilitas 10 tenant (100 user)
 workload-medium:
-	@API_URL=$(WORKLOAD_API_URL) TAG=medium SCALE=10 USERS=100 RUN_TIME=5m ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) TAG=medium SCALE=10 USERS=100 RUN_TIME=5m ./workload/run_test.sh
 
 # S4/S6 - Skalabilitas 50 tenant (200 user)
 workload-large:
-	@API_URL=$(WORKLOAD_API_URL) TAG=large SCALE=50 USERS=200 RUN_TIME=5m ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) TAG=large SCALE=50 USERS=200 RUN_TIME=5m ./workload/run_test.sh
 
 # Mode UI untuk monitoring dashboard Locust
 workload-small-ui:
-	@API_URL=$(WORKLOAD_API_URL) TAG=small SCALE=5 USERS=50 RUN_TIME=5m HEADLESS=false ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) TAG=small SCALE=5 USERS=50 RUN_TIME=5m HEADLESS=false ./workload/run_test.sh
 
 workload-medium-ui:
-	@API_URL=$(WORKLOAD_API_URL) TAG=medium SCALE=10 USERS=100 RUN_TIME=5m HEADLESS=false ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) TAG=medium SCALE=10 USERS=100 RUN_TIME=5m HEADLESS=false ./workload/run_test.sh
 
 workload-large-ui:
-	@API_URL=$(WORKLOAD_API_URL) TAG=large SCALE=50 USERS=200 RUN_TIME=5m HEADLESS=false ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) TAG=large SCALE=50 USERS=200 RUN_TIME=5m HEADLESS=false ./workload/run_test.sh
+
+
+# ==============================================================================
+# COMBINED VM COMMANDS (For fast switching between environments)
+# ==============================================================================
+
+# ── VM 1 (API + API Exporters) ──
+vm1-single-up:
+	make api-single-up
+	make exporters-api-up
+
+vm1-multi-up:
+	make api-multi-up
+	make exporters-api-up
+
+vm1-down:
+	make api-single-down || true
+	make api-multi-down || true
+	make exporters-api-down || true
+
+vm1-clean: vm1-down
+	make api-clean || true
+
+# ── VM 2 (DB + Seeder + DB Exporters) ──
+vm2-single-up:
+	make db-single-up SCALE=$(SCALE)
+	@echo "Menunggu seeder selesai..."
+	make db-single-logs-seeder
+	make exporters-db-single-up
+
+vm2-multi-up:
+	make db-multi-up SCALE=$(SCALE)
+	@echo "Menunggu seeder selesai..."
+	make db-multi-logs-seeder
+	make exporters-db-multi-up
+
+vm2-down:
+	make db-single-down || true
+	make db-multi-down || true
+	make exporters-db-down || true
+
+vm2-clean: vm2-down
+	make db-clean || true

@@ -8,7 +8,7 @@
 
 set -e
 
-API_URL=${API_URL:-"http://192.168.10.183:8080"}
+API_URL=${API_URL:-"http://localhost:8080"}
 SCALE=${SCALE:-1}
 USERS=${USERS:-50}
 RUN_TIME=${RUN_TIME:-"5m"}
@@ -29,14 +29,20 @@ echo "  Headless   : $HEADLESS"
 echo "=========================================================="
 echo ""
 
-# ── STEP 1: Login & cache JWT tokens ─────────────────────────
-echo ">>> STEP 1: Login dan caching token JWT..."
-export API_URL=$API_URL
-python3 workload/login_generator.py $SCALE
+SKIP_LOGIN=${SKIP_LOGIN:-"false"}
 
-if [ $? -ne 0 ]; then
-    echo "ERROR: login_generator.py gagal. Pastikan API berjalan di $API_URL"
-    exit 1
+# ── STEP 1: Login & cache JWT tokens ─────────────────────────
+if [ "$SKIP_LOGIN" != "true" ]; then
+    echo ">>> STEP 1: Login dan caching token JWT..."
+    export API_URL=$API_URL
+    python3 workload/login_generator.py $SCALE
+
+    if [ $? -ne 0 ]; then
+        echo "ERROR: login_generator.py gagal. Pastikan API berjalan di $API_URL"
+        exit 1
+    fi
+else
+    echo ">>> STEP 1: SKIP_LOGIN aktif. Melewati proses login dan menggunakan tokens.json yang ada..."
 fi
 
 if [ ! -f "workload/tokens.json" ]; then
@@ -52,8 +58,9 @@ echo ""
 echo ">>> STEP 2: Menjalankan Locust workload..."
 echo ""
 
-# Tentukan folder dan nama file hasil
-RESULT_DIR="result/locust"
+# Tentukan folder dan nama file hasil (dikategorikan per schema: single/multi)
+DB_MODE=${DB_MODE:-"multi"}
+RESULT_DIR="result/locust/$DB_MODE"
 mkdir -p "$RESULT_DIR"
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)

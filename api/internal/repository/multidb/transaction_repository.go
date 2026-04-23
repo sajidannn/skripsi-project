@@ -117,7 +117,7 @@ func (r *TransactionRepo) ExecuteSaleTx(
 	}
 
 	// 3. PHASE THREE: BULK WRITE
-	trxNo := fmt.Sprintf("SALE-%s", time.Now().Format("20060102150405.000000"))
+	trxNo := fmt.Sprintf("SALE-%d-%s", req.BranchID, time.Now().Format("20060102150405.000000"))
 
 	var trxID int
 	err = tx.QueryRow(ctx,
@@ -1316,10 +1316,10 @@ func (r *TransactionRepo) GetByID(ctx context.Context, tenantID, id int) (*model
 
 // ExecuteVoidTx handles the DB transaction for voiding a transaction in multi-DB mode.
 func (r *TransactionRepo) ExecuteVoidTx(
-	ctx context.Context, 
-	tenantID int, 
-	userID int, 
-	originalTrxID int, 
+	ctx context.Context,
+	tenantID int,
+	userID int,
+	originalTrxID int,
 	reason string,
 	processFn func(data model.ProcessVoidData) error,
 ) (*model.Transaction, error) {
@@ -1440,11 +1440,11 @@ func (r *TransactionRepo) ExecuteVoidTx(
 		}
 
 		// 5. Create VOID record
-		voidTrxNo := fmt.Sprintf("VOID-%s", time.Now().Format("20060102150405.000")) 
+		voidTrxNo := fmt.Sprintf("VOID-%s", time.Now().Format("20060102150405.000"))
 		if targetID != originalTrxID {
 			voidTrxNo += "-PAIR"
 		}
-		
+
 		var voidID int
 		err = tx.QueryRow(ctx,
 			`INSERT INTO transactions (trxno, branch_id, warehouse_id, customer_id, supplier_id, user_id, trans_type, total_amount, tax, discount, reference_transaction_id, note)

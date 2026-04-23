@@ -604,7 +604,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{host}}/api/v1/inventory/branch/1",
+              "raw": "{{host}}/api/v1/inventory/branch/1?limit=100",
               "host": [
                 "{{host}}"
               ],
@@ -626,6 +626,12 @@
                   "value": "true",
                   "uuid": "63c1bc57-0d17-47ed-8fb9-1d9483ff4c20",
                   "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "type": "text",
+                  "uuid": "5f1e66ff-2844-49b7-b44d-3bbd7efb4573"
                 }
               ]
             }
@@ -697,7 +703,7 @@
               "raw": "{\n    \"price\": 55800.00,\n    \"margin_threshold\": 10.00\n}"
             },
             "url": {
-              "raw": "{{host}}/api/v1/inventory/branch/1/item/7/price",
+              "raw": "{{host}}/api/v1/inventory/branch/1/item/2276/price",
               "host": [
                 "{{host}}"
               ],
@@ -708,7 +714,7 @@
                 "branch",
                 "1",
                 "item",
-                "7",
+                "2276",
                 "price"
               ]
             }

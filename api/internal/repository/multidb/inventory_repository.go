@@ -32,7 +32,7 @@ func (r *InventoryRepo) ListByBranch(ctx context.Context, tenantID, branchID int
 	where := "WHERE bi.branch_id = $1"
 
 	if f.LowStock {
-		where += ` AND bi.stock <= 0`
+		where += ` AND bi.stock <= 20`
 	}
 	if f.MarginWarning {
 		where += ` AND COALESCE(bi.margin_threshold, it.margin_threshold) > 0 AND (((COALESCE(bi.price, it.price) - it.cost) / NULLIF(it.cost, 0)) * 100.0) <= COALESCE(bi.margin_threshold, it.margin_threshold)`
