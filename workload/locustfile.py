@@ -18,7 +18,7 @@ from locust import HttpUser, task, between, events
 # ── Config ────────────────────────────────────────────────────────────────────
 TOKEN_FILE          = "workload/tokens.json"
 LOW_STOCK_THRESHOLD = 20
-REMIT_THRESHOLD     = 500_000   # remit jika saldo bersih branch > 500rb
+REMIT_THRESHOLD     = 50_000    # remit jika current_balance branch > 50rb
 
 SEARCH_KEYWORDS = [
     "Produk", "Item", "Barang", "Stok", "Makanan",
@@ -210,8 +210,14 @@ class POSUser(HttpUser):
             f"payload: {json.dumps(payload)[:200] if payload else '-'}"
         )
 
-    def _do_remit(self, branch_id: int):
-        """Coba remit saldo branch ke tenant. Dipanggil saat purchase gagal 402."""
+    def _do_remit(self, branch_id: int, note: str = "Locust TPC-C Remittance"):
+        """
+        Cek saldo branch lalu remit maks 80% ke tenant.
+        Dipanggil oleh task_remit_balance dan saat purchase gagal 402.
+        """
+        if not self._is_owner():
+            return
+
         with self.client.get(f"/api/v1/reports/balance/branch/{branch_id}",
                              headers=self.headers,
                              name="/reports/balance/branch (remit-check)",
@@ -223,20 +229,24 @@ class POSUser(HttpUser):
             net = float(data.get("current_balance") or 0)
             r.success()
 
-        if net <= 0:
-            return
+        if net < REMIT_THRESHOLD:
+            return  # saldo belum cukup
 
-        remit_amount = round(net * 0.8, 2)  # remit 80% saat darurat 402
+        # Remit maksimal 80% dari current_balance untuk menyisakan buffer
+        remit_amount = round(net * 0.8, 2)
         with self.client.post(f"/api/v1/transactions/remit/branch/{branch_id}",
-                              json={"amount": remit_amount,
-                                    "note": "Locust auto-remit (purchase 402)"},
+                              json={"amount": remit_amount, "note": note},
                               headers=self.headers,
                               name="/transactions/remit/branch",
                               catch_response=True) as r:
-            if r.status_code in (200, 400, 422, 500):
+            if r.status_code == 200:
+                r.success()
+            elif r.status_code == 402:
+                # Saldo berubah antara cek & remit (race condition) — skip, bukan error
                 r.success()
             else:
                 r.failure(f"remit HTTP {r.status_code}")
+                self._log_fail("REMIT", r)
 
     def _push_sale(self, trx: dict):
         """Simpan max 5 sale terakhir dari session ini."""
@@ -560,42 +570,23 @@ class POSUser(HttpUser):
 
     @task(2)
     def task_remit_balance(self):
-        """POST /transactions/remit/branch/:id — Kirim kas branch ke tenant (2%), owner only"""
+        """
+        Remit saldo dari branch ke tenant (2%) — owner only.
+        Owner iterasi SEMUA branch miliknya dalam urutan acak.
+        _do_remit() sendiri yang memutuskan skip-atau-tidak berdasarkan
+        threshold — jadi tidak ada remit yang terjadi jika saldo belum cukup.
+        """
         if not self._is_owner():
             return
 
-        branch_id = self._my_branch_id()
-        if not branch_id:
+        branches = self.meta.get("all_branches", [])
+        if not branches:
             return
 
-        # Cek balance
-        with self.client.get(f"/api/v1/reports/balance/branch/{branch_id}",
-                             headers=self.headers,
-                             name="/reports/balance/branch (remit-check)",
-                             catch_response=True) as r:
-            if r.status_code != 200:
-                r.failure(f"balance-check HTTP {r.status_code}")
-                return
-            data = r.json().get("data", {})
-            net = float(data.get("current_balance") or 0)
-            r.success()
-
-        if net < REMIT_THRESHOLD:
-            return
-
-        remit_amount = round(net * 0.5, 2)
-
-        with self.client.post(f"/api/v1/transactions/remit/branch/{branch_id}",
-                              json={"amount": remit_amount,
-                                    "note": "Locust TPC-C Remittance"},
-                              headers=self.headers,
-                              name="/transactions/remit/branch",
-                              catch_response=True) as r:
-            if r.status_code in (200, 400, 422, 500):
-                r.success()  # 500 mungkin race condition sementara, bukan workload error
-            else:
-                r.failure(f"remit HTTP {r.status_code}")
-                self._log_fail("REMIT", r)
+        # Acak urutan, lalu coba remit tiap branch.
+        # _do_remit() skip sendiri jika current_balance < REMIT_THRESHOLD.
+        for branch in random.sample(branches, len(branches)):
+            self._do_remit(branch["id"])
 
     @task(4)
     def task_stock_level(self):
