@@ -5,6 +5,7 @@ import (
 
 	"github.com/sajidannn/pos-api/internal/dto"
 	"github.com/sajidannn/pos-api/internal/model"
+	"github.com/shopspring/decimal"
 )
 
 // TransactionRepository is the data-access contract for all POS Transactions.
@@ -78,4 +79,16 @@ type TransactionRepository interface {
 		reason string,
 		processFn func(data model.ProcessVoidData) error,
 	) (*model.Transaction, error)
+
+	// GetTenantNetBalance returns the current net balance of the tenant from tenant_cashflow.
+	// Used by the service layer to guard cash-out transactions (PURCHASE).
+	GetTenantNetBalance(ctx context.Context, tenantID int) (decimal.Decimal, error)
+
+	// GetBranchNetBalance returns the current net balance of a branch from branch_cashflow.
+	// Used by the service layer to guard cash-out transactions (RETURN, REMIT).
+	GetBranchNetBalance(ctx context.Context, tenantID, branchID int) (decimal.Decimal, error)
+
+	// RemitBranchBalance atomically transfers amount from branch cashflow to tenant cashflow.
+	// Models the real-world "setoran kas" (cash remittance) by a branch manager.
+	RemitBranchBalance(ctx context.Context, tenantID, branchID int, req dto.RemitRequest) error
 }

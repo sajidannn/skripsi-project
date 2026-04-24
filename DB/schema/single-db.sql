@@ -159,7 +159,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_stock_tenant ON audit_stock(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_audit_stock_user ON audit_stock(user_id);
 
 DO $$ BEGIN
-    CREATE TYPE cashflow_type AS ENUM ('SALE', 'TRANSFER', 'ADJUSTMENT', 'RETURN', 'VOID');
+    CREATE TYPE cashflow_type AS ENUM ('SALE', 'TRANSFER', 'ADJUSTMENT', 'RETURN', 'VOID', 'WITHDRAW');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS branch_cashflow (
@@ -170,6 +170,7 @@ CREATE TABLE IF NOT EXISTS branch_cashflow (
     flow_type      cashflow_type NOT NULL,
     direction      CHAR(3) CHECK (direction IN ('IN','OUT')),
     amount         NUMERIC(14,2) NOT NULL CHECK (amount > 0),
+    note           TEXT,
     created_at     TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_branch_cashflow_tenant ON branch_cashflow(tenant_id);
@@ -185,6 +186,7 @@ CREATE TABLE IF NOT EXISTS tenant_cashflow (
     flow_type      tenant_flow_type NOT NULL,
     direction      CHAR(3) CHECK (direction IN ('IN','OUT')),
     amount         NUMERIC(14,2) NOT NULL CHECK (amount > 0),
+    note           TEXT,
     created_at     TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_tenant_cashflow_tenant ON tenant_cashflow(tenant_id);

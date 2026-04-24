@@ -1537,3 +1537,95 @@ func (r *TransactionRepo) ExecuteVoidTx(
 
 	return requestedResult, nil
 }
+
+// GetTenantNetBalance returns current net balance from tenant_cashflow (IN - OUT).
+func (r *TransactionRepo) GetTenantNetBalance(ctx context.Context, tenantID int) (decimal.Decimal, error) {
+	pool, err := r.mgr.Pool(ctx, tenantID)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	var net decimal.Decimal
+	err = pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END), 0)
+		 FROM tenant_cashflow`,
+	).Scan(&net)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("multidb.TransactionRepo.GetTenantNetBalance: %w", err)
+	}
+	return net, nil
+}
+
+// GetBranchNetBalance returns current net balance from branch_cashflow (IN - OUT).
+func (r *TransactionRepo) GetBranchNetBalance(ctx context.Context, tenantID, branchID int) (decimal.Decimal, error) {
+	pool, err := r.mgr.Pool(ctx, tenantID)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	var net decimal.Decimal
+	err = pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END), 0)
+		 FROM branch_cashflow
+		 WHERE branch_id = $1`,
+		branchID,
+	).Scan(&net)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("multidb.TransactionRepo.GetBranchNetBalance: %w", err)
+	}
+	return net, nil
+}
+
+// RemitBranchBalance atomically moves amount from branch_cashflow to tenant_cashflow.
+func (r *TransactionRepo) RemitBranchBalance(ctx context.Context, tenantID, branchID int, req dto.RemitRequest) error {
+	pool, err := r.mgr.Pool(ctx, tenantID)
+	if err != nil {
+		return err
+	}
+
+	tx, err := pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return fmt.Errorf("multidb.TransactionRepo.RemitBranchBalance: begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Lock & read current branch net balance
+	var branchNet decimal.Decimal
+	err = tx.QueryRow(ctx,
+		`SELECT COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END), 0)
+		 FROM branch_cashflow
+		 WHERE branch_id = $1
+		 FOR UPDATE`,
+		branchID,
+	).Scan(&branchNet)
+	if err != nil {
+		return fmt.Errorf("multidb.TransactionRepo.RemitBranchBalance: read branch balance: %w", err)
+	}
+
+	if req.Amount.GreaterThan(branchNet) {
+		return apierr.InsufficientBalance(
+			fmt.Sprintf("remit amount %.2f exceeds branch net balance %.2f", req.Amount.InexactFloat64(), branchNet.InexactFloat64()),
+		)
+	}
+
+	batch := &pgx.Batch{}
+	batch.Queue(
+		`INSERT INTO branch_cashflow (branch_id, flow_type, direction, amount, note)
+		 VALUES ($1, $2, $3, $4, $5)`,
+		branchID, model.CflowWithdraw, "OUT", req.Amount, req.Note,
+	)
+	batch.Queue(
+		`INSERT INTO tenant_cashflow (flow_type, direction, amount, note)
+		 VALUES ($1, $2, $3, $4)`,
+		model.CflowAdjustment, "IN", req.Amount, req.Note,
+	)
+
+	br := tx.SendBatch(ctx, batch)
+	for i := 0; i < batch.Len(); i++ {
+		if _, err := br.Exec(); err != nil {
+			br.Close()
+			return fmt.Errorf("multidb.TransactionRepo.RemitBranchBalance: batch exec[%d]: %w", i, err)
+		}
+	}
+	br.Close()
+
+	return tx.Commit(ctx)
+}

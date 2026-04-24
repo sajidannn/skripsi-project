@@ -111,6 +111,12 @@ func (s *TransactionService) CreatePurchase(ctx context.Context, userID int, req
 		return nil, apierr.BadRequest("destination must be either branch_id or warehouse_id, not both")
 	}
 
+	// Balance Guard: Ensure tenant has sufficient funds before purchasing
+	tenantNet, err := s.repo.GetTenantNetBalance(ctx, tenantID)
+	if err != nil {
+		return nil, apierr.Internal(err, "failed to check tenant balance")
+	}
+
 	// Closure for Weighted Average Cost calculation
 	calculatePurchaseFn := func(loadedDbItems map[int]model.ProcessPurchaseItem) (model.FinalPurchaseAggregate, error) {
 		var trxTotalAmount decimal.Decimal
@@ -166,6 +172,23 @@ func (s *TransactionService) CreatePurchase(ctx context.Context, userID int, req
 			Details:     finalDetails,
 			NewCosts:    newCosts,
 		}, nil
+	}
+
+	// Note: We only know the total after running calculatePurchaseFn, but we need a pre-check
+	// using a preliminary sum from the request to fail fast before any DB writes.
+	var prelimTotal decimal.Decimal
+	for _, item := range req.Items {
+		prelimTotal = prelimTotal.Add(item.Cost.Mul(decimal.NewFromInt(int64(item.Qty))))
+	}
+	prelimTotal = prelimTotal.Add(req.Tax).Sub(req.Discount)
+	if prelimTotal.IsNegative() {
+		prelimTotal = decimal.Zero
+	}
+	if prelimTotal.GreaterThan(tenantNet) {
+		return nil, apierr.InsufficientBalance(
+			fmt.Sprintf("purchase total %.2f exceeds tenant balance %.2f; please inject capital or remit branch funds first",
+				prelimTotal.InexactFloat64(), tenantNet.InexactFloat64()),
+		)
 	}
 
 	res, err := s.repo.ExecutePurchaseTx(ctx, tenantID, userID, req, calculatePurchaseFn)
@@ -264,6 +287,13 @@ func (s *TransactionService) CreateReturn(ctx context.Context, userID int, req d
 		return nil, apierr.Internal(err, "failed to resolve tenant")
 	}
 
+	// Balance Guard: Ensure branch has sufficient cash to refund the customer.
+	// We need a preliminary estimate of the refund total to fail fast.
+	branchNet, err := s.repo.GetBranchNetBalance(ctx, tenantID, req.BranchID)
+	if err != nil {
+		return nil, apierr.Internal(err, "failed to check branch balance")
+	}
+
 	calculateReturnFn := func(loadedItems map[int]model.ProcessReturnItem) (model.FinalReturnAggregate, error) {
 		var trxTotalAmount decimal.Decimal
 		var finalDetails []model.TransactionDetail
@@ -297,6 +327,14 @@ func (s *TransactionService) CreateReturn(ctx context.Context, userID int, req d
 				Price:        price,
 				Subtotal:     subtotal,
 			})
+		}
+
+		// Balance Guard: check branch cash can cover the refund
+		if trxTotalAmount.GreaterThan(branchNet) {
+			return model.FinalReturnAggregate{}, apierr.InsufficientBalance(
+				fmt.Sprintf("refund total %.2f exceeds branch cash balance %.2f",
+					trxTotalAmount.InexactFloat64(), branchNet.InexactFloat64()),
+			)
 		}
 
 		return model.FinalReturnAggregate{
@@ -481,4 +519,26 @@ func (s *TransactionService) Void(ctx context.Context, userID int, id int, req d
 
 		return nil
 	})
+}
+
+// RemitBranchBalance transfers cash from a branch's register to the tenant's central balance.
+// This models the real-world "setoran kas" (cash remittance) operation.
+func (s *TransactionService) RemitBranchBalance(ctx context.Context, branchID int, req dto.RemitRequest) error {
+	tenantID, err := tenant.FromContext(ctx)
+	if err != nil {
+		return apierr.Internal(err, "failed to resolve tenant")
+	}
+
+	if req.Amount.IsNegative() || req.Amount.IsZero() {
+		return apierr.BadRequest("remit amount must be greater than zero")
+	}
+
+	if err := s.repo.RemitBranchBalance(ctx, tenantID, branchID, req); err != nil {
+		var appErr *apierr.AppError
+		if errors.As(err, &appErr) {
+			return appErr
+		}
+		return apierr.Internal(err, "failed to process remittance")
+	}
+	return nil
 }

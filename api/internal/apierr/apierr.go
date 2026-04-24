@@ -83,6 +83,15 @@ func Conflict(message string) *AppError {
 	}
 }
 
+// InsufficientBalance returns a 402 AppError for failed balance guard checks.
+func InsufficientBalance(message string) *AppError {
+	return &AppError{
+		HTTPStatus: http.StatusPaymentRequired,
+		Code:       "INSUFFICIENT_BALANCE",
+		Message:    message,
+	}
+}
+
 // ValidationFailed returns a 422 AppError carrying per-field error messages.
 // fields is a map of { "field_name": "human-readable message" }.
 func ValidationFailed(fields map[string]string) *AppError {

@@ -318,3 +318,30 @@ func (h *TransactionHandler) Void(c *gin.Context) {
 		},
 	})
 }
+
+// RemitBranchBalance handles POST /transactions/remit/branch/:id
+// Transfers accumulated branch cash to the tenant's central balance.
+func (h *TransactionHandler) RemitBranchBalance(c *gin.Context) {
+	branchID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		_ = c.Error(apierr.BadRequest("invalid branch id"))
+		return
+	}
+
+	var req dto.RemitRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(apierr.BadRequest("invalid request body"))
+		return
+	}
+
+	if err := h.svc.RemitBranchBalance(c.Request.Context(), branchID, req); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Success(gin.H{
+		"message":   "cash remittance processed successfully",
+		"branch_id": branchID,
+		"amount":    req.Amount,
+	}))
+}

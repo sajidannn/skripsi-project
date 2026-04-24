@@ -9,15 +9,16 @@ import (
 
 // Handlers groups all HTTP handlers used by the router.
 type Handlers struct {
-	Tenant    *handler.TenantHandler
-	Warehouse *handler.WarehouseHandler
-	Branch    *handler.BranchHandler
-	Item      *handler.ItemHandler
-	Inventory *handler.InventoryHandler
+	Tenant      *handler.TenantHandler
+	Warehouse   *handler.WarehouseHandler
+	Branch      *handler.BranchHandler
+	Item        *handler.ItemHandler
+	Inventory   *handler.InventoryHandler
 	User        *handler.UserHandler
 	Customer    *handler.CustomerHandler
 	Supplier    *handler.SupplierHandler
 	Transaction *handler.TransactionHandler
+	Report      *handler.ReportHandler
 }
 
 // NewRouter builds and returns the Gin engine with all routes registered.
@@ -118,6 +119,18 @@ func NewRouter(jwtSecret string, debug bool, h Handlers) *gin.Engine {
 			transactions.POST("/purchase-return", middleware.RequireRole("owner", "manager"), h.Transaction.CreatePurchaseReturn)
 			transactions.POST("/adjust", middleware.RequireRole("owner", "manager"), h.Transaction.AdjustStock)
 			transactions.POST("/:id/void", middleware.RequireRole("owner", "manager"), h.Transaction.Void)
+			transactions.POST("/remit/branch/:id", middleware.RequireRole("owner", "manager"), h.Transaction.RemitBranchBalance)
+		}
+		// Reports
+		reports := api.Group("/reports")
+		{
+			reports.GET("/balance/branch/:id", middleware.RequireRole("owner", "manager"), h.Report.GetBranchBalance)
+			reports.GET("/balance/tenant", middleware.RequireRole("owner", "manager"), h.Report.GetTenantBalance)
+			reports.POST("/balance/tenant/capital", middleware.RequireRole("owner"), h.Report.InjectCapital)
+			reports.GET("/summary", middleware.RequireRole("owner", "manager"), h.Report.GetSummary)
+			reports.GET("/top-items", middleware.RequireRole("owner", "manager"), h.Report.GetTopItems)
+			reports.GET("/low-items", middleware.RequireRole("owner", "manager"), h.Report.GetLowItems)
+			reports.GET("/sales", middleware.RequireRole("owner", "manager"), h.Report.GetSalesReport)
 		}
 	}
 

@@ -39,6 +39,7 @@ func main() {
 		customerRepo  repository.CustomerRepository
 		supplierRepo  repository.SupplierRepository
 		transRepo     repository.TransactionRepository
+		reportRepo    repository.ReportRepository
 	)
 
 	switch cfg.DBMode {
@@ -60,6 +61,7 @@ func main() {
 		customerRepo = repoSingle.NewCustomerRepo(pool)
 		supplierRepo = repoSingle.NewSupplierRepo(pool)
 		transRepo = repoSingle.NewTransactionRepo(pool)
+		reportRepo = repoSingle.NewReportRepo(pool)
 
 	case config.DBModeMulti:
 		log.Println("[mode] multi-db")
@@ -84,6 +86,7 @@ func main() {
 		customerRepo = repoMulti.NewCustomerRepo(mgr)
 		supplierRepo = repoMulti.NewSupplierRepo(mgr)
 		transRepo = repoMulti.NewTransactionRepo(mgr)
+		reportRepo = repoMulti.NewReportRepo(mgr)
 
 	default:
 		log.Fatalf("unknown DB_MODE: %s", cfg.DBMode)
@@ -101,6 +104,7 @@ func main() {
 	customerSvc := service.NewCustomerService(customerRepo)
 	supplierSvc := service.NewSupplierService(supplierRepo)
 	transSvc := service.NewTransactionService(transRepo)
+	reportSvc := service.NewReportService(reportRepo)
 
 	handlers := api.Handlers{
 		Tenant:    handler.NewTenantHandler(tenantSvc),
@@ -112,6 +116,7 @@ func main() {
 		Customer:  handler.NewCustomerHandler(customerSvc),
 		Supplier:  handler.NewSupplierHandler(supplierSvc),
 		Transaction: handler.NewTransactionHandler(transSvc),
+		Report:    handler.NewReportHandler(reportSvc),
 	}
 
 	router := api.NewRouter(cfg.JWTSecret, cfg.Debug, handlers)
