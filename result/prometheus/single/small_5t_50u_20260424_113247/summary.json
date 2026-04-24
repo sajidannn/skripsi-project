@@ -1,0 +1,33 @@
+{
+  "tag": "small_5t_50u_20260424_113247",
+  "db_mode": "single",
+  "start_ts": 1777005167,
+  "end_ts": 1777005468,
+  "start_human": "2026-04-24 04:32:47 UTC",
+  "end_human": "2026-04-24 04:37:48 UTC",
+  "duration_s": 301,
+  "prometheus": "http://localhost:9090",
+  "step_s": 15,
+  "exported": [
+    "cpu_api",
+    "memory_api",
+    "network_in_api",
+    "network_out_api",
+    "container_cpu_api",
+    "container_memory_api",
+    "cpu_db",
+    "memory_db",
+    "network_in_db",
+    "pg_connections",
+    "pg_connections_total",
+    "pg_tup_fetched",
+    "pg_tup_inserted",
+    "pg_tup_updated",
+    "pg_locks",
+    "pg_transactions",
+    "pg_rollbacks",
+    "pg_deadlocks",
+    "pg_blk_hit_ratio"
+  ],
+  "no_data": []
+}

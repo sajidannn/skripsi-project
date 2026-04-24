@@ -13,6 +13,10 @@ SCALE=${SCALE:-1}
 USERS=${USERS:-50}
 RUN_TIME=${RUN_TIME:-"5m"}
 HEADLESS=${HEADLESS:-"true"}
+PROMETHEUS_URL=${PROMETHEUS_URL:-"http://localhost:9090"}
+SKIP_LOGIN=${SKIP_LOGIN:-"false"}
+DB_MODE=${DB_MODE:-"multi"}
+TAG=${TAG:-"workload"}
 
 # Spawn rate sesuai proposal: 10 user/detik
 SPAWN_RATE=10
@@ -20,16 +24,16 @@ SPAWN_RATE=10
 echo "=========================================================="
 echo "  POS TPC-C Workload Runner"
 echo "=========================================================="
-echo "  API URL    : $API_URL"
-echo "  Tenants    : $SCALE"
-echo "  Users      : $USERS concurrent"
-echo "  Spawn rate : $SPAWN_RATE user/detik"
-echo "  Duration   : $RUN_TIME"
-echo "  Headless   : $HEADLESS"
+echo "  API URL        : $API_URL"
+echo "  Tenants        : $SCALE"
+echo "  Users          : $USERS concurrent"
+echo "  Spawn rate     : $SPAWN_RATE user/detik"
+echo "  Duration       : $RUN_TIME"
+echo "  Headless       : $HEADLESS"
+echo "  DB Mode        : $DB_MODE"
+echo "  Prometheus     : $PROMETHEUS_URL"
 echo "=========================================================="
 echo ""
-
-SKIP_LOGIN=${SKIP_LOGIN:-"false"}
 
 # ── STEP 1: Login & cache JWT tokens ─────────────────────────
 if [ "$SKIP_LOGIN" != "true" ]; then
@@ -42,7 +46,7 @@ if [ "$SKIP_LOGIN" != "true" ]; then
         exit 1
     fi
 else
-    echo ">>> STEP 1: SKIP_LOGIN aktif. Melewati proses login dan menggunakan tokens.json yang ada..."
+    echo ">>> STEP 1: SKIP_LOGIN aktif. Menggunakan tokens.json yang ada..."
 fi
 
 if [ ! -f "workload/tokens.json" ]; then
@@ -58,14 +62,14 @@ echo ""
 echo ">>> STEP 2: Menjalankan Locust workload..."
 echo ""
 
-# Tentukan folder dan nama file hasil (dikategorikan per schema: single/multi)
-DB_MODE=${DB_MODE:-"multi"}
 RESULT_DIR="result/locust/$DB_MODE"
 mkdir -p "$RESULT_DIR"
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-TAG=${TAG:-"workload"}
 PREFIX="${TAG}_${SCALE}t_${USERS}u_${TIMESTAMP}"
+
+# Catat waktu mulai test (Unix timestamp) untuk export Prometheus nanti
+TEST_START_TS=$(date +%s)
 
 if [ "$HEADLESS" = "true" ]; then
     locust \
@@ -77,7 +81,7 @@ if [ "$HEADLESS" = "true" ]; then
         --headless \
         --only-summary \
         --csv="$RESULT_DIR/$PREFIX" \
-        --html="$RESULT_DIR/$PREFIX.html"
+        --html="$RESULT_DIR/$PREFIX.html" || true
 else
     echo "Mode UI: Buka http://localhost:8089 di browser kamu."
     echo "  Users target  : $USERS"
@@ -92,12 +96,33 @@ else
         --spawn-rate="$SPAWN_RATE" \
         --run-time="$RUN_TIME" \
         --csv="$RESULT_DIR/$PREFIX" \
-        --html="$RESULT_DIR/$PREFIX.html"
+        --html="$RESULT_DIR/$PREFIX.html" || true
 fi
+
+# Catat waktu selesai
+TEST_END_TS=$(date +%s)
 
 echo ""
 echo "=========================================================="
-echo "  Selesai! Hasil tersimpan di: $RESULT_DIR"
-echo "  - CSV: $PREFIX*.csv"
-echo "  - HTML: $PREFIX.html"
+echo "  Locust selesai!"
+echo "  - CSV : result/locust/$DB_MODE/$PREFIX*.csv"
+echo "  - HTML: result/locust/$DB_MODE/$PREFIX.html"
+echo "=========================================================="
+echo ""
+
+# ── STEP 3: Export metrik Prometheus ─────────────────────────
+echo ">>> STEP 3: Mengekspor metrik Prometheus (${TEST_START_TS} → ${TEST_END_TS})..."
+python3 workload/export_metrics.py \
+    --from  "$TEST_START_TS" \
+    --to    "$TEST_END_TS" \
+    --tag   "$PREFIX" \
+    --db-mode "$DB_MODE" \
+    --prometheus "$PROMETHEUS_URL" \
+    || echo "  WARN: export_metrics gagal (Prometheus tidak tersedia atau belum jalan?)"
+
+echo ""
+echo "=========================================================="
+echo "  Semua hasil tersimpan:"
+echo "  - Locust CSV/HTML  : result/locust/$DB_MODE/$PREFIX*"
+echo "  - Prometheus CSV   : result/prometheus/$DB_MODE/$PREFIX/"
 echo "=========================================================="

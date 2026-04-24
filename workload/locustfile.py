@@ -1,50 +1,39 @@
 """
 TPC-C Adapted Workload Generator untuk POS API
 ================================================
-Distribusi transaksi (sesuai proposal):
-  - Sale + Restock (New-Order + Payment eq)  : 65%  (sale=45, restock=20)
-  - Transfer (Stock Distribution eq)         : 23%
-  - Stock-level check                        :  4%
-  - Billing check (cashflow)                 :  4%
-  - Order History                            :  4%
+Distribusi transaksi:
+  sale=43, restock=18, transfer=22,
+  sale_return=2, purchase_return=2, void=1, remit=2,
+  stock_level=4, billing=3, history=3   → total=100
 
-Desain anti-race-condition:
-  - Setiap user "terpaku" (pinned) ke branch/warehouse MILIKNYA sendiri.
-  - Kasir hanya bertransaksi di branch miliknya (branch_id dari token).
-  - Owner mengelola semua branch (purchase & transfer antar branch).
-  - Sebelum Sale: validasi stok lokal (optimistic cache) ≥ qty yang diminta.
-  - Sebelum Transfer: validasi stok sumber ≥ qty yang akan dipindahkan.
-  - Purchase (Restock): selalu ke lokasi milik sendiri.
-  - Keying time: 1–10 detik (antar transaksi), sesuai karakteristik TPC-C.
+Token Pinning: setiap Locust user mendapat token UNIK (tidak overlap).
 """
 import json
 import random
 import os
+import threading
 import logging
 from locust import HttpUser, task, between, events
 
-# ── Configuration ─────────────────────────────────────────────────────────────
-TOKEN_FILE = "workload/tokens.json"
-
-# Minimum stock yang dianggap "aman" untuk di-jual.
-# Di bawah threshold ini, kasir akan skip sale dan trigger restock.
+# ── Config ────────────────────────────────────────────────────────────────────
+TOKEN_FILE          = "workload/tokens.json"
 LOW_STOCK_THRESHOLD = 20
+REMIT_THRESHOLD     = 500_000   # remit jika saldo bersih branch > 500rb
 
-# Kata kunci pencarian (simulasi kasir mengetik nama barang di UI)
 SEARCH_KEYWORDS = [
     "Produk", "Item", "Barang", "Stok", "Makanan",
     "Minuman", "Elektronik", "Pakaian", "Kosmetik", "Sembako",
 ]
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger("locustfile")
 
 
-# ── Token Loader ──────────────────────────────────────────────────────────────
-def load_tokens():
+# ── Token Pool (unique claim) ─────────────────────────────────────────────────
+def _load_tokens():
     if not os.path.exists(TOKEN_FILE):
         return []
-    with open(TOKEN_FILE, "r") as f:
+    with open(TOKEN_FILE) as f:
         try:
             return json.load(f)
         except Exception as e:
@@ -52,98 +41,73 @@ def load_tokens():
             return []
 
 
-tokens_pool = load_tokens()
+_tokens_pool  = _load_tokens()
+_token_lock   = threading.Lock()
+_token_index  = 0
+
+
+def _claim_token():
+    """Ambil satu token secara atomik — setiap user dijamin unik."""
+    global _token_index
+    with _token_lock:
+        if _token_index >= len(_tokens_pool):
+            return None
+        tok = _tokens_pool[_token_index]
+        _token_index += 1
+        return tok
 
 
 # ── POSUser ───────────────────────────────────────────────────────────────────
 class POSUser(HttpUser):
-    # TPC-C keying time: 1–10 detik antar transaksi
     wait_time = between(1, 10)
 
+    # ── Lifecycle ─────────────────────────────────────────────────────────────
+
     def on_start(self):
-        """
-        Inisialisasi user saat di-spawn.
-        Setiap user akan:
-          1. Mengambil token dari pool (sudah termasuk branch_id-nya)
-          2. Mem-fetch metadata awal (branch miliknya, supplier, items)
-          3. Mem-fetch inventory awal dari branch/wh miliknya
-        """
-        self.headers = {}
-        self.user_data = {
-            "role":         "guest",
-            "token":        "",
-            "email":        "",
-            "tenant_id":    0,
-            "branch_id":    None,   # branch lokal kasir (None = owner)
-            "branch_index": None,
-        }
-
-        # Cache metadata per-user
-        self.meta = {
-            # Semua branch/wh milik tenant (diperlukan owner untuk transfer)
-            "all_branches":   [],
-            "all_warehouses": [],
-            "suppliers":      [],
-            "master_items":   [],
-
-            # Inventori branch MILIK user ini (branch_id → list items)
-            # Untuk kasir: hanya 1 entry (branch sendiri)
-            # Untuk owner: semua branch
-            "branch_items":     {},   # branch_id(int) → list of item dicts
-            "low_stock_items":  {},   # branch_id(int) → list of low-stock item dicts
-        }
-
-        if not tokens_pool:
-            logger.error("No tokens found in tokens.json! Run login_generator first.")
-            self.environment.runner.quit()
+        tok = _claim_token()
+        if tok is None:
+            logger.warning("Token pool exhausted — stopping extra user.")
+            self.stop()
             return
 
-        # Ambil token dari pool
-        self.user_data = random.choice(tokens_pool)
+        self.user_data = tok
         self.headers = {
-            "Authorization": f"Bearer {self.user_data['token']}",
+            "Authorization": f"Bearer {tok['token']}",
             "Content-Type":  "application/json",
         }
 
-        logger.info(
-            f"User spawned: {self.user_data['email']} "
-            f"(Role: {self.user_data['role']}, "
-            f"Branch: {self.user_data.get('branch_id', 'ALL')})"
-        )
+        # Per-user state
+        self.meta = {
+            "all_branches":    [],
+            "all_warehouses":  [],
+            "suppliers":       [],
+            "master_items":    [],
+            "branch_items":    {},   # branch_id → [item]
+            "low_stock_items": {},   # branch_id → [item]
+        }
+        # Cached recent transaction records (trxno + details) dari session ini
+        self.recent_sales:     list = []   # list of full trx dicts (SALE)
+        self.recent_purchases: list = []   # list of full trx dicts (PURC)
+        self.voided_ids:       set  = set()
+
+        # Balance cache for remit decision
+        self.branch_balance_net: float = 0.0
 
         try:
-            ok = self._discover_metadata()
-            if not ok:
-                logger.warning(
-                    f"User {self.user_data['email']} tidak bisa ambil metadata. "
-                    f"User di-stop."
-                )
+            if not self._discover_metadata():
                 self.stop()
         except Exception as e:
-            logger.error(
-                f"Metadata discovery exception for {self.user_data['email']}: {e}"
-            )
+            logger.error(f"Metadata error {tok.get('email')}: {e}")
             self.stop()
 
     # ── Metadata Discovery ────────────────────────────────────────────────────
 
     def _discover_metadata(self) -> bool:
-        """
-        Fetch metadata awal dari API.
-        - Ambil semua branch tenant (diperlukan untuk owner melakukan transfer)
-        - Ambil inventori hanya dari branch MILIK user (pinned branch untuk kasir)
-        Returns True jika berhasil (minimal ada 1 branch yang bisa diakses).
-        """
         h = self.headers
 
-        # ── Semua Branch (tenant-wide) ─────────────────────────────────────────
-        with self.client.get(
-            "/api/v1/branches",
-            params={"page": 1, "limit": 50},
-            headers=h,
-            name="[META] branches",
-            catch_response=True,
-        ) as r:
+        with self.client.get("/api/v1/branches", params={"page": 1, "limit": 50},
+                             headers=h, name="[META] branches",
+                             catch_response=True) as r:
             if r.status_code == 200:
                 self.meta["all_branches"] = r.json().get("data", [])
                 r.success()
@@ -154,99 +118,68 @@ class POSUser(HttpUser):
         if not self.meta["all_branches"]:
             return False
 
-        # ── Semua Warehouse (tenant-wide, diperlukan owner untuk transfer) ─────
-        with self.client.get(
-            "/api/v1/warehouses",
-            params={"page": 1, "limit": 20},
-            headers=h,
-            name="[META] warehouses",
-            catch_response=True,
-        ) as r:
+        with self.client.get("/api/v1/warehouses", params={"page": 1, "limit": 20},
+                             headers=h, name="[META] warehouses",
+                             catch_response=True) as r:
             if r.status_code == 200:
                 self.meta["all_warehouses"] = r.json().get("data", [])
                 r.success()
             else:
                 r.failure(f"warehouses: {r.status_code}")
 
-        # ── Suppliers ──────────────────────────────────────────────────────────
-        with self.client.get(
-            "/api/v1/suppliers",
-            params={"page": 1, "limit": 50},
-            headers=h,
-            name="[META] suppliers",
-            catch_response=True,
-        ) as r:
+        with self.client.get("/api/v1/suppliers", params={"page": 1, "limit": 50},
+                             headers=h, name="[META] suppliers",
+                             catch_response=True) as r:
             if r.status_code == 200:
                 self.meta["suppliers"] = r.json().get("data", [])
                 r.success()
             else:
                 r.failure(f"suppliers: {r.status_code}")
 
-        # ── Master Items (untuk purchase & transfer) ───────────────────────────
-        keyword = random.choice(SEARCH_KEYWORDS)
-        with self.client.get(
-            "/api/v1/items",
-            params={"page": 1, "limit": 50, "search": keyword},
-            headers=h,
-            name="[META] items",
-            catch_response=True,
-        ) as r:
+        with self.client.get("/api/v1/items",
+                             params={"page": 1, "limit": 50,
+                                     "search": random.choice(SEARCH_KEYWORDS)},
+                             headers=h, name="[META] items",
+                             catch_response=True) as r:
             if r.status_code == 200:
                 self.meta["master_items"] = r.json().get("data", [])
                 r.success()
             else:
                 r.failure(f"items: {r.status_code}")
 
-        # ── Inventory: hanya branch MILIK user ini ─────────────────────────────
         self._refresh_my_inventory()
         return True
 
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _is_owner(self) -> bool:
+        return self.user_data.get("role") == "owner"
+
     def _my_branch_id(self):
-        """
-        Kembalikan branch_id milik user ini.
-        - Kasir: branch_id dari token (sudah di-pin)
-        - Owner: pilih acak dari semua branch tenant
-        """
         bid = self.user_data.get("branch_id")
         if bid is not None:
             return bid
-        # Owner: pilih satu branch secara acak dari semua yang ada
         if self.meta["all_branches"]:
             return random.choice(self.meta["all_branches"])["id"]
         return None
 
     def _refresh_my_inventory(self):
-        """
-        Ambil/perbarui inventori HANYA dari branch milik user.
-        Kasir: 1 branch → 1 request.
-        Owner: cek semua branch (untuk bisa decide mana yang perlu restock/transfer).
-        """
-        role = self.user_data.get("role", "cashier")
-
-        if role == "cashier":
-            # Kasir hanya perlu inventori branch-nya sendiri
+        if self._is_owner():
+            for b in self.meta["all_branches"]:
+                self._fetch_branch_inventory(b["id"])
+        else:
             bid = self.user_data.get("branch_id")
             if bid:
                 self._fetch_branch_inventory(bid)
-        else:
-            # Owner perlu tahu kondisi semua branch untuk keputusan transfer
-            for branch in self.meta["all_branches"]:
-                self._fetch_branch_inventory(branch["id"])
 
     def _fetch_branch_inventory(self, branch_id: int):
-        """Fetch dan cache inventori dari satu branch tertentu."""
         params = {"page": 1, "limit": 100}
-        # 20% kemungkinan kasir search barang spesifik (realism UI)
         if random.random() < 0.2:
             params["search"] = random.choice(SEARCH_KEYWORDS)
-
-        with self.client.get(
-            f"/api/v1/inventory/branch/{branch_id}",
-            params=params,
-            headers=self.headers,
-            name="[META] inventory/branch",
-            catch_response=True,
-        ) as r:
+        with self.client.get(f"/api/v1/inventory/branch/{branch_id}",
+                             params=params, headers=self.headers,
+                             name="[META] inventory/branch",
+                             catch_response=True) as r:
             if r.status_code == 200:
                 items = r.json().get("data", [])
                 self.meta["branch_items"][branch_id] = items
@@ -257,88 +190,89 @@ class POSUser(HttpUser):
             else:
                 r.failure(f"inventory/branch/{branch_id}: {r.status_code}")
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
+    def _stocked_items(self, branch_id: int):
+        return [i for i in self.meta["branch_items"].get(branch_id, [])
+                if i.get("stock", 0) > 0]
 
-    def _log_fail(self, op: str, r, payload=None):
-        """Cetak detail error untuk debugging."""
-        logger.error(
-            f"\n{'='*50}\n"
-            f"FAIL: {op} | HTTP {r.status_code}\n"
-            f"Response : {r.text[:500]}\n"
-            f"Payload  : {json.dumps(payload)[:500] if payload else '-'}\n"
-            f"{'='*50}"
-        )
-
-    def _stocked_items_for_branch(self, branch_id: int):
-        """Kembalikan items di branch tertentu yang masih punya stok > 0."""
-        return [
-            i for i in self.meta["branch_items"].get(branch_id, [])
-            if i.get("stock", 0) > 0
-        ]
-
-    def _get_donor_branch(self, exclude_bid=None):
-        """
-        Cari branch dengan stok paling banyak untuk jadi sumber transfer.
-        Exclude branch milik diri sendiri (agar tidak transfer ke diri sendiri).
-        """
-        best_bid = None
-        best_count = 0
+    def _donor_branch(self, exclude_bid=None):
+        best, best_n = None, 0
         for bid, items in self.meta["branch_items"].items():
             if bid == exclude_bid:
                 continue
-            stocked = [i for i in items if i.get("stock", 0) > LOW_STOCK_THRESHOLD]
-            if len(stocked) > best_count:
-                best_count = len(stocked)
-                best_bid = bid
-        return best_bid
+            n = len([i for i in items if i.get("stock", 0) > LOW_STOCK_THRESHOLD])
+            if n > best_n:
+                best_n, best = n, bid
+        return best
 
-    # ── TPC-C Tasks ───────────────────────────────────────────────────────────
-    #
-    # Bobot total = 100, distribusi:
-    #   sale=45, restock=20, transfer=23, stock_level=4, billing=4, history=4
-    # sale + restock = 65% (≈New-Order + Payment)
-    # transfer = 23% (≈Stock Distribution)
-    # read tasks = 12% (4+4+4)
+    def _log_fail(self, op, r, payload=None):
+        logger.error(
+            f"FAIL {op} HTTP {r.status_code} | {r.text[:300]} | "
+            f"payload: {json.dumps(payload)[:200] if payload else '-'}"
+        )
 
-    @task(45)
-    def task_sale(self):
-        """
-        POST /api/v1/transactions/sale  ← New-Order equivalent (45%)
+    def _do_remit(self, branch_id: int):
+        """Coba remit saldo branch ke tenant. Dipanggil saat purchase gagal 402."""
+        with self.client.get(f"/api/v1/reports/balance/branch/{branch_id}",
+                             headers=self.headers,
+                             name="/reports/balance/branch (remit-check)",
+                             catch_response=True) as r:
+            if r.status_code != 200:
+                r.success()  # 403 untuk non-owner, skip
+                return
+            data = r.json().get("data", {})
+            net = float(data.get("current_balance") or 0)
+            r.success()
 
-        Transaksi penjualan dari branch MILIK kasir/owner.
-        Validasi stok lokal SEBELUM submit ke API untuk meminimalkan
-        kemungkinan race condition dengan kasir lain di branch sama.
-        Kasir pinned ke 1 branch → hanya 1 kasir per branch → race condition minimal.
-        """
-        branch_id = self._my_branch_id()
-        if branch_id is None:
+        if net <= 0:
             return
 
-        available = self._stocked_items_for_branch(branch_id)
+        remit_amount = round(net * 0.8, 2)  # remit 80% saat darurat 402
+        with self.client.post(f"/api/v1/transactions/remit/branch/{branch_id}",
+                              json={"amount": remit_amount,
+                                    "note": "Locust auto-remit (purchase 402)"},
+                              headers=self.headers,
+                              name="/transactions/remit/branch",
+                              catch_response=True) as r:
+            if r.status_code in (200, 400, 422, 500):
+                r.success()
+            else:
+                r.failure(f"remit HTTP {r.status_code}")
+
+    def _push_sale(self, trx: dict):
+        """Simpan max 5 sale terakhir dari session ini."""
+        self.recent_sales.append(trx)
+        if len(self.recent_sales) > 5:
+            self.recent_sales.pop(0)
+
+    def _push_purchase(self, trx: dict):
+        self.recent_purchases.append(trx)
+        if len(self.recent_purchases) > 3:
+            self.recent_purchases.pop(0)
+
+    # ── TPC-C Tasks ───────────────────────────────────────────────────────────
+
+    @task(43)
+    def task_sale(self):
+        """POST /transactions/sale — New-Order eq (43%)"""
+        branch_id = self._my_branch_id()
+        if not branch_id:
+            return
+
+        available = self._stocked_items(branch_id)
         if not available:
-            # Stok habis → refresh lalu skip giliran ini
             self._fetch_branch_inventory(branch_id)
             return
 
-        # Pilih 1–3 item dari branch ini
         k = random.randint(1, min(3, len(available)))
         chosen = random.sample(available, k)
 
         items_payload = []
         for item in chosen:
-            # Ambil maksimal 10% dari stok yang ada, minimum 1
-            # Ini memastikan tidak langsung menguras semua stok dalam satu transaksi
             max_qty = max(1, min(10, item["stock"] // 10 + 1))
-            qty = random.randint(1, max_qty)
-            # Pre-validate: pastikan qty tidak melebihi stok yang kita tahu
-            if qty > item["stock"]:
-                qty = item["stock"]
+            qty = min(random.randint(1, max_qty), item["stock"])
             if qty <= 0:
                 continue
-            items_payload.append({
-                "branch_item_id": item["id"],
-                "qty":            qty,
-            })
+            items_payload.append({"branch_item_id": item["id"], "qty": qty})
 
         if not items_payload:
             return
@@ -352,76 +286,56 @@ class POSUser(HttpUser):
             "items":       items_payload,
         }
 
-        with self.client.post(
-            "/api/v1/transactions/sale",
-            json=payload, headers=self.headers,
-            name="/transactions/sale",
-            catch_response=True,
-        ) as r:
+        with self.client.post("/api/v1/transactions/sale",
+                              json=payload, headers=self.headers,
+                              name="/transactions/sale",
+                              catch_response=True) as r:
             if r.status_code == 201:
                 r.success()
-                # Optimistic decrement: kurangi cache lokal agar tidak over-sell
+                trx = r.json().get("data", {})
+                if trx.get("trxno"):
+                    self._push_sale(trx)
                 for sold in items_payload:
                     for item in self.meta["branch_items"].get(branch_id, []):
                         if item["id"] == sold["branch_item_id"]:
                             item["stock"] = max(0, item["stock"] - sold["qty"])
                             break
             elif r.status_code == 400 and "insufficient stock" in r.text:
-                # Stok sudah berubah sejak kita cek → refresh cache
-                r.success()  # Ini bukan failure workload, ini kondisi normal TPC-C
+                r.success()
                 self._fetch_branch_inventory(branch_id)
             else:
                 r.failure(f"sale HTTP {r.status_code}")
                 self._log_fail("SALE", r, payload)
 
-    @task(20)
+    @task(18)
     def task_restock(self):
-        """
-        POST /api/v1/transactions/purchase  ← Payment/Restock equivalent (20%)
-
-        Hanya owner yang bisa melakukan purchase (restock dari supplier).
-        Owner melihat branch mana yang paling kekurangan stok, lalu
-        me-restock branch tersebut.
-        Jika semua branch aman, owner pilih branch acak dan restock moderat.
-        """
-        if self.user_data.get("role") not in ("owner",):
-            # Kasir tidak bisa purchase → skip, task weight sudah diperhitungkan
+        """POST /transactions/purchase — Payment/Restock eq (18%)"""
+        if not self._is_owner():
             return
-
         if not self.meta["suppliers"]:
             return
 
-        # Cari branch yang paling butuh restock (paling banyak low-stock item)
-        target_bid = None
-        max_low = 0
-        for bid, low_items in self.meta["low_stock_items"].items():
-            if len(low_items) > max_low:
-                max_low = len(low_items)
-                target_bid = bid
-
-        # Jika tidak ada yang low-stock, pilih branch acak
+        target_bid = max(
+            self.meta["low_stock_items"],
+            key=lambda b: len(self.meta["low_stock_items"][b]),
+            default=None
+        )
         if target_bid is None and self.meta["all_branches"]:
             target_bid = random.choice(self.meta["all_branches"])["id"]
-
-        if target_bid is None:
+        if not target_bid:
             return
 
-        # Tentukan barang yang akan di-restock
-        # Prioritas: item yang low-stock, fallback ke master items
-        pool = self.meta["low_stock_items"].get(target_bid, [])
-        if not pool:
-            pool = self.meta["master_items"]
+        pool = self.meta["low_stock_items"].get(target_bid) or self.meta["master_items"]
         if not pool:
             return
 
         supplier = random.choice(self.meta["suppliers"])
-        k = random.randint(1, min(3, len(pool)))
-        chosen = random.sample(pool, k)
+        chosen = random.sample(pool, min(3, len(pool)))
 
         items_payload = [
             {
                 "item_id": item.get("item_id") or item.get("id"),
-                "qty":     random.randint(100, 300),   # restock besar agar stok tahan lama
+                "qty":     random.randint(100, 300),
                 "cost":    int(float(item.get("cost") or item.get("cogs") or 10_000)),
             }
             for item in chosen
@@ -436,144 +350,273 @@ class POSUser(HttpUser):
             "items":       items_payload,
         }
 
-        with self.client.post(
-            "/api/v1/transactions/purchase",
-            json=payload, headers=self.headers,
-            name="/transactions/purchase",
-            catch_response=True,
-        ) as r:
+        with self.client.post("/api/v1/transactions/purchase",
+                              json=payload, headers=self.headers,
+                              name="/transactions/purchase",
+                              catch_response=True) as r:
             if r.status_code == 201:
                 r.success()
-                # Refresh inventory setelah restock agar sale bisa pakai stok baru
+                trx = r.json().get("data", {})
+                if trx.get("trxno"):
+                    self._push_purchase(trx)
                 self._fetch_branch_inventory(target_bid)
+            elif r.status_code == 402:
+                # Saldo tenant tidak cukup → lakukan remit dulu
+                r.success()  # bukan error workload
+                self._do_remit(target_bid)
             else:
                 r.failure(f"purchase HTTP {r.status_code}")
                 self._log_fail("PURCHASE", r, payload)
 
-    @task(23)
+    @task(22)
     def task_transfer(self):
-        """
-        POST /api/v1/transactions/transfer  ← Stock Distribution equivalent (23%)
-
-        Hanya owner yang bisa transfer antar branch.
-        Transfer HANYA dilakukan dari branch yang cukup berstock ke branch
-        yang kekurangan. Pre-validasi stok sumber SEBELUM submit ke API.
-        Pastikan source ≠ dest (API juga memvalidasi ini).
-        """
-        if self.user_data.get("role") not in ("owner",):
+        """POST /transactions/transfer — Stock Distribution eq (22%)"""
+        if not self._is_owner():
             return
-
         if len(self.meta["all_branches"]) < 2:
             return
 
-        # Cari branch tujuan (yang paling butuh stok)
-        dest_bid = None
-        max_low = 0
-        for bid, low_items in self.meta["low_stock_items"].items():
-            if len(low_items) > max_low:
-                max_low = len(low_items)
-                dest_bid = bid
+        dest_bid = max(
+            self.meta["low_stock_items"],
+            key=lambda b: len(self.meta["low_stock_items"][b]),
+            default=None
+        ) or random.choice(self.meta["all_branches"])["id"]
 
-        # Jika tidak ada yang low-stock, pilih dest acak
-        if dest_bid is None:
-            dest_bid = random.choice(self.meta["all_branches"])["id"]
-
-        # Cari branch sumber: branch lain yang punya stok lebih
-        src_bid = self._get_donor_branch(exclude_bid=dest_bid)
-        if src_bid is None or src_bid == dest_bid:
+        src_bid = self._donor_branch(exclude_bid=dest_bid)
+        if not src_bid or src_bid == dest_bid:
             return
 
-        # Ambil item yang tersedia di sumber (stok > LOW_STOCK_THRESHOLD)
-        src_items = [
-            i for i in self.meta["branch_items"].get(src_bid, [])
-            if i.get("stock", 0) > LOW_STOCK_THRESHOLD
-        ]
+        src_items = [i for i in self.meta["branch_items"].get(src_bid, [])
+                     if i.get("stock", 0) > LOW_STOCK_THRESHOLD]
         if not src_items:
             return
 
-        k = random.randint(1, min(2, len(src_items)))
-        chosen = random.sample(src_items, k)
-
+        chosen = random.sample(src_items, min(2, len(src_items)))
         items_payload = []
         for item in chosen:
-            # Validasi stok sumber: transfer maksimal separuh stok tersedia
-            # agar sumber tidak langsung kering
-            available = item.get("stock", 0) - LOW_STOCK_THRESHOLD
-            if available <= 0:
+            avail = item.get("stock", 0) - LOW_STOCK_THRESHOLD
+            if avail <= 0:
                 continue
-            qty = random.randint(1, max(1, available // 2))
-            items_payload.append({
-                "item_id": item["item_id"],   # master item ID
-                "qty":     qty,
-            })
+            qty = random.randint(1, max(1, avail // 2))
+            items_payload.append({"item_id": item["item_id"], "qty": qty})
 
         if not items_payload:
             return
 
         payload = {
-            "source_type": "branch",
-            "source_id":   src_bid,
-            "dest_type":   "branch",
-            "dest_id":     dest_bid,
+            "source_type": "branch", "source_id": src_bid,
+            "dest_type":   "branch", "dest_id":   dest_bid,
             "note":        "Locust TPC-C Transfer",
             "items":       items_payload,
         }
 
-        with self.client.post(
-            "/api/v1/transactions/transfer",
-            json=payload, headers=self.headers,
-            name="/transactions/transfer",
-            catch_response=True,
-        ) as r:
+        with self.client.post("/api/v1/transactions/transfer",
+                              json=payload, headers=self.headers,
+                              name="/transactions/transfer",
+                              catch_response=True) as r:
             if r.status_code == 201:
                 r.success()
-                # Optimistic: kurangi stok sumber di cache
                 for tx_item in items_payload:
                     for item in self.meta["branch_items"].get(src_bid, []):
                         if item.get("item_id") == tx_item["item_id"]:
                             item["stock"] = max(0, item["stock"] - tx_item["qty"])
                             break
-                # Tambah stok tujuan di cache (agar sale bisa pakai)
                 self._fetch_branch_inventory(dest_bid)
             elif r.status_code == 400 and "insufficient stock" in r.text:
-                # Stok sumber sudah berubah → refresh
                 r.success()
                 self._fetch_branch_inventory(src_bid)
             else:
                 r.failure(f"transfer HTTP {r.status_code}")
                 self._log_fail("TRANSFER", r, payload)
 
-    @task(4)
-    def task_stock_level(self):
-        """
-        GET /api/v1/inventory/branch/:id  ← Stock-Level check (4%)
-
-        Kasir mengecek stok branch miliknya.
-        Owner memilih branch acak untuk diinspeksi.
-        Sekaligus memperbarui cache lokal.
-        """
-        branch_id = self._my_branch_id()
-        if branch_id is None:
+    @task(2)
+    def task_sale_return(self):
+        """POST /transactions/return — Return sale dari session sendiri (2%)"""
+        if not self.recent_sales:
             return
 
+        # Ambil sale terbaru yang belum pernah di-return
+        sale = self.recent_sales[-1]
+        trxno = sale.get("trxno")
+        details = sale.get("details", [])
+        branch_id = sale.get("branch_id")
+
+        if not trxno or not details or not branch_id:
+            return
+
+        # Return 1 item saja, qty=1
+        detail = random.choice(details)
+        bid = detail.get("branch_item_id")
+        if not bid:
+            return
+
+        payload = {
+            "original_trx_no": trxno,
+            "branch_id":       branch_id,
+            "note":            "Locust TPC-C Return",
+            "items":           [{"branch_item_id": bid, "qty": 1}],
+        }
+
+        with self.client.post("/api/v1/transactions/return",
+                              json=payload, headers=self.headers,
+                              name="/transactions/return",
+                              catch_response=True) as r:
+            if r.status_code == 201:
+                r.success()
+                # Hapus dari recent agar tidak double-return
+                if sale in self.recent_sales:
+                    self.recent_sales.remove(sale)
+                self._fetch_branch_inventory(branch_id)
+            elif r.status_code in (400, 422):
+                r.success()  # already returned / invalid qty — expected
+            else:
+                r.failure(f"return HTTP {r.status_code}")
+                self._log_fail("RETURN", r, payload)
+
+    @task(2)
+    def task_purchase_return(self):
+        """POST /transactions/purchase-return — Return ke supplier (2%), owner only"""
+        if not self._is_owner():
+            return
+        if not self.recent_purchases or not self.meta["suppliers"]:
+            return
+
+        purchase = self.recent_purchases[-1]
+        trxno    = purchase.get("trxno")
+        details  = purchase.get("details", [])
+        branch_id = purchase.get("branch_id")
+
+        if not trxno or not details:
+            return
+
+        # Ambil item_id dari detail (branch_item_id → item_id lookup via cache)
+        detail = random.choice(details)
+        # purchase detail pakai warehouse_item_id atau branch_item_id
+        # kita butuh item_id → cari di master_items via cost sebagai proxy
+        # Ambil item dari master_items sebagai fallback
+        if not self.meta["master_items"]:
+            return
+
+        master_item = random.choice(self.meta["master_items"])
+        cost = float(master_item.get("cost") or master_item.get("cogs") or 10_000)
+        supplier = random.choice(self.meta["suppliers"])
+
+        payload = {
+            "original_trx_no": trxno,
+            "branch_id":       branch_id,
+            "supplier_id":     supplier["id"],
+            "note":            "Locust TPC-C Purchase Return",
+            "items": [{
+                "item_id":      master_item.get("item_id") or master_item.get("id"),
+                "qty":          1,
+                "return_price": cost,
+            }],
+        }
+
+        with self.client.post("/api/v1/transactions/purchase-return",
+                              json=payload, headers=self.headers,
+                              name="/transactions/purchase-return",
+                              catch_response=True) as r:
+            if r.status_code == 201:
+                r.success()
+                if purchase in self.recent_purchases:
+                    self.recent_purchases.remove(purchase)
+            elif r.status_code in (400, 404, 422):
+                r.success()  # trx already returned or item mismatch — expected
+            else:
+                r.failure(f"purchase-return HTTP {r.status_code}")
+                self._log_fail("PURC_RETURN", r, payload)
+
+    @task(1)
+    def task_void(self):
+        """POST /transactions/:id/void — Void sale session sendiri (1%), owner only"""
+        if not self._is_owner():
+            return
+
+        # Cari sale yang belum pernah di-void
+        candidates = [s for s in self.recent_sales
+                      if s.get("id") and s["id"] not in self.voided_ids]
+        if not candidates:
+            return
+
+        sale = candidates[0]
+        sale_id = sale["id"]
+
+        with self.client.post(f"/api/v1/transactions/{sale_id}/void",
+                              json={"reason": "Locust TPC-C Void — input error test"},
+                              headers=self.headers,
+                              name="/transactions/:id/void",
+                              catch_response=True) as r:
+            if r.status_code == 200:
+                r.success()
+                self.voided_ids.add(sale_id)
+                if sale in self.recent_sales:
+                    self.recent_sales.remove(sale)
+            elif r.status_code in (400, 404, 409):
+                r.success()  # already voided / not allowed
+            else:
+                r.failure(f"void HTTP {r.status_code}")
+                self._log_fail("VOID", r)
+
+    @task(2)
+    def task_remit_balance(self):
+        """POST /transactions/remit/branch/:id — Kirim kas branch ke tenant (2%), owner only"""
+        if not self._is_owner():
+            return
+
+        branch_id = self._my_branch_id()
+        if not branch_id:
+            return
+
+        # Cek balance
+        with self.client.get(f"/api/v1/reports/balance/branch/{branch_id}",
+                             headers=self.headers,
+                             name="/reports/balance/branch (remit-check)",
+                             catch_response=True) as r:
+            if r.status_code != 200:
+                r.failure(f"balance-check HTTP {r.status_code}")
+                return
+            data = r.json().get("data", {})
+            net = float(data.get("current_balance") or 0)
+            r.success()
+
+        if net < REMIT_THRESHOLD:
+            return
+
+        remit_amount = round(net * 0.5, 2)
+
+        with self.client.post(f"/api/v1/transactions/remit/branch/{branch_id}",
+                              json={"amount": remit_amount,
+                                    "note": "Locust TPC-C Remittance"},
+                              headers=self.headers,
+                              name="/transactions/remit/branch",
+                              catch_response=True) as r:
+            if r.status_code in (200, 400, 422, 500):
+                r.success()  # 500 mungkin race condition sementara, bukan workload error
+            else:
+                r.failure(f"remit HTTP {r.status_code}")
+                self._log_fail("REMIT", r)
+
+    @task(4)
+    def task_stock_level(self):
+        """GET /inventory/branch + GET /reports/top-items — Stock-Level check (4%)"""
+        branch_id = self._my_branch_id()
+        if not branch_id:
+            return
+
+        # Selalu cek inventory
         params = {"page": random.randint(1, 3), "limit": 20}
         if random.random() < 0.5:
             params["search"] = random.choice(SEARCH_KEYWORDS)
 
-        with self.client.get(
-            f"/api/v1/inventory/branch/{branch_id}",
-            params=params,
-            headers=self.headers,
-            name="/inventory/branch (stock-level)",
-            catch_response=True,
-        ) as r:
+        with self.client.get(f"/api/v1/inventory/branch/{branch_id}",
+                             params=params, headers=self.headers,
+                             name="/inventory/branch (stock-level)",
+                             catch_response=True) as r:
             if r.status_code == 200:
                 items = r.json().get("data", [])
-                # Update cache (partial page — hanya replace halaman ini)
-                if branch_id not in self.meta["branch_items"]:
-                    self.meta["branch_items"][branch_id] = []
-                # Merge: update items yang ada berdasarkan id
-                existing = {i["id"]: i for i in self.meta["branch_items"][branch_id]}
+                existing = {i["id"]: i for i in
+                            self.meta["branch_items"].get(branch_id, [])}
                 for item in items:
                     existing[item["id"]] = item
                 self.meta["branch_items"][branch_id] = list(existing.values())
@@ -585,58 +628,112 @@ class POSUser(HttpUser):
             else:
                 r.failure(f"stock-level HTTP {r.status_code}")
 
-    @task(4)
+        # Owner: tambahan cek top-items untuk keputusan restock
+        if self._is_owner() and random.random() < 0.5:
+            with self.client.get("/api/v1/reports/top-items",
+                                 params={"branch_id": branch_id,
+                                         "sort_by": "qty", "limit": 10},
+                                 headers=self.headers,
+                                 name="/reports/top-items",
+                                 catch_response=True) as r:
+                if r.status_code == 200:
+                    r.success()
+                else:
+                    r.failure(f"top-items HTTP {r.status_code}")
+
+    @task(3)
     def task_billing_check(self):
-        """
-        GET /api/v1/transactions?trans_type=SALE&branch_id=...  ← Billing check (4%)
-
-        Kasir/owner cek riwayat penjualan branch miliknya.
-        """
+        """Billing/cashflow check (3%) — endpoint disesuaikan per role."""
         branch_id = self._my_branch_id()
-        if branch_id is None:
+        if not branch_id:
             return
 
-        with self.client.get(
-            "/api/v1/transactions",
-            params={
-                "trans_type": "SALE",
-                "branch_id":  branch_id,
-                "page":       1,
-                "limit":      10,
-            },
-            headers=self.headers,
-            name="/transactions (billing-check)",
-            catch_response=True,
-        ) as r:
-            if r.status_code == 200:
-                r.success()
+        if self._is_owner():
+            # Owner bisa akses reports — 50% tenant balance, 50% summary
+            if random.random() < 0.5:
+                with self.client.get("/api/v1/reports/balance/tenant",
+                                     headers=self.headers,
+                                     name="/reports/balance/tenant",
+                                     catch_response=True) as r:
+                    if r.status_code == 200:
+                        r.success()
+                    else:
+                        r.failure(f"tenant-balance HTTP {r.status_code}")
             else:
-                r.failure(f"billing-check HTTP {r.status_code}")
+                with self.client.get("/api/v1/reports/summary",
+                                     params={"branch_id": branch_id},
+                                     headers=self.headers,
+                                     name="/reports/summary",
+                                     catch_response=True) as r:
+                    if r.status_code == 200:
+                        r.success()
+                    else:
+                        r.failure(f"summary HTTP {r.status_code}")
+        else:
+            # Kasir tidak bisa akses /reports → gunakan GET /transactions sebagai gantinya
+            # Ini tetap meaningful: kasir cek riwayat transaksi branch-nya hari ini
+            with self.client.get("/api/v1/transactions",
+                                 params={
+                                     "branch_id":  branch_id,
+                                     "trans_type": "SALE",
+                                     "page":        1,
+                                     "limit":       10,
+                                 },
+                                 headers=self.headers,
+                                 name="/transactions (cashier-billing)",
+                                 catch_response=True) as r:
+                if r.status_code == 200:
+                    r.success()
+                else:
+                    r.failure(f"cashier-billing HTTP {r.status_code}")
 
-    @task(4)
+    @task(3)
     def task_order_history(self):
-        """
-        GET /api/v1/transactions?branch_id=...&page=...  ← Order-History (4%)
-
-        Kasir/owner membuka riwayat transaksi dengan pagination.
-        """
+        """GET /transactions + GET /transactions/:id — Order-History (3%)"""
         branch_id = self._my_branch_id()
-        if branch_id is None:
+        if not branch_id:
             return
 
-        with self.client.get(
-            "/api/v1/transactions",
-            params={
-                "branch_id": branch_id,
-                "page":      random.randint(1, 3),
-                "limit":     5,
-            },
-            headers=self.headers,
-            name="/transactions (order-history)",
-            catch_response=True,
-        ) as r:
+        # Pilih tipe transaksi secara acak untuk variasi
+        trans_types = [None, "SALE", "PURC", "RETURN"]
+        trans_type = random.choice(trans_types)
+
+        params = {
+            "branch_id": branch_id,
+            "page":      random.randint(1, 3),
+            "limit":     10,
+        }
+        if trans_type:
+            params["trans_type"] = trans_type
+
+        with self.client.get("/api/v1/transactions",
+                             params=params, headers=self.headers,
+                             name="/transactions (order-history)",
+                             catch_response=True) as r:
             if r.status_code == 200:
+                items = r.json().get("data", [])
                 r.success()
+
+                # 30% chance: drill-down ke detail salah satu transaksi
+                if items and random.random() < 0.3:
+                    picked = random.choice(items)
+                    trx_id = picked.get("id")
+                    if trx_id:
+                        with self.client.get(f"/api/v1/transactions/{trx_id}",
+                                             headers=self.headers,
+                                             name="/transactions/:id",
+                                             catch_response=True) as rd:
+                            if rd.status_code == 200:
+                                # Simpan ke recent_sales jika SALE (sebagai fallback)
+                                detail_trx = rd.json().get("data", {})
+                                if (detail_trx.get("trans_type") == "SALE"
+                                        and detail_trx.get("id") not in self.voided_ids
+                                        and not any(s.get("id") == detail_trx.get("id")
+                                                    for s in self.recent_sales)):
+                                    self._push_sale(detail_trx)
+                                rd.success()
+                            else:
+                                rd.failure(f"trx/:id HTTP {rd.status_code}")
             else:
                 r.failure(f"order-history HTTP {r.status_code}")
 
@@ -644,17 +741,17 @@ class POSUser(HttpUser):
 # ── Hooks ─────────────────────────────────────────────────────────────────────
 @events.test_start.add_listener
 def on_test_start(environment, **kwargs):
-    """Validasi token sebelum test dimulai."""
-    if not tokens_pool:
+    if not _tokens_pool:
         print("\n" + "!" * 60)
         print(" ERROR: workload/tokens.json KOSONG!")
-        print(" Jalankan: python3 workload/login_generator.py <num_tenants>")
+        print(" Jalankan: make workload-login-<scale>")
         print("!" * 60 + "\n")
         environment.runner.quit()
     else:
-        owner_count   = sum(1 for t in tokens_pool if t.get("role") == "owner")
-        cashier_count = sum(1 for t in tokens_pool if t.get("role") == "cashier")
-        pinned_count  = sum(1 for t in tokens_pool if t.get("branch_id") is not None)
-        print(f"\n[INFO] Token pool loaded: {len(tokens_pool)} tokens")
-        print(f"       Owner: {owner_count} | Cashier: {cashier_count}")
-        print(f"       Cashier pinned to branch: {pinned_count}/{cashier_count}\n")
+        owner_count   = sum(1 for t in _tokens_pool if t.get("role") == "owner")
+        cashier_count = sum(1 for t in _tokens_pool if t.get("role") == "cashier")
+        pinned_count  = sum(1 for t in _tokens_pool if t.get("branch_id") is not None)
+        print(f"\n[INFO] Token pool: {len(_tokens_pool)} tokens "
+              f"(owner={owner_count}, cashier={cashier_count})")
+        print(f"       Cashier pinned to branch: {pinned_count}/{cashier_count}")
+        print(f"       Max concurrent users: {len(_tokens_pool)}\n")

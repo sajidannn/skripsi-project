@@ -1428,7 +1428,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"branch_id\": 1,\n    \"customer_id\": null,\n    \"tax\": 0,\n    \"discount\": 0,\n    \"note\": \"test sale\",\n    \"items\": [\n        {\n            \"branch_item_id\": 5,\n            \"qty\": 5\n        }\n    ]\n}"
+              "raw": "{\n    \"branch_id\": 1,\n    \"customer_id\": null,\n    \"tax\": 0,\n    \"discount\": 0,\n    \"note\": \"test sale\",\n    \"items\": [\n        {\n            \"branch_item_id\": 5,\n            \"qty\": 5\n        },\n        {\n            \"branch_item_id\": 1501,\n            \"qty\": 5\n        }\n    ]\n}"
             },
             "url": {
               "raw": "{{host}}/api/v1/transactions/sale",
@@ -1685,9 +1685,365 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Remit Branch Balance (Setoran Kas)",
+          "id": "b3070785-8c53-4fc7-b485-9a9dd3f508f8",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500000.00,\n  \"note\": \"Setoran kas harian cabang 1\"\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/transactions/remit/branch/10",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions",
+                "remit",
+                "branch",
+                "10"
+              ]
+            }
+          },
+          "response": []
         }
       ],
       "id": "e3b4a56c-7d8e-4f9a-b0c1-d2e3f4a5b6c7"
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Get Branch Balance",
+          "id": "1c7931a2-6db6-4afc-a771-68e77ea93fa0",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/reports/balance/branch/10?date_from=2026-04-01&date_to=2026-04-30",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "balance",
+                "branch",
+                "10"
+              ],
+              "query": [
+                {
+                  "key": "date_from",
+                  "value": "2026-04-01",
+                  "uuid": "00b31509-eafc-453c-be59-086b06396c52"
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-04-30",
+                  "uuid": "30f00b1a-98d7-4eaa-a584-ab3080d91853"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Tenant Balance",
+          "id": "6bd27668-8bff-47ae-a7bd-dafa7227602e",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/reports/balance/tenant",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "balance",
+                "tenant"
+              ],
+              "query": [
+                {
+                  "key": "date_from",
+                  "value": "2026-04-01",
+                  "uuid": "d12f46b2-c32c-4ea6-bd79-e3f7c3606f28",
+                  "disabled": true
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-04-30",
+                  "uuid": "86f6ee51-651b-401e-a369-d7f40ced67a0",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Inject/Withdraw Capital",
+          "id": "fd777df2-a596-4dd9-8865-a5c1e3024cad",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"direction\": \"IN\",\n  \"amount\": 5000000.00,\n  \"note\": \"Initial Capital Injection\"\n}"
+            },
+            "url": {
+              "raw": "{{host}}/api/v1/reports/balance/tenant/capital",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "balance",
+                "tenant",
+                "capital"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Dashboard Summary",
+          "id": "8d47fbc6-afd5-454b-82c6-bf1501995046",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/reports/summary?branch_id=10&date_from=2026-04-01&date_to=2026-04-30",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "branch_id",
+                  "value": "10",
+                  "uuid": "6e861468-1d10-4c0d-995c-549b19970e02"
+                },
+                {
+                  "key": "date_from",
+                  "value": "2026-04-01",
+                  "uuid": "0291c4be-4d7c-478a-99a9-70bafae2fee7"
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-04-30",
+                  "uuid": "862dab94-7fa0-48f9-915b-23344d4ad5fe"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Top Items",
+          "id": "65a95032-c6f5-48ea-aa92-0c76901be82a",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/reports/top-items?limit=5&sort_by=qty",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "top-items"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "qty"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Low Items",
+          "id": "4ac6f320-a670-4bd3-8fb5-3b2445dbe0b6",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/reports/low-items?limit=5&sort_by=qty",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "low-items"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "qty"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Sales Report (Periodic)",
+          "id": "11ce5dbc-f63b-49f7-a87c-9b9371730006",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/api/v1/reports/sales?date_from=2026-04-01&date_to=2026-04-30&group_by=day",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "sales"
+              ],
+              "query": [
+                {
+                  "key": "date_from",
+                  "value": "2026-04-01"
+                },
+                {
+                  "key": "date_to",
+                  "value": "2026-04-30"
+                },
+                {
+                  "key": "group_by",
+                  "value": "day"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "d985cec8-eb33-41e8-91af-4aca4ad03fe7"
     }
   ]
 }
