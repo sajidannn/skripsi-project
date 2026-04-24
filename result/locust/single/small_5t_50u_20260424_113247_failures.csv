@@ -1,4 +1,0 @@
-Method,Name,Error,Occurrences
-POST,/transactions/purchase,CatchResponseError('purchase HTTP 402'),43
-GET,/reports/balance/branch,CatchResponseError('branch-balance HTTP 403'),76
-POST,/transactions/remit/branch,CatchResponseError('remit HTTP 500'),4
