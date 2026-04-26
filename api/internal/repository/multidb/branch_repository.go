@@ -84,13 +84,29 @@ func (r *BranchRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f 
 		where += fmt.Sprintf(" AND created_at <= $%d", len(args))
 	}
 
-	args = append(args, q.Limit, q.Offset())
-	limitIdx := len(args) - 1
-	offsetIdx := len(args)
+	// Query 1: Count total
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM branches
+		%s`, where)
+
+	var total int
+	err = pool.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("multidb.BranchRepo.List count: %w", err)
+	}
+
+	if total == 0 {
+		return []model.Branch{}, 0, nil
+	}
+
+	// Query 2: Get data
+	dataArgs := append(args, q.Limit, q.Offset())
+	limitIdx := len(dataArgs) - 1
+	offsetIdx := len(dataArgs)
 
 	query := fmt.Sprintf(`
-		SELECT id, name, phone, address, opening_balance, created_at,
-		       COUNT(*) OVER() AS total_count
+		SELECT id, name, phone, address, opening_balance, created_at
 		FROM branches
 		%s
 		ORDER BY %s %s
@@ -98,19 +114,16 @@ func (r *BranchRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f 
 		where, q.Sort, q.Order, limitIdx, offsetIdx,
 	)
 
-	rows, err := pool.Query(ctx, query, args...)
+	rows, err := pool.Query(ctx, query, dataArgs...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("multidb.BranchRepo.List: %w", err)
+		return nil, 0, fmt.Errorf("multidb.BranchRepo.List data: %w", err)
 	}
 	defer rows.Close()
 
-	var (
-		list  []model.Branch
-		total int
-	)
+	var list []model.Branch
 	for rows.Next() {
 		var b model.Branch
-		if err := rows.Scan(&b.ID, &b.Name, &b.Phone, &b.Address, &b.OpeningBalance, &b.CreatedAt, &total); err != nil {
+		if err := rows.Scan(&b.ID, &b.Name, &b.Phone, &b.Address, &b.OpeningBalance, &b.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("multidb.BranchRepo.List scan: %w", err)
 		}
 		b.TenantID = tenantID

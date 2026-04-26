@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS branch_items (
     updated_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE (tenant_id, branch_id, item_id)
 );
-CREATE INDEX IF NOT EXISTS idx_branch_items_tenant ON branch_items(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_branch_items_tenant_branch ON branch_items(tenant_id, branch_id, item_id);
 
 CREATE TABLE IF NOT EXISTS warehouse_items (
     id           SERIAL PRIMARY KEY,
@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS warehouse_items (
     updated_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE (tenant_id, warehouse_id, item_id)
 );
-CREATE INDEX IF NOT EXISTS idx_warehouse_items_tenant ON warehouse_items(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_warehouse_items_tenant_warehouse ON warehouse_items(tenant_id, warehouse_id, item_id);
 
 CREATE TABLE IF NOT EXISTS users (
     id          SERIAL PRIMARY KEY,
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS customers (
     email       TEXT,
     created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_customers_tenant_branch ON customers(tenant_id, branch_id);
 
 DO $$ BEGIN
     CREATE TYPE transaction_type AS ENUM ('SALE', 'PURC', 'TRANSFER', 'RETURN', 'RETURN_PURC', 'VOID');
@@ -123,9 +123,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     UNIQUE (tenant_id, trxno),
     CHECK (branch_id IS NOT NULL OR warehouse_id IS NOT NULL)
 );
-CREATE INDEX IF NOT EXISTS idx_transactions_tenant ON transactions(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_branch ON transactions(branch_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_warehouse ON transactions(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_tenant_branch_created ON transactions(tenant_id, branch_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_tenant_warehouse_created ON transactions(tenant_id, warehouse_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(trans_type);
 
 CREATE TABLE IF NOT EXISTS transaction_detail (
@@ -155,7 +154,7 @@ CREATE TABLE IF NOT EXISTS audit_stock (
     user_id           INT REFERENCES users(id),
     created_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_audit_stock_tenant ON audit_stock(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_audit_stock_tenant_created ON audit_stock(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_stock_user ON audit_stock(user_id);
 
 DO $$ BEGIN
@@ -173,7 +172,7 @@ CREATE TABLE IF NOT EXISTS branch_cashflow (
     note           TEXT,
     created_at     TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_branch_cashflow_tenant ON branch_cashflow(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_branch_cashflow_tenant_branch_created ON branch_cashflow(tenant_id, branch_id, created_at DESC);
 
 DO $$ BEGIN
     CREATE TYPE tenant_flow_type AS ENUM ('SALE', 'PURC', 'WITHDRAW', 'ADJUSTMENT', 'RETURN', 'RETURN_PURC');
@@ -189,4 +188,4 @@ CREATE TABLE IF NOT EXISTS tenant_cashflow (
     note           TEXT,
     created_at     TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_tenant_cashflow_tenant ON tenant_cashflow(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_cashflow_tenant_created ON tenant_cashflow(tenant_id, created_at DESC);

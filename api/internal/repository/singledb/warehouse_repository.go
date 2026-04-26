@@ -86,13 +86,29 @@ func (r *WarehouseRepo) List(ctx context.Context, tenantID int, q dto.PageQuery,
 		where += fmt.Sprintf(" AND created_at <= $%d", len(args))
 	}
 
-	args = append(args, q.Limit, q.Offset())
-	limitIdx := len(args) - 1
-	offsetIdx := len(args)
+	// Query 1: Count total
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM warehouses
+		%s`, where)
+
+	var total int
+	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("singledb.WarehouseRepo.List count: %w", err)
+	}
+
+	if total == 0 {
+		return []model.Warehouse{}, 0, nil
+	}
+
+	// Query 2: Get data
+	dataArgs := append(args, q.Limit, q.Offset())
+	limitIdx := len(dataArgs) - 1
+	offsetIdx := len(dataArgs)
 
 	query := fmt.Sprintf(`
-		SELECT id, tenant_id, name, created_at,
-		       COUNT(*) OVER() AS total_count
+		SELECT id, tenant_id, name, created_at
 		FROM warehouses
 		%s
 		ORDER BY %s %s
@@ -100,19 +116,16 @@ func (r *WarehouseRepo) List(ctx context.Context, tenantID int, q dto.PageQuery,
 		where, q.Sort, q.Order, limitIdx, offsetIdx,
 	)
 
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := r.db.Query(ctx, query, dataArgs...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("singledb.WarehouseRepo.List: %w", err)
+		return nil, 0, fmt.Errorf("singledb.WarehouseRepo.List data: %w", err)
 	}
 	defer rows.Close()
 
-	var (
-		list  []model.Warehouse
-		total int
-	)
+	var list []model.Warehouse
 	for rows.Next() {
 		var w model.Warehouse
-		if err := rows.Scan(&w.ID, &w.TenantID, &w.Name, &w.CreatedAt, &total); err != nil {
+		if err := rows.Scan(&w.ID, &w.TenantID, &w.Name, &w.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("singledb.WarehouseRepo.List scan: %w", err)
 		}
 		list = append(list, w)

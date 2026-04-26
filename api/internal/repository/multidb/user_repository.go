@@ -110,13 +110,29 @@ func (r *UserRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dt
 		where += fmt.Sprintf(" AND created_at <= $%d", len(args))
 	}
 
-	args = append(args, q.Limit, q.Offset())
-	limitIdx := len(args) - 1
-	offsetIdx := len(args)
+	// Query 1: Count total
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM users
+		%s`, where)
+
+	var total int
+	err = pool.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("multidb.UserRepo.List count: %w", err)
+	}
+
+	if total == 0 {
+		return []model.User{}, 0, nil
+	}
+
+	// Query 2: Get data
+	dataArgs := append(args, q.Limit, q.Offset())
+	limitIdx := len(dataArgs) - 1
+	offsetIdx := len(dataArgs)
 
 	query := fmt.Sprintf(`
-		SELECT id, name, email, role, created_at,
-		       COUNT(*) OVER() AS total_count
+		SELECT id, name, email, role, created_at
 		FROM users
 		%s
 		ORDER BY %s %s
@@ -124,19 +140,16 @@ func (r *UserRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dt
 		where, q.Sort, q.Order, limitIdx, offsetIdx,
 	)
 
-	rows, err := pool.Query(ctx, query, args...)
+	rows, err := pool.Query(ctx, query, dataArgs...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("multidb.UserRepo.List: %w", err)
+		return nil, 0, fmt.Errorf("multidb.UserRepo.List data: %w", err)
 	}
 	defer rows.Close()
 
-	var (
-		list  []model.User
-		total int
-	)
+	var list []model.User
 	for rows.Next() {
 		var u model.User
-		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.Role, &u.CreatedAt, &total); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.Role, &u.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("multidb.UserRepo.List scan: %w", err)
 		}
 		u.TenantID = tenantID

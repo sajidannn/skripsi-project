@@ -51,14 +51,31 @@ func (r *InventoryRepo) ListByBranch(ctx context.Context, tenantID, branchID int
 		where += fmt.Sprintf(" AND bi.updated_at <= $%d", len(args))
 	}
 
-	args = append(args, q.Limit, q.Offset())
-	limitIdx := len(args) - 1
-	offsetIdx := len(args)
+	// Query 1: Count total
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM branch_items bi
+		JOIN items it ON it.id = bi.item_id
+		%s`, where)
+
+	var total int
+	err = pool.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("multidb.InventoryRepo.ListByBranch count: %w", err)
+	}
+
+	if total == 0 {
+		return []model.BranchItem{}, 0, nil
+	}
+
+	// Query 2: Get data
+	dataArgs := append(args, q.Limit, q.Offset())
+	limitIdx := len(dataArgs) - 1
+	offsetIdx := len(dataArgs)
 
 	query := fmt.Sprintf(`
 		SELECT bi.id, bi.branch_id, bi.item_id,
-		       it.name, it.sku, bi.stock, it.cost, it.price, bi.price, COALESCE(bi.margin_threshold, it.margin_threshold), bi.updated_at,
-		       COUNT(*) OVER() AS total_count
+		       it.name, it.sku, bi.stock, it.cost, it.price, bi.price, COALESCE(bi.margin_threshold, it.margin_threshold), bi.updated_at
 		FROM branch_items bi
 		JOIN items it ON it.id = bi.item_id
 		%s
@@ -67,20 +84,17 @@ func (r *InventoryRepo) ListByBranch(ctx context.Context, tenantID, branchID int
 		where, q.Sort, q.Order, limitIdx, offsetIdx,
 	)
 
-	rows, err := pool.Query(ctx, query, args...)
+	rows, err := pool.Query(ctx, query, dataArgs...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("multidb.InventoryRepo.ListByBranch: %w", err)
+		return nil, 0, fmt.Errorf("multidb.InventoryRepo.ListByBranch data: %w", err)
 	}
 	defer rows.Close()
 
-	var (
-		list  []model.BranchItem
-		total int
-	)
+	var list []model.BranchItem
 	for rows.Next() {
 		var bi model.BranchItem
 		if err := rows.Scan(&bi.ID, &bi.BranchID, &bi.ItemID,
-			&bi.ItemName, &bi.SKU, &bi.Stock, &bi.Cost, &bi.BasePrice, &bi.BranchPrice, &bi.MarginThreshold, &bi.UpdatedAt, &total); err != nil {
+			&bi.ItemName, &bi.SKU, &bi.Stock, &bi.Cost, &bi.BasePrice, &bi.BranchPrice, &bi.MarginThreshold, &bi.UpdatedAt); err != nil {
 			return nil, 0, fmt.Errorf("multidb.InventoryRepo.ListByBranch scan: %w", err)
 		}
 		bi.TenantID = tenantID
@@ -116,14 +130,31 @@ func (r *InventoryRepo) ListByWarehouse(ctx context.Context, tenantID, warehouse
 		where += fmt.Sprintf(" AND wi.updated_at <= $%d", len(args))
 	}
 
-	args = append(args, q.Limit, q.Offset())
-	limitIdx := len(args) - 1
-	offsetIdx := len(args)
+	// Query 1: Count total
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM warehouse_items wi
+		JOIN items it ON it.id = wi.item_id
+		%s`, where)
+
+	var total int
+	err = pool.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("multidb.InventoryRepo.ListByWarehouse count: %w", err)
+	}
+
+	if total == 0 {
+		return []model.WarehouseItem{}, 0, nil
+	}
+
+	// Query 2: Get data
+	dataArgs := append(args, q.Limit, q.Offset())
+	limitIdx := len(dataArgs) - 1
+	offsetIdx := len(dataArgs)
 
 	query := fmt.Sprintf(`
 		SELECT wi.id, wi.warehouse_id, wi.item_id,
-		       it.name, it.sku, it.cost, it.price, wi.stock, wi.updated_at,
-		       COUNT(*) OVER() AS total_count
+		       it.name, it.sku, it.cost, it.price, wi.stock, wi.updated_at
 		FROM warehouse_items wi
 		JOIN items it ON it.id = wi.item_id
 		%s
@@ -132,20 +163,17 @@ func (r *InventoryRepo) ListByWarehouse(ctx context.Context, tenantID, warehouse
 		where, q.Sort, q.Order, limitIdx, offsetIdx,
 	)
 
-	rows, err := pool.Query(ctx, query, args...)
+	rows, err := pool.Query(ctx, query, dataArgs...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("multidb.InventoryRepo.ListByWarehouse: %w", err)
+		return nil, 0, fmt.Errorf("multidb.InventoryRepo.ListByWarehouse data: %w", err)
 	}
 	defer rows.Close()
 
-	var (
-		list  []model.WarehouseItem
-		total int
-	)
+	var list []model.WarehouseItem
 	for rows.Next() {
 		var wi model.WarehouseItem
 		if err := rows.Scan(&wi.ID, &wi.WarehouseID, &wi.ItemID,
-			&wi.ItemName, &wi.SKU, &wi.Cost, &wi.Price, &wi.Stock, &wi.UpdatedAt, &total); err != nil {
+			&wi.ItemName, &wi.SKU, &wi.Cost, &wi.Price, &wi.Stock, &wi.UpdatedAt); err != nil {
 			return nil, 0, fmt.Errorf("multidb.InventoryRepo.ListByWarehouse scan: %w", err)
 		}
 		wi.TenantID = tenantID

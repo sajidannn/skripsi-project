@@ -117,14 +117,29 @@ func (r *ItemRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dt
 		where += fmt.Sprintf(" AND created_at <= $%d", len(args))
 	}
 
+	// Query 1: Count total
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM items
+		%s`, where)
+
+	var total int
+	err = pool.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("multidb.ItemRepo.List count: %w", err)
+	}
+
+	if total == 0 {
+		return []model.Item{}, 0, nil
+	}
+
 	// --- pagination args (always last) ---
-	args = append(args, q.Limit, q.Offset())
-	limitIdx := len(args) - 1
-	offsetIdx := len(args)
+	dataArgs := append(args, q.Limit, q.Offset())
+	limitIdx := len(dataArgs) - 1
+	offsetIdx := len(dataArgs)
 
 	query := fmt.Sprintf(`
-		SELECT id, name, sku, cost, price, margin_threshold, COALESCE(description,''), created_at, updated_at,
-		       COUNT(*) OVER() AS total_count
+		SELECT id, name, sku, cost, price, margin_threshold, COALESCE(description,''), created_at, updated_at
 		FROM items
 		%s
 		ORDER BY %s %s
@@ -132,20 +147,17 @@ func (r *ItemRepo) List(ctx context.Context, tenantID int, q dto.PageQuery, f dt
 		where, q.Sort, q.Order, limitIdx, offsetIdx,
 	)
 
-	rows, err := pool.Query(ctx, query, args...)
+	rows, err := pool.Query(ctx, query, dataArgs...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("multidb.ItemRepo.List: %w", err)
+		return nil, 0, fmt.Errorf("multidb.ItemRepo.List data: %w", err)
 	}
 	defer rows.Close()
 
-	var (
-		list  []model.Item
-		total int
-	)
+	var list []model.Item
 	for rows.Next() {
 		var it model.Item
 		if err := rows.Scan(&it.ID, &it.Name, &it.SKU, &it.Cost, &it.Price,
-			&it.MarginThreshold, &it.Description, &it.CreatedAt, &it.UpdatedAt, &total); err != nil {
+			&it.MarginThreshold, &it.Description, &it.CreatedAt, &it.UpdatedAt); err != nil {
 			return nil, 0, fmt.Errorf("multidb.ItemRepo.List scan: %w", err)
 		}
 		it.TenantID = tenantID

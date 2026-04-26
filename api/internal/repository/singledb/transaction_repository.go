@@ -1201,15 +1201,31 @@ func (r *TransactionRepo) List(ctx context.Context, tenantID int, q dto.PageQuer
 		where += fmt.Sprintf(" AND created_at <= $%d", len(args))
 	}
 
-	args = append(args, q.Limit, q.Offset())
-	limitIdx := len(args) - 1
-	offsetIdx := len(args)
+	// Query 1: Count total
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM transactions
+		%s`, where)
+
+	var total int
+	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("singledb.TransactionRepo.List count: %w", err)
+	}
+
+	if total == 0 {
+		return []model.Transaction{}, 0, nil
+	}
+
+	// Query 2: Get data
+	dataArgs := append(args, q.Limit, q.Offset())
+	limitIdx := len(dataArgs) - 1
+	offsetIdx := len(dataArgs)
 
 	query := fmt.Sprintf(`
 		SELECT id, tenant_id, trxno, branch_id, warehouse_id, customer_id, supplier_id,
 		       user_id, trans_type, total_amount, tax, discount, reference_transaction_id,
-		       note, created_at,
-		       COUNT(*) OVER() AS total_count
+		       note, created_at
 		FROM transactions
 		%s
 		ORDER BY %s %s
@@ -1217,23 +1233,20 @@ func (r *TransactionRepo) List(ctx context.Context, tenantID int, q dto.PageQuer
 		where, q.Sort, q.Order, limitIdx, offsetIdx,
 	)
 
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := r.db.Query(ctx, query, dataArgs...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("singledb.TransactionRepo.List: %w", err)
+		return nil, 0, fmt.Errorf("singledb.TransactionRepo.List data: %w", err)
 	}
 	defer rows.Close()
 
-	var (
-		list  []model.Transaction
-		total int
-	)
+	var list []model.Transaction
 	for rows.Next() {
 		var trx model.Transaction
 		if err := rows.Scan(
 			&trx.ID, &trx.TenantID, &trx.TrxNo, &trx.BranchID, &trx.WarehouseID,
 			&trx.CustomerID, &trx.SupplierID, &trx.UserID, &trx.TransType,
 			&trx.TotalAmount, &trx.Tax, &trx.Discount, &trx.ReferenceTransactionID,
-			&trx.Note, &trx.CreatedAt, &total,
+			&trx.Note, &trx.CreatedAt,
 		); err != nil {
 			return nil, 0, fmt.Errorf("singledb.TransactionRepo.List scan: %w", err)
 		}
