@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -105,15 +106,25 @@ func (m *Manager) Pool(ctx context.Context, tenantID int) (*pgxpool.Pool, error)
 		port = tenant.DBPort
 	}
 
-	// Keep per-tenant pool small: for a thesis load-test with ≤500 tenants,
-	// 2 min / 4 max connections per tenant is sufficient and avoids exhausting
-	// Postgres max_connections without needing PGBouncer.
+	// Build DSN
 	dsn := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable&pool_min_conns=2&pool_max_conns=4",
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		tenant.DBUser, tenant.DBPass, host, port, tenant.DBName,
 	)
 
-	pool, err := pgxpool.New(ctx, dsn)
+	config, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("multidb: failed to parse config for tenant %d: %w", tenantID, err)
+	}
+
+	// Keep per-tenant pool small: for a thesis load-test with ≤500 tenants,
+	// min=0 allows total closure of connections when idle, and max=4
+	// connections per tenant avoids exhausting Postgres max_connections.
+	config.MinConns = 0
+	config.MaxConns = 4
+	config.MaxConnIdleTime = 2 * time.Minute
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("multidb: failed to create pool for tenant %d: %w", tenantID, err)
 	}
