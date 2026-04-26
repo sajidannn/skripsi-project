@@ -62,11 +62,11 @@ echo ""
 echo ">>> STEP 2: Menjalankan Locust workload..."
 echo ""
 
-RESULT_DIR="result/locust/$DB_MODE"
-mkdir -p "$RESULT_DIR"
-
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 PREFIX="${TAG}_${SCALE}t_${USERS}u_${TIMESTAMP}"
+
+RESULT_DIR="result/locust/$DB_MODE/$PREFIX"
+mkdir -p "$RESULT_DIR"
 
 # Catat waktu mulai test (Unix timestamp) untuk export Prometheus nanti
 TEST_START_TS=$(date +%s)
@@ -80,8 +80,8 @@ if [ "$HEADLESS" = "true" ]; then
         --run-time="$RUN_TIME" \
         --headless \
         --only-summary \
-        --csv="$RESULT_DIR/$PREFIX" \
-        --html="$RESULT_DIR/$PREFIX.html" || true
+        --csv="$RESULT_DIR/locust" \
+        --html="$RESULT_DIR/report.html" || true
 else
     echo "Mode UI: Buka http://localhost:8089 di browser kamu."
     echo "  Users target  : $USERS"
@@ -95,8 +95,8 @@ else
         --users="$USERS" \
         --spawn-rate="$SPAWN_RATE" \
         --run-time="$RUN_TIME" \
-        --csv="$RESULT_DIR/$PREFIX" \
-        --html="$RESULT_DIR/$PREFIX.html" || true
+        --csv="$RESULT_DIR/locust" \
+        --html="$RESULT_DIR/report.html" || true
 fi
 
 # Catat waktu selesai
@@ -105,8 +105,8 @@ TEST_END_TS=$(date +%s)
 echo ""
 echo "=========================================================="
 echo "  Locust selesai!"
-echo "  - CSV : result/locust/$DB_MODE/$PREFIX*.csv"
-echo "  - HTML: result/locust/$DB_MODE/$PREFIX.html"
+echo "  - CSV : $RESULT_DIR/locust*.csv"
+echo "  - HTML: $RESULT_DIR/report.html"
 echo "=========================================================="
 echo ""
 
@@ -123,6 +123,6 @@ python3 workload/export_metrics.py \
 echo ""
 echo "=========================================================="
 echo "  Semua hasil tersimpan:"
-echo "  - Locust CSV/HTML  : result/locust/$DB_MODE/$PREFIX*"
+echo "  - Locust CSV/HTML  : $RESULT_DIR/"
 echo "  - Prometheus CSV   : result/prometheus/$DB_MODE/$PREFIX/"
 echo "=========================================================="

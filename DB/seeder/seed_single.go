@@ -286,9 +286,12 @@ func insertTenantCashflowSingle(ctx context.Context, pool *pgxpool.Pool, gen *Ge
 	for _, br := range gen.Branches {
 		tenantBalance[br.TenantID] += br.OpeningBalance
 	}
-	tenantRows := make([][]any, 0, len(gen.Tenants))
+	tenantRows := make([][]any, 0, len(gen.Tenants)*2)
 	for _, t := range gen.Tenants {
+		// 1. Initial balance derived from branches
 		tenantRows = append(tenantRows, []any{t.ID, "ADJUSTMENT", "IN", fmt.Sprintf("%d.00", tenantBalance[t.ID]), ts})
+		// 2. Suntikan Dana Awal (Capital Injection) 50 Miliar untuk testing beban
+		tenantRows = append(tenantRows, []any{t.ID, "ADJUSTMENT", "IN", "50000000000.00", ts})
 	}
 	_, err = pool.CopyFrom(ctx,
 		pgx.Identifier{"tenant_cashflow"},

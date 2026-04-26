@@ -238,7 +238,9 @@ func seedTenantDB(ctx context.Context, pool *pgxpool.Pool, gen *Generator, tenan
 		return fmt.Errorf("branch_cashflow: %w", err)
 	}
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO tenant_cashflow (flow_type, direction, amount) VALUES ('ADJUSTMENT', 'IN', $1)`,
+		`INSERT INTO tenant_cashflow (flow_type, direction, amount) VALUES 
+		('ADJUSTMENT', 'IN', $1), 
+		('ADJUSTMENT', 'IN', '50000000000.00')`,
 		fmt.Sprintf("%d.00", totalBalance),
 	); err != nil {
 		return fmt.Errorf("tenant_cashflow: %w", err)
@@ -293,7 +295,8 @@ func recreateDB(ctx context.Context, adminDSN, dbName string) error {
 // stripDBFromDSN removes the database name from a DSN, returning just
 // the connection prefix. Handles both URL and key=value formats.
 // e.g. "postgres://user:pass@host:5432/dbname?sslmode=disable"
-//       → "postgres://user:pass@host:5432"
+//
+//	→ "postgres://user:pass@host:5432"
 func stripDBFromDSN(dsn string) string {
 	// URL format
 	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
