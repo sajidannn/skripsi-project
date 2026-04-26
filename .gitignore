@@ -41,3 +41,6 @@ tmp/
 
 # Results
 result/
+
+# Workload
+workload/tokens.json

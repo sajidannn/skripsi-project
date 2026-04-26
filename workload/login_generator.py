@@ -101,21 +101,32 @@ def fetch_tenant_branches(token: str, tenant_id: int) -> list:
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python login_generator.py <num_tenants>")
-        print("  num_tenants: 5 (small) | 10 (medium) | 50 (large)")
-        return
-
     try:
         num_tenants = int(sys.argv[1])
-    except ValueError:
-        print("num_tenants must be an integer (5, 10, 50)")
+        total_users_target = int(sys.argv[2])
+    except (ValueError, IndexError):
+        print("Usage: python login_generator.py <num_tenants> <total_users>")
+        print("  Example: python login_generator.py 10 100")
         sys.exit(1)
 
-    total_users_expected = num_tenants * (1 + CASHIERS_PER_TENANT)
+    # Strategi: Setiap tenant wajib 1 owner, sisanya adalah kasir
+    if total_users_target < num_tenants:
+        print(f"ERROR: total_users ({total_users_target}) minimal harus sama dengan num_tenants ({num_tenants})")
+        sys.exit(1)
+
+    owners_needed = num_tenants
+    cashiers_needed = total_users_target - owners_needed
+    
+    base_cashiers_per_t = cashiers_needed // num_tenants
+    extra_cashiers = cashiers_needed % num_tenants
+
     print(f"Generating tokens for {num_tenants} tenants...")
-    print(f"  Kasir per tenant    : {CASHIERS_PER_TENANT}")
-    print(f"  Total user (expect) : {total_users_expected} (1 owner + {CASHIERS_PER_TENANT} kasir)")
+    print(f"  Target Total Users  : {total_users_target}")
+    print(f"  Distribusi per Tenant:")
+    print(f"    - Owner           : 1 per tenant (Total: {owners_needed})")
+    print(f"    - Kasir (base)    : {base_cashiers_per_t} per tenant")
+    if extra_cashiers > 0:
+        print(f"    - Kasir (extra)   : +1 untuk {extra_cashiers} tenant pertama")
     print()
 
     tokens = []
@@ -171,14 +182,13 @@ def main():
         branch_ids = [b["id"] for b in real_branches]
         print(f"  ✓ Branch : {len(real_branches)} branch ditemukan → IDs: {branch_ids}")
 
-        if len(real_branches) < CASHIERS_PER_TENANT:
-            print(f"  WARN: Hanya {len(real_branches)} branch, tapi expect {CASHIERS_PER_TENANT}. "
-                  f"Beberapa kasir akan berbagi branch.")
-
         # ── STEP 3: Login Kasir & Pin ke Branch ASLI ──────────────────────────
-        # Kasir ke-N mendapat branch ke-N dari daftar real_branches.
-        # Jika branch lebih sedikit dari kasir, kasir sisa di-assign round-robin.
-        for branch_idx in range(1, CASHIERS_PER_TENANT + 1):
+        # Tentukan berapa kasir untuk tenant ini
+        my_cashiers_count = base_cashiers_per_t
+        if tenant_id <= extra_cashiers:
+            my_cashiers_count += 1
+
+        for branch_idx in range(1, my_cashiers_count + 1):
             cashier_email = f"kasir.{tenant_id:03}.{branch_idx:03}@tenant-{tenant_id:03}.test"
             token = login_user(cashier_email, "cashier123", tenant_id)
 
@@ -205,9 +215,9 @@ def main():
         json.dump(tokens, f, indent=2)
 
     success = len(tokens)
-    failed  = total_users_expected - success
+    failed  = total_users_target - success
     print("=" * 50)
-    print(f"SUCCESS : {success}/{total_users_expected} tokens saved → {OUTPUT_FILE}")
+    print(f"SUCCESS : {success}/{total_users_target} tokens saved → {OUTPUT_FILE}")
     if branch_verification_failures > 0:
         print(f"WARN    : {branch_verification_failures} tenant(s) gagal verifikasi branch.")
     if failed > 0:

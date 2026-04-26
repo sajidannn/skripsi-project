@@ -39,7 +39,7 @@ echo ""
 if [ "$SKIP_LOGIN" != "true" ]; then
     echo ">>> STEP 1: Login dan caching token JWT..."
     export API_URL=$API_URL
-    python3 workload/login_generator.py $SCALE
+    python3 workload/login_generator.py $SCALE $USERS
 
     if [ $? -ne 0 ]; then
         echo "ERROR: login_generator.py gagal. Pastikan API berjalan di $API_URL"
