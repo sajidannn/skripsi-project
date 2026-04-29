@@ -15,19 +15,20 @@ services:
       - "9090:9090"
     restart: unless-stopped
 
-  # ── Grafana (Lokal / Laptop) ──────────────────────────────────────────────
   grafana:
-    image: grafana/grafana:10.4.2
+    image: grafana/grafana:latest
     container_name: pos-grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ../result:/var/lib/grafana/csv_data:ro
     ports:
       - "3000:3000"
     depends_on:

@@ -1,0 +1,11 @@
+apiVersion: 1
+
+datasources:
+  - name: Infinity-CSV
+    type: yesoreyeram-infinity-datasource
+    uid: infinity-csv
+    access: proxy
+    editable: true
+    jsonData:
+      allow_local_mode: true
+      is_local_allow: true
