@@ -24,6 +24,9 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_ANALYTICS_REPORTING_ENABLED=false
       - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource
+      - GF_RENDERING_SERVER_URL=http://renderer:8081/render
+      - GF_RENDERING_CALLBACK_URL=http://pos-grafana:3000/
+      - GF_RENDERING_RENDERER_TOKEN=pos_secret_token_123
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -33,6 +36,14 @@ services:
       - "3000:3000"
     depends_on:
       - prometheus
+      - renderer
+    restart: unless-stopped
+
+  renderer:
+    image: grafana/grafana-image-renderer:latest
+    container_name: pos-renderer
+    environment:
+      - AUTH_TOKEN=pos_secret_token_123
     restart: unless-stopped
 
 volumes:

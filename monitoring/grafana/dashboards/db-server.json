@@ -259,12 +259,91 @@
           "refId": "A"
         }
       ],
-      "title": "PostgreSQL Lock Wait",
+      "title": "PostgreSQL Lock Count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "short",
+          "min": 0
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 27 },
+      "id": 11,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus" },
+          "expr": "rate(pg_stat_database_xact_commit{job=\"postgres_exporter\"}[$__rate_interval])",
+          "legendFormat": "Commits/s — {{datname}}",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus" },
+          "expr": "rate(pg_stat_database_xact_rollback{job=\"postgres_exporter\"}[$__rate_interval])",
+          "legendFormat": "Rollbacks/s — {{datname}}",
+          "refId": "B"
+        }
+      ],
+      "title": "PostgreSQL Transaction Rate (Commit/Rollback)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 27 },
+      "id": 12,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus" },
+          "expr": "100 * (sum by (datname) (rate(pg_stat_database_blks_hit{job=\"postgres_exporter\"}[$__rate_interval])) / (sum by (datname) (rate(pg_stat_database_blks_hit{job=\"postgres_exporter\"}[$__rate_interval])) + sum by (datname) (rate(pg_stat_database_blks_read{job=\"postgres_exporter\"}[$__rate_interval])) > 0))",
+          "legendFormat": "Cache Hit — {{datname}}",
+          "refId": "A"
+        }
+      ],
+      "title": "PostgreSQL Cache Hit Ratio",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "short",
+          "min": 0
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 27 },
+      "id": 13,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus" },
+          "expr": "pg_stat_database_deadlocks{job=\"postgres_exporter\"}",
+          "legendFormat": "Deadlocks — {{datname}}",
+          "refId": "A"
+        }
+      ],
+      "title": "PostgreSQL Deadlocks",
       "type": "timeseries"
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
       "id": 103,
       "title": "CPU Breakdown by Mode",
       "type": "row"
@@ -280,7 +359,7 @@
           "max": 100
         }
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 28 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 36 },
       "id": 8,
       "options": { "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [

@@ -54,22 +54,22 @@ METRICS = [
     (
         "network_in_api",
         "Network Receive API (bytes/s)",
-        'rate(node_network_receive_bytes_total{vm="vm1", device!="lo"}[1m])',
+        'rate(node_network_receive_bytes_total{vm="vm1", device!~"lo|docker.*|br.*"}[1m])',
     ),
     (
         "network_out_api",
         "Network Transmit API (bytes/s)",
-        'rate(node_network_transmit_bytes_total{vm="vm1", device!="lo"}[1m])',
+        'rate(node_network_transmit_bytes_total{vm="vm1", device!~"lo|docker.*|br.*"}[1m])',
     ),
     (
         "container_cpu_api",
         "Container CPU API (cores)",
-        'rate(container_cpu_usage_seconds_total{vm="vm1", name=~"pos-api.*", name!=""}[1m])',
+        'rate(container_cpu_usage_seconds_total{vm="vm1", name=~"pos-api.*", name!=""}[1m]) * 100',
     ),
     (
         "container_memory_api",
         "Container Memory API (bytes)",
-        'container_memory_usage_bytes{vm="vm1", name=~"pos-api.*", name!=""}',
+        'container_memory_working_set_bytes{vm="vm1", name=~"pos-api.*", name!=""}',
     ),
 
     # ── DB Server (VM2) ───────────────────────────────────────────────────────
@@ -84,26 +84,51 @@ METRICS = [
         'node_memory_MemTotal_bytes{vm="vm2"} - node_memory_MemAvailable_bytes{vm="vm2"}',
     ),
     (
+        "memory_db_percent",
+        "Memory Usage DB Server (%)",
+        '100 - (node_memory_MemAvailable_bytes{vm="vm2"} / node_memory_MemTotal_bytes{vm="vm2"} * 100)',
+    ),
+    (
+        "disk_read_db",
+        "Disk Read Throughput DB (bytes/s)",
+        'rate(node_disk_read_bytes_total{vm="vm2", device!~"sr.*|loop.*"}[1m])',
+    ),
+    (
+        "disk_write_db",
+        "Disk Write Throughput DB (bytes/s)",
+        'rate(node_disk_written_bytes_total{vm="vm2", device!~"sr.*|loop.*"}[1m])',
+    ),
+    (
+        "disk_read_latency_db",
+        "Disk Read Latency DB (ms)",
+        'rate(node_disk_read_time_seconds_total{vm="vm2", device!~"sr.*|loop.*"}[1m]) / rate(node_disk_reads_completed_total{vm="vm2", device!~"sr.*|loop.*"}[1m]) * 1000',
+    ),
+    (
+        "disk_write_latency_db",
+        "Disk Write Latency DB (ms)",
+        'rate(node_disk_write_time_seconds_total{vm="vm2", device!~"sr.*|loop.*"}[1m]) / rate(node_disk_writes_completed_total{vm="vm2", device!~"sr.*|loop.*"}[1m]) * 1000',
+    ),
+    (
         "network_in_db",
         "Network Receive DB (bytes/s)",
-        'rate(node_network_receive_bytes_total{vm="vm2", device!="lo"}[1m])',
+        'rate(node_network_receive_bytes_total{vm="vm2", device!~"lo|docker.*|br.*"}[1m])',
+    ),
+    (
+        "network_out_db",
+        "Network Transmit DB (bytes/s)",
+        'rate(node_network_transmit_bytes_total{vm="vm2", device!~"lo|docker.*|br.*"}[1m])',
     ),
 
     # ── PostgreSQL ────────────────────────────────────────────────────────────
     (
         "pg_connections",
         "PostgreSQL Active Connections",
-        'pg_stat_activity_count{state="active"}',
+        'pg_stat_activity_count',
     ),
     (
-        "pg_connections_total",
-        "PostgreSQL Total Connections",
-        "pg_stat_activity_count",
-    ),
-    (
-        "pg_tup_fetched",
-        "PostgreSQL Rows Fetched (rate/s)",
-        "rate(pg_stat_database_tup_fetched[1m])",
+        "pg_tup_returned",
+        "PostgreSQL Rows Returned/Read (rate/s)",
+        "rate(pg_stat_database_tup_returned[1m])",
     ),
     (
         "pg_tup_inserted",
@@ -117,7 +142,7 @@ METRICS = [
     ),
     (
         "pg_locks",
-        "PostgreSQL Locks",
+        "PostgreSQL Locks Count",
         "pg_locks_count",
     ),
     (
@@ -132,13 +157,13 @@ METRICS = [
     ),
     (
         "pg_deadlocks",
-        "PostgreSQL Deadlocks (rate/s)",
-        "rate(pg_stat_database_deadlocks[1m])",
+        "PostgreSQL Deadlocks (count)",
+        "pg_stat_database_deadlocks",
     ),
     (
         "pg_blk_hit_ratio",
-        "PostgreSQL Cache Hit Ratio",
-        "pg_stat_database_blks_hit / (pg_stat_database_blks_hit + pg_stat_database_blks_read + 1)",
+        "PostgreSQL Cache Hit Ratio (%)",
+        "100 * (sum by (datname) (rate(pg_stat_database_blks_hit[1m])) / (sum by (datname) (rate(pg_stat_database_blks_hit[1m])) + sum by (datname) (rate(pg_stat_database_blks_read[1m])) > 0))",
     ),
 ]
 

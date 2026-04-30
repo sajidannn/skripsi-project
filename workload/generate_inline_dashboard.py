@@ -54,7 +54,23 @@ def make_panel(base_path, pid, title, csv_file, x, y, w=12, h=8, unit="percent",
     target = make_target(base_path, csv_file)
     if target is None:
         return None
-    fc = {"defaults": {"unit": unit, "min": min_}, "overrides": []}
+    fc = {
+        "defaults": {
+            "unit": unit, 
+            "min": min_,
+            "color": {"mode": "palette-classic"},
+            "custom": {
+                "lineWidth": 2,
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "showPoints": "auto",
+                "pointSize": 5,
+                "fillOpacity": 10,
+                "gradientMode": "opacity"
+            }
+        }, 
+        "overrides": []
+    }
     if max_ is not None:
         fc["defaults"]["max"] = max_
     return {
@@ -64,7 +80,12 @@ def make_panel(base_path, pid, title, csv_file, x, y, w=12, h=8, unit="percent",
         "fieldConfig": fc,
         "options": {
             "tooltip": {"mode": "multi", "sort": "none"},
-            "legend": {"displayMode": "list", "placement": "bottom", "showLegend": True}
+            "legend": {
+                "displayMode": "table", 
+                "placement": "bottom", 
+                "showLegend": True,
+                "calcs": ["mean", "max"]
+            }
         },
         "targets": [target]
     }
@@ -117,42 +138,55 @@ def main():
     panels = []
     pid = 1
 
+    # (title, csv_file, x, y, w, unit, min_, max_)
     specs = [
-        # (title, csv_file, x, y, w, unit, min_, max_)
-        # Row System API
-        (None,   "🖥  System — API Server (VM1)",            None,                       0,  0, 24, None, None,    None),
-        ("CPU Usage — API Server",          "cpu_api.csv",              0,  1, 12, "percent",  0,   100),
-        ("Memory Usage — API Server",       "memory_api.csv",          12,  1, 12, "decbytes", 0,   None),
-        ("Container CPU — API (Docker)",    "container_cpu_api.csv",    0,  9, 12, "percent",  0,   None),
-        ("Container Memory — API (Docker)", "container_memory_api.csv",12,  9, 12, "decbytes", 0,   None),
-        ("Network In — API Server",         "network_in_api.csv",       0, 17, 12, "Bps",      0,   None),
-        ("Network Out — API Server",        "network_out_api.csv",     12, 17, 12, "Bps",      0,   None),
-        # Row System DB
-        (None,   "🗄  System — DB Server (VM2)",              None,                       0, 25, 24, None, None,    None),
-        ("CPU Usage — DB Server",           "cpu_db.csv",               0, 26, 12, "percent",  0,   100),
-        ("Memory Usage — DB Server",        "memory_db.csv",           12, 26, 12, "decbytes", 0,   None),
-        ("Network In — DB Server",          "network_in_db.csv",        0, 34, 24, "Bps",      0,   None),
-        # Row PG Connections
-        (None,   "🐘  PostgreSQL — Connections",              None,                       0, 42, 24, None, None,    None),
-        ("Total Active Connections",        "pg_connections_total.csv", 0, 43, 12, "short",    0,   None),
-        ("Connections (Sum All DB)",        "pg_connections.csv",      12, 43, 12, "short",    0,   None),
-        # Row PG Throughput
-        (None,   "📊  PostgreSQL — Throughput & Locks",       None,                       0, 51, 24, None, None,    None),
-        ("Transactions Committed (TPS)",    "pg_transactions.csv",      0, 52, 12, "ops",      0,   None),
-        ("Rollbacks / sec",                 "pg_rollbacks.csv",        12, 52, 12, "ops",      0,   None),
-        ("Deadlocks",                       "pg_deadlocks.csv",         0, 60, 12, "short",    0,   None),
-        ("Locks",                           "pg_locks.csv",            12, 60, 12, "short",    0,   None),
-        # Row PG Tuples
-        (None,   "🗃  PostgreSQL — Tuples & Cache",           None,                       0, 68, 24, None, None,    None),
-        ("Tuples Inserted / sec",           "pg_tup_inserted.csv",      0, 69, 12, "rps",      0,   None),
-        ("Tuples Updated / sec",            "pg_tup_updated.csv",      12, 69, 12, "rps",      0,   None),
-        ("Tuples Fetched / sec",            "pg_tup_fetched.csv",       0, 77, 12, "rps",      0,   None),
-        ("Cache Hit Ratio",                 "pg_blk_hit_ratio.csv",    12, 77, 12, "percent",  0,   100),
+        # ── ROW: Host API (VM1) ───────────────────────────────────────────────
+        (None,   "🖥  Host — API Server (VM 1 OS-level)",    0,  0, 0, None, None,    None),
+        ("CPU Usage — API Server (VM 1)",   "cpu_api.csv",              0,  1, 12, "percent",  0,   100),
+        ("Memory Usage — API Server (VM 1)","memory_api.csv",           12,  1, 12, "bytes",    0,   None),
+        
+        # ── ROW: Container API ────────────────────────────────────────────────
+        (None,   "📦  Container (pos-api Docker)",           0,  9, 0, None, None,    None),
+        ("Container CPU — pos-api",         "container_cpu_api.csv",    0, 10, 12, "percent",  0,   None),
+        ("Container Memory — pos-api",      "container_memory_api.csv", 12, 10, 12, "bytes",    0,   None),
+
+        # ── ROW: Host DB (VM2) ────────────────────────────────────────────────
+        (None,   "🗄  Host — DB Server (VM 2 OS-level)",     0, 18, 0, None, None,    None),
+        ("CPU Usage — DB Server (VM 2)",    "cpu_db.csv",               0, 19, 8,  "percent",  0,   100),
+        ("Used Memory — DB Server (VM 2)",  "memory_db.csv",            8, 19, 8,  "bytes",    0,   None),
+        ("Memory Usage % — DB Server (VM 2)","memory_db_percent.csv",    16, 19, 8,  "percent",  0,   100),
+
+        # ── ROW: Disk I/O ─────────────────────────────────────────────────────
+        (None,   "💿  Disk I/O (sesuai proposal Tabel 3.9)", 0, 27, 0, None, None,    None),
+        ("Disk Read Throughput",            "disk_read_db.csv",         0, 28, 6,  "Bps",      0,   None),
+        ("Disk Write Throughput",           "disk_write_db.csv",        6, 28, 6,  "Bps",      0,   None),
+        ("Disk Read Latency",               "disk_read_latency_db.csv", 12, 28, 6,  "ms",       0,   None),
+        ("Disk Write Latency",              "disk_write_latency_db.csv",18, 28, 6,  "ms",       0,   None),
+
+        # ── ROW: Network ──────────────────────────────────────────────────────
+        (None,   "🌐  Network I/O",                          0, 36, 0, None, None,    None),
+        ("Network In — API Server",         "network_in_api.csv",       0, 37, 6,  "Bps",      0,   None),
+        ("Network Out — API Server",        "network_out_api.csv",      6, 37, 6,  "Bps",      0,   None),
+        ("Network In — DB Server",          "network_in_db.csv",        12, 37, 6,  "Bps",      0,   None),
+        ("Network Out — DB Server",         "network_out_db.csv",       18, 37, 6,  "Bps",      0,   None),
+
+        # ── ROW: PostgreSQL ───────────────────────────────────────────────────
+        (None,   "🐘  PostgreSQL Metrics",                   0, 45, 0, None, None,    None),
+        ("Active Connections",              "pg_connections.csv",       0, 46, 8,  "short",    0,   None),
+        ("Reads (Returned Tuples) / sec",   "pg_tup_returned.csv",      8, 46, 8,  "short",    0,   None),
+        ("Lock Count",                      "pg_locks.csv",             16, 46, 8,  "short",    0,   None),
+        
+        ("Committed Transactions (TPS)",    "pg_transactions.csv",      0, 54, 8,  "short",    0,   None),
+        ("Rollbacks / sec",                 "pg_rollbacks.csv",         8, 54, 8,  "short",    0,   None),
+        ("Deadlocks Count",                 "pg_deadlocks.csv",         16, 54, 8,  "short",    0,   None),
+
+        ("Cache Hit Ratio",                 "pg_blk_hit_ratio.csv",     0, 62, 24, "percent",  0,   100),
     ]
 
     for spec in specs:
         if spec[0] is None:
-            _, row_title, _, _, y, _, _, _, _ = spec
+            row_title = spec[1]
+            y = spec[3]
             panels.append(make_row(pid, row_title, y)); pid += 1
         else:
             title, csv_file, x, y, w, unit, min_, max_ = spec
@@ -171,7 +205,7 @@ def main():
         "links": [],
         "panels": panels,
         "refresh": "",
-        "schemaVersion": 39,
+        "schemaVersion": 38,
         "tags": ["pos", db_mode, "inline"],
         "time": {"from": str(start_ts), "to": str(end_ts)},
         "timepicker": {},
