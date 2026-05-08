@@ -165,7 +165,7 @@ monitoring-up:
 	@echo ""
 
 monitoring-down:
-	cd monitoring && docker compose down -v
+	cd monitoring && docker compose down
 
 monitoring-reload:
 	curl -X POST http://localhost:9090/-/reload
@@ -180,13 +180,13 @@ PROMETHEUS_URL  ?= http://localhost:9090
 
 # Generate token JWT saja tanpa menjalankan Locust (prep sebelum start exporter)
 workload-login-small:
-	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 5
+	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 5 50
 
 workload-login-medium:
-	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 10
+	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 10 100
 
 workload-login-large:
-	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 50
+	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 50 200
 
 # S1/S2 - Baseline (5 tenant, 50 user)
 workload-small:

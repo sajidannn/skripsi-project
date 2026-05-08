@@ -369,7 +369,16 @@ class POSUser(HttpUser):
                 trx = r.json().get("data", {})
                 if trx.get("trxno"):
                     self._push_purchase(trx)
-                self._fetch_branch_inventory(target_bid)
+                # Update cache lokal daripada full re-fetch (kurangi [META] inventory/branch)
+                for item_p in items_payload:
+                    for item in self.meta["branch_items"].get(target_bid, []):
+                        if item.get("item_id") == item_p["item_id"]:
+                            item["stock"] = item.get("stock", 0) + item_p["qty"]
+                            break
+                self.meta["low_stock_items"][target_bid] = [
+                    i for i in self.meta["branch_items"].get(target_bid, [])
+                    if i.get("stock", 0) < LOW_STOCK_THRESHOLD
+                ]
             elif r.status_code == 402:
                 # Saldo tenant tidak cukup → lakukan remit dulu
                 r.success()  # bukan error workload
@@ -426,15 +435,27 @@ class POSUser(HttpUser):
                               catch_response=True) as r:
             if r.status_code == 201:
                 r.success()
+                # Update cache source (kurang stok)
                 for tx_item in items_payload:
                     for item in self.meta["branch_items"].get(src_bid, []):
                         if item.get("item_id") == tx_item["item_id"]:
                             item["stock"] = max(0, item["stock"] - tx_item["qty"])
                             break
-                self._fetch_branch_inventory(dest_bid)
+                # Update cache dest (tambah stok) — tanpa full re-fetch
+                for tx_item in items_payload:
+                    for item in self.meta["branch_items"].get(dest_bid, []):
+                        if item.get("item_id") == tx_item["item_id"]:
+                            item["stock"] = item.get("stock", 0) + tx_item["qty"]
+                            break
+                # Refresh low_stock list untuk kedua branch
+                for bid in (src_bid, dest_bid):
+                    self.meta["low_stock_items"][bid] = [
+                        i for i in self.meta["branch_items"].get(bid, [])
+                        if i.get("stock", 0) < LOW_STOCK_THRESHOLD
+                    ]
             elif r.status_code == 400 and "insufficient stock" in r.text:
                 r.success()
-                self._fetch_branch_inventory(src_bid)
+                self._fetch_branch_inventory(src_bid)  # cache stale, perlu sync
             else:
                 r.failure(f"transfer HTTP {r.status_code}")
                 self._log_fail("TRANSFER", r, payload)
@@ -476,7 +497,15 @@ class POSUser(HttpUser):
                 # Hapus dari recent agar tidak double-return
                 if sale in self.recent_sales:
                     self.recent_sales.remove(sale)
-                self._fetch_branch_inventory(branch_id)
+                # Update cache lokal: tambah stok item yang di-return (kurangi [META] re-fetch)
+                for item in self.meta["branch_items"].get(branch_id, []):
+                    if item.get("id") == bid:
+                        item["stock"] = item.get("stock", 0) + 1
+                        break
+                self.meta["low_stock_items"][branch_id] = [
+                    i for i in self.meta["branch_items"].get(branch_id, [])
+                    if i.get("stock", 0) < LOW_STOCK_THRESHOLD
+                ]
             elif r.status_code in (400, 422):
                 r.success()  # already returned / invalid qty — expected
             else:
