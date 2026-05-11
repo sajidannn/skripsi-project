@@ -21,8 +21,9 @@ SCALE ?= small
 DB_MODE ?= multi
 
 # IP Configuration
-VM1_IP ?= 192.168.10.183
-VM2_IP ?= 192.168.10.243
+VM1_IP ?= 10.104.0.3
+VM2_IP ?= 10.104.0.4
+WORKLOAD_IP ?= 10.104.0.2
 
 # ==============================================================================
 # API COMMANDS (Local Execution)
@@ -224,7 +225,7 @@ workload-large-ui:
 
 # Progressive: small → medium → large tanpa reseed penuh (additive seeding via SSH ke VM2)
 # Prasyarat: SSH ke VM2 sudah dikonfigurasi (VM2_USER, VM2_IP, VM2_PROJECT_DIR)
-# Contoh: make workload-progressive-multi VM2_USER=ubuntu VM2_IP=192.168.10.243
+# Contoh: make workload-progressive-multi VM2_USER=ubuntu VM2_IP=10.104.0.4
 workload-progressive-multi:
 	@API_URL=$(WORKLOAD_API_URL) DB_MODE=multi RUN_TIME=10m \
 		PROMETHEUS_URL=$(PROMETHEUS_URL) \

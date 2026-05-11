@@ -74,7 +74,7 @@ Jika Server Riset VM atau EC2 Cloud Anda dimatikan dan direstart sehingga *IP Pu
 # Contoh Target Scrape di prometheus.yml
   - job_name: 'node_exporter'
     static_configs:
-      - targets: ['192.168.10.183:9100', '192.168.10.243:9100'] # Ganti 2 IP VM Ini
+      - targets: ['10.104.0.3:9100', '10.104.0.4:9100'] # Ganti 2 IP VM Ini
 ```
 
 Jika terubah, Muat ulang tanpa mematikan layanan Hub Grafana dengan cara merelay *reload API Call Signal*:
