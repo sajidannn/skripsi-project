@@ -13,6 +13,7 @@ import random
 import os
 import threading
 import logging
+import requests
 from locust import HttpUser, task, between, events
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -104,48 +105,30 @@ class POSUser(HttpUser):
 
     def _discover_metadata(self) -> bool:
         h = self.headers
+        base = self.client.base_url
 
-        with self.client.get("/api/v1/branches", params={"page": 1, "limit": 50},
-                             headers=h, name="[META] branches",
-                             catch_response=True) as r:
-            if r.status_code == 200:
-                self.meta["all_branches"] = r.json().get("data", [])
-                r.success()
-            else:
-                r.failure(f"branches: {r.status_code}")
-                return False
+        r = requests.get(f"{base}/api/v1/branches", params={"page": 1, "limit": 50}, headers=h)
+        if r.status_code == 200:
+            self.meta["all_branches"] = r.json().get("data", [])
+        else:
+            return False
 
         if not self.meta["all_branches"]:
             return False
 
-        with self.client.get("/api/v1/warehouses", params={"page": 1, "limit": 20},
-                             headers=h, name="[META] warehouses",
-                             catch_response=True) as r:
-            if r.status_code == 200:
-                self.meta["all_warehouses"] = r.json().get("data", [])
-                r.success()
-            else:
-                r.failure(f"warehouses: {r.status_code}")
+        r = requests.get(f"{base}/api/v1/warehouses", params={"page": 1, "limit": 20}, headers=h)
+        if r.status_code == 200:
+            self.meta["all_warehouses"] = r.json().get("data", [])
 
-        with self.client.get("/api/v1/suppliers", params={"page": 1, "limit": 50},
-                             headers=h, name="[META] suppliers",
-                             catch_response=True) as r:
-            if r.status_code == 200:
-                self.meta["suppliers"] = r.json().get("data", [])
-                r.success()
-            else:
-                r.failure(f"suppliers: {r.status_code}")
+        r = requests.get(f"{base}/api/v1/suppliers", params={"page": 1, "limit": 50}, headers=h)
+        if r.status_code == 200:
+            self.meta["suppliers"] = r.json().get("data", [])
 
-        with self.client.get("/api/v1/items",
-                             params={"page": 1, "limit": 50,
-                                     "search": random.choice(SEARCH_KEYWORDS)},
-                             headers=h, name="[META] items",
-                             catch_response=True) as r:
-            if r.status_code == 200:
-                self.meta["master_items"] = r.json().get("data", [])
-                r.success()
-            else:
-                r.failure(f"items: {r.status_code}")
+        r = requests.get(f"{base}/api/v1/items", 
+                         params={"page": 1, "limit": 50, "search": random.choice(SEARCH_KEYWORDS)},
+                         headers=h)
+        if r.status_code == 200:
+            self.meta["master_items"] = r.json().get("data", [])
 
         self._refresh_my_inventory()
         return True
@@ -166,29 +149,40 @@ class POSUser(HttpUser):
     def _refresh_my_inventory(self):
         if self._is_owner():
             for b in self.meta["all_branches"]:
-                self._fetch_branch_inventory(b["id"])
+                self._fetch_branch_inventory(b["id"], is_setup=True)
         else:
             bid = self.user_data.get("branch_id")
             if bid:
-                self._fetch_branch_inventory(bid)
+                self._fetch_branch_inventory(bid, is_setup=True)
 
-    def _fetch_branch_inventory(self, branch_id: int):
-        params = {"page": 1, "limit": 100}
+    def _fetch_branch_inventory(self, branch_id: int, is_setup: bool = False):
+        params = {"page": 1, "limit": 50}
         if random.random() < 0.2:
             params["search"] = random.choice(SEARCH_KEYWORDS)
-        with self.client.get(f"/api/v1/inventory/branch/{branch_id}",
-                             params=params, headers=self.headers,
-                             name="[META] inventory/branch",
-                             catch_response=True) as r:
+            
+        url = f"/api/v1/inventory/branch/{branch_id}"
+        
+        if is_setup:
+            r = requests.get(f"{self.client.base_url}{url}", params=params, headers=self.headers)
             if r.status_code == 200:
                 items = r.json().get("data", [])
                 self.meta["branch_items"][branch_id] = items
                 self.meta["low_stock_items"][branch_id] = [
                     i for i in items if i.get("stock", 0) < LOW_STOCK_THRESHOLD
                 ]
-                r.success()
-            else:
-                r.failure(f"inventory/branch/{branch_id}: {r.status_code}")
+        else:
+            with self.client.get(url, params=params, headers=self.headers,
+                                 name="[META] inventory/branch",
+                                 catch_response=True) as r:
+                if r.status_code == 200:
+                    items = r.json().get("data", [])
+                    self.meta["branch_items"][branch_id] = items
+                    self.meta["low_stock_items"][branch_id] = [
+                        i for i in items if i.get("stock", 0) < LOW_STOCK_THRESHOLD
+                    ]
+                    r.success()
+                else:
+                    r.failure(f"inventory/branch/{branch_id}: {r.status_code}")
 
     def _stocked_items(self, branch_id: int):
         return [i for i in self.meta["branch_items"].get(branch_id, [])
@@ -223,7 +217,7 @@ class POSUser(HttpUser):
                              name="/reports/balance/branch (remit-check)",
                              catch_response=True) as r:
             if r.status_code != 200:
-                r.success()  # 403 untuk non-owner, skip
+                r.failure(f"balance-check HTTP {r.status_code}")
                 return
             data = r.json().get("data", {})
             net = float(data.get("current_balance") or 0)
@@ -242,8 +236,7 @@ class POSUser(HttpUser):
             if r.status_code == 200:
                 r.success()
             elif r.status_code == 402:
-                # Saldo berubah antara cek & remit (race condition) — skip, bukan error
-                r.success()
+                r.failure("remit HTTP 402: insufficient balance")
             else:
                 r.failure(f"remit HTTP {r.status_code}")
                 self._log_fail("REMIT", r)
@@ -311,7 +304,7 @@ class POSUser(HttpUser):
                             item["stock"] = max(0, item["stock"] - sold["qty"])
                             break
             elif r.status_code == 400 and "insufficient stock" in r.text:
-                r.success()
+                r.failure("sale HTTP 400: insufficient stock")
                 self._fetch_branch_inventory(branch_id)
             else:
                 r.failure(f"sale HTTP {r.status_code}")
@@ -380,8 +373,7 @@ class POSUser(HttpUser):
                     if i.get("stock", 0) < LOW_STOCK_THRESHOLD
                 ]
             elif r.status_code == 402:
-                # Saldo tenant tidak cukup → lakukan remit dulu
-                r.success()  # bukan error workload
+                r.failure("purchase HTTP 402: insufficient tenant balance")
                 self._do_remit(target_bid)
             else:
                 r.failure(f"purchase HTTP {r.status_code}")
@@ -454,7 +446,7 @@ class POSUser(HttpUser):
                         if i.get("stock", 0) < LOW_STOCK_THRESHOLD
                     ]
             elif r.status_code == 400 and "insufficient stock" in r.text:
-                r.success()
+                r.failure("transfer HTTP 400: insufficient stock")
                 self._fetch_branch_inventory(src_bid)  # cache stale, perlu sync
             else:
                 r.failure(f"transfer HTTP {r.status_code}")
@@ -507,7 +499,7 @@ class POSUser(HttpUser):
                     if i.get("stock", 0) < LOW_STOCK_THRESHOLD
                 ]
             elif r.status_code in (400, 422):
-                r.success()  # already returned / invalid qty — expected
+                r.failure(f"return HTTP {r.status_code}: already returned or invalid qty")
             else:
                 r.failure(f"return HTTP {r.status_code}")
                 self._log_fail("RETURN", r, payload)
@@ -561,7 +553,7 @@ class POSUser(HttpUser):
                 if purchase in self.recent_purchases:
                     self.recent_purchases.remove(purchase)
             elif r.status_code in (400, 404, 422):
-                r.success()  # trx already returned or item mismatch — expected
+                r.failure(f"purchase-return HTTP {r.status_code}: already returned or mismatch")
             else:
                 r.failure(f"purchase-return HTTP {r.status_code}")
                 self._log_fail("PURC_RETURN", r, payload)
@@ -592,7 +584,7 @@ class POSUser(HttpUser):
                 if sale in self.recent_sales:
                     self.recent_sales.remove(sale)
             elif r.status_code in (400, 404, 409):
-                r.success()  # already voided / not allowed
+                r.failure(f"void HTTP {r.status_code}: already voided or not allowed")
             else:
                 r.failure(f"void HTTP {r.status_code}")
                 self._log_fail("VOID", r)

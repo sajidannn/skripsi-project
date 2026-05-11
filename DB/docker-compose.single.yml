@@ -29,6 +29,8 @@ services:
     environment:
       - SEED_MODE=single
       - SEED_SCALE=${SCALE:-small}
+      - SEED_ADDITIVE=${SEED_ADDITIVE:-false}
+      - SEED_FROM_TENANT=${SEED_FROM_TENANT:-0}
       - DATABASE_URL=postgres://postgres:supersecret@db:5432/pos_single?sslmode=disable
     volumes:
       - ./schema:/app/schema:ro

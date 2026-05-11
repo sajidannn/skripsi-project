@@ -205,6 +205,7 @@ run_locust_test() {
         --spawn-rate="${SPAWN_RATE}" \
         --run-time="${RUN_TIME}" \
         --headless \
+        --reset-stats \
         --only-summary \
         --csv="${RESULT_DIR}/locust" \
         --html="${RESULT_DIR}/report.html" || true
@@ -301,7 +302,7 @@ run_vacuum_analyze
 
 # Step 1d: Cooldown — beri waktu sistem stabil (CPU/IO turun ke baseline)
 #          Timestamp Locust dimulai SETELAH cooldown ini selesai.
-COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-90} cooldown_and_stabilize
+COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-30} cooldown_and_stabilize
 
 # Step 1e: Login semua tenant 1-5, simpan ke tokens_small.json
 echo ">>> [LOGIN] Tenant 1-5 → ${TOKEN_SMALL}"

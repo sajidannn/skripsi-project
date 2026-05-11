@@ -30,6 +30,8 @@ services:
     environment:
       - SEED_MODE=multi
       - SEED_SCALE=${SCALE:-small}
+      - SEED_ADDITIVE=${SEED_ADDITIVE:-false}
+      - SEED_FROM_TENANT=${SEED_FROM_TENANT:-0}
       - DATABASE_URL=postgres://postgres:supersecret@db:5432/pos_master?sslmode=disable
       - TENANT_SCHEMA_PATH=/app/schema/multi-db-tenant.sql
     volumes:
