@@ -7,13 +7,13 @@ global:
 
 scrape_configs:
 
-  # Laptop: Prometheus itself
-  - job_name: prometheus
+  # VM 3: Workload & Monitoring Server
+  - job_name: workload_server
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ['localhost:9090', 'localhost:9100']
         labels:
-          vm: laptop
-          role: monitoring
+          vm: vm3
+          role: workload_monitoring
 
   # VM 1: API Server OS Metrics
   - job_name: node_exporter_api

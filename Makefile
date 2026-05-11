@@ -167,9 +167,9 @@ monitoring-up:
 	@sed -i '/job_name: node_exporter_db/,/targets:/ s/[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}:9100/$(VM2_IP):9100/' monitoring/prometheus/prometheus.yml
 	cd monitoring && docker compose up -d
 	@echo ""
-	@echo "=== Monitoring Hub started (LOCAL) ==="
-	@echo "  Grafana:    http://localhost:3000  (admin/admin)"
-	@echo "  Prometheus: http://localhost:9090 (VM1: $(VM1_IP), VM2: $(VM2_IP))"
+	@echo "=== Monitoring Hub started (SERVER/VM3) ==="
+	@echo "  Grafana:    http://$(WORKLOAD_IP):3000  (admin/admin)"
+	@echo "  Prometheus: http://$(WORKLOAD_IP):9090 (Targets: VM1, VM2, VM3)"
 	@echo ""
 
 monitoring-down:
