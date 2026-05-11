@@ -33,16 +33,21 @@ Format token yang disimpan:
     "token": "..."
   }
 
-Cara manggil: python3 workload/login_generator.py <jumlah_tenant>
+Cara manggil: python3 workload/login_generator.py <jumlah_tenant_total> [total_users]
+Optional args:
+  --from-tenant N   Hanya login tenant dari N+1 ke atas (untuk additive seeding)
+  --output FILE     Simpan ke file selain workload/tokens.json
 Contoh:
-  python3 workload/login_generator.py 5    # small
-  python3 workload/login_generator.py 10   # medium
-  python3 workload/login_generator.py 50   # large
+  python3 workload/login_generator.py 5         # small (5 tenant, default 50 user)
+  python3 workload/login_generator.py 10 100    # medium (semua 10 tenant)
+  python3 workload/login_generator.py 10 50 --from-tenant 5  # hanya tenant 6-10
+  python3 workload/login_generator.py 10 50 --from-tenant 5 --output workload/tokens_medium_new.json
 """
 import requests
 import json
 import sys
 import os
+import argparse
 
 # Configuration
 API_URL = os.getenv("API_URL", "http://localhost:8080")
@@ -101,38 +106,57 @@ def fetch_tenant_branches(token: str, tenant_id: int) -> list:
 
 
 def main():
-    try:
-        num_tenants = int(sys.argv[1])
-        total_users_target = int(sys.argv[2])
-    except (ValueError, IndexError):
-        print("Usage: python login_generator.py <num_tenants> <total_users>")
-        print("  Example: python login_generator.py 10 100")
+    parser = argparse.ArgumentParser(description="Login Generator — JWT Pre-Caching")
+    parser.add_argument("num_tenants",   type=int, help="Total tenant dalam sistem saat ini")
+    parser.add_argument("total_users",   type=int, nargs="?", default=None,
+                        help="Target total user yang akan di-login (opsional)")
+    parser.add_argument("--from-tenant", type=int, default=0, dest="from_tenant",
+                        help="Hanya login tenant dari ID ini+1 ke atas (untuk additive mode, default: 0 = semua tenant)")
+    parser.add_argument("--output",      type=str, default=OUTPUT_FILE, dest="output_file",
+                        help=f"File output tokens (default: {OUTPUT_FILE})")
+    args = parser.parse_args()
+
+    num_tenants       = args.num_tenants
+    from_tenant       = args.from_tenant
+    output_file       = args.output_file
+
+    # Hitung berapa tenant yang akan di-login
+    tenants_to_login  = num_tenants - from_tenant  # hanya tenant baru
+    if tenants_to_login <= 0:
+        print(f"INFO: Tidak ada tenant baru (from_tenant={from_tenant} >= num_tenants={num_tenants}). Skip.")
+        return
+
+    # Hitung target user
+    if args.total_users is not None:
+        total_users_target = args.total_users
+    else:
+        # Default: 10 user per tenant baru (1 owner + 9 kasir)
+        total_users_target = tenants_to_login * (1 + CASHIERS_PER_TENANT)
+
+    # Validasi
+    if total_users_target < tenants_to_login:
+        print(f"ERROR: total_users ({total_users_target}) minimal harus sama dengan jumlah tenant yang di-login ({tenants_to_login})")
         sys.exit(1)
 
-    # Strategi: Setiap tenant wajib 1 owner, sisanya adalah kasir
-    if total_users_target < num_tenants:
-        print(f"ERROR: total_users ({total_users_target}) minimal harus sama dengan num_tenants ({num_tenants})")
-        sys.exit(1)
+    owners_needed          = tenants_to_login
+    cashiers_needed        = total_users_target - owners_needed
+    base_cashiers_per_t    = cashiers_needed // tenants_to_login
+    extra_cashiers         = cashiers_needed % tenants_to_login
 
-    owners_needed = num_tenants
-    cashiers_needed = total_users_target - owners_needed
-    
-    base_cashiers_per_t = cashiers_needed // num_tenants
-    extra_cashiers = cashiers_needed % num_tenants
-
-    print(f"Generating tokens for {num_tenants} tenants...")
+    print(f"Generating tokens untuk tenant {from_tenant+1} s/d {num_tenants}...")
     print(f"  Target Total Users  : {total_users_target}")
     print(f"  Distribusi per Tenant:")
     print(f"    - Owner           : 1 per tenant (Total: {owners_needed})")
     print(f"    - Kasir (base)    : {base_cashiers_per_t} per tenant")
     if extra_cashiers > 0:
         print(f"    - Kasir (extra)   : +1 untuk {extra_cashiers} tenant pertama")
+    print(f"  Output file         : {output_file}")
     print()
 
     tokens = []
     branch_verification_failures = 0
 
-    for tenant_id in range(1, num_tenants + 1):
+    for tenant_id in range(from_tenant + 1, num_tenants + 1):
         print(f"[Tenant {tenant_id:03d}]")
 
         # ── STEP 1: Login Owner ────────────────────────────────────────────────
@@ -154,16 +178,12 @@ def main():
         print(f"  ✓ Owner  : {admin_email}")
 
         # ── STEP 2: Verifikasi Branch ASLI dari API ────────────────────────────
-        # Inilah kunci universalnya: kita tidak menebak ID branch.
-        # Kita tanya langsung ke API menggunakan token owner.
         real_branches = fetch_tenant_branches(owner_token, tenant_id)
 
         if not real_branches:
             print(f"  WARN: Tidak ada branch ditemukan untuk tenant {tenant_id}. "
                   f"Kasir akan di-skip, tapi owner tetap disimpan.")
             branch_verification_failures += 1
-            # Masih lanjut untuk login kasir, tapi tanpa branch_id
-            # (kasir akan bertindak seperti owner: pilih branch saat runtime)
             for branch_idx in range(1, CASHIERS_PER_TENANT + 1):
                 cashier_email = f"kasir.{tenant_id:03}.{branch_idx:03}@tenant-{tenant_id:03}.test"
                 token = login_user(cashier_email, "cashier123", tenant_id)
@@ -172,20 +192,20 @@ def main():
                         "tenant_id": tenant_id,
                         "email":     cashier_email,
                         "role":      "cashier",
-                        "branch_id": None,   # tidak bisa di-pin, branch tidak terverifikasi
+                        "branch_id": None,
                         "token":     token,
                     })
                     print(f"  ✓ Kasir  : {cashier_email} → branch_id=UNVERIFIED")
             continue
 
-        # Tampilkan branch yang ditemukan untuk verifikasi manual
         branch_ids = [b["id"] for b in real_branches]
         print(f"  ✓ Branch : {len(real_branches)} branch ditemukan → IDs: {branch_ids}")
 
         # ── STEP 3: Login Kasir & Pin ke Branch ASLI ──────────────────────────
-        # Tentukan berapa kasir untuk tenant ini
-        my_cashiers_count = base_cashiers_per_t
-        if tenant_id <= extra_cashiers:
+        # Index kasir relatif terhadap tenant ini (bukan global)
+        local_tenant_idx   = tenant_id - from_tenant - 1  # 0-based
+        my_cashiers_count  = base_cashiers_per_t
+        if local_tenant_idx < extra_cashiers:
             my_cashiers_count += 1
 
         for branch_idx in range(1, my_cashiers_count + 1):
@@ -210,14 +230,14 @@ def main():
         print()
 
     # ── Simpan ke file ─────────────────────────────────────────────────────────
-    os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
-    with open(OUTPUT_FILE, "w") as f:
+    os.makedirs(os.path.dirname(output_file) if os.path.dirname(output_file) else ".", exist_ok=True)
+    with open(output_file, "w") as f:
         json.dump(tokens, f, indent=2)
 
     success = len(tokens)
     failed  = total_users_target - success
     print("=" * 50)
-    print(f"SUCCESS : {success}/{total_users_target} tokens saved → {OUTPUT_FILE}")
+    print(f"SUCCESS : {success}/{total_users_target} tokens saved → {output_file}")
     if branch_verification_failures > 0:
         print(f"WARN    : {branch_verification_failures} tenant(s) gagal verifikasi branch.")
     if failed > 0:

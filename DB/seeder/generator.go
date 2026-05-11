@@ -66,6 +66,10 @@ type Generator struct {
 	rng    *rand.Rand
 	cfg    ScaleConfig
 
+	// FromTenant: skip the first N tenants (for additive/progressive seeding).
+	// IDs will start from FromTenant+1.
+	FromTenant int
+
 	// Generated data
 	Tenants        []TenantRow
 	Warehouses     []WarehouseRow
@@ -163,12 +167,13 @@ type BranchItemRow struct {
 
 // ─── Constructor ──────────────────────────────────────────────────────────────
 
-func NewGenerator(cfg ScaleConfig, ownerHash, cashierHash string) *Generator {
+func NewGenerator(cfg ScaleConfig, ownerHash, cashierHash string, fromTenant int) *Generator {
 	return &Generator{
-		rng:             rand.New(rand.NewSource(randSeed)),
+		rng:             rand.New(rand.NewSource(randSeed + int64(fromTenant))),
 		cfg:             cfg,
 		ownerPassHash:   ownerHash,
 		cashierPassHash: cashierHash,
+		FromTenant:      fromTenant,
 	}
 }
 
@@ -188,11 +193,19 @@ func (g *Generator) Generate() {
 // ─── Generators ───────────────────────────────────────────────────────────────
 
 func (g *Generator) genTenants() {
-	g.Tenants = make([]TenantRow, g.cfg.Tenants)
-	for i := range g.cfg.Tenants {
+	// In additive mode, only generate tenants AFTER FromTenant.
+	// e.g. FromTenant=5, cfg.Tenants=10 → generate tenants 6..10 (5 new tenants).
+	newCount := g.cfg.Tenants - g.FromTenant
+	if newCount <= 0 {
+		g.Tenants = []TenantRow{}
+		return
+	}
+	g.Tenants = make([]TenantRow, newCount)
+	for i := range newCount {
+		actualID := g.FromTenant + i + 1
 		g.Tenants[i] = TenantRow{
-			ID:   i + 1,
-			Name: fmt.Sprintf("Tenant-%03d", i+1),
+			ID:   actualID,
+			Name: fmt.Sprintf("Tenant-%03d", actualID),
 		}
 	}
 }

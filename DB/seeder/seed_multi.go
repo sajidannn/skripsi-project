@@ -13,12 +13,18 @@ import (
 
 // SeedMulti populates a multi-DB (per-tenant) Postgres setup.
 // It uses the master DSN to:
-//  1. Truncate + re-seed the master tenants routing table
-//  2. For each tenant: DROP + CREATE database, apply tenant schema, bulk insert data
-func SeedMulti(ctx context.Context, masterPool *pgxpool.Pool, masterDSN, tenantSchemaPath string, gen *Generator) error {
-	log.Println("[multi] Truncating master tenants table...")
-	if _, err := masterPool.Exec(ctx, `TRUNCATE TABLE tenants RESTART IDENTITY CASCADE`); err != nil {
-		return fmt.Errorf("truncate master tenants: %w", err)
+//  1. (if !additive) Truncate + re-seed the master tenants routing table
+//  2. For each tenant: (if !additive) DROP + CREATE database, else CREATE only new DBs
+//     apply tenant schema, bulk insert data
+func SeedMulti(ctx context.Context, masterPool *pgxpool.Pool, masterDSN, tenantSchemaPath string, gen *Generator, additive bool) error {
+	if !additive {
+		log.Println("[multi] Truncating master tenants table...")
+		if _, err := masterPool.Exec(ctx, `TRUNCATE TABLE tenants RESTART IDENTITY CASCADE`); err != nil {
+			return fmt.Errorf("truncate master tenants: %w", err)
+		}
+	} else {
+		log.Printf("[multi] Additive mode: skipping TRUNCATE, inserting %d new tenant(s) starting from ID %d",
+			len(gen.Tenants), gen.FromTenant+1)
 	}
 
 	// Parse master DSN to derive tenant DSNs
@@ -46,9 +52,16 @@ func SeedMulti(ctx context.Context, masterPool *pgxpool.Pool, masterDSN, tenantS
 		}
 
 		// Drop + recreate tenant database (requires superuser; connect to postgres)
+		// In additive mode we only CREATE (not DROP) since tenant is brand new.
 		adminDSN := baseDSN + "/postgres"
-		if err := recreateDB(ctx, adminDSN, dbName); err != nil {
-			return fmt.Errorf("recreate db %s: %w", dbName, err)
+		if additive {
+			if err := createDB(ctx, adminDSN, dbName); err != nil {
+				return fmt.Errorf("create db %s: %w", dbName, err)
+			}
+		} else {
+			if err := recreateDB(ctx, adminDSN, dbName); err != nil {
+				return fmt.Errorf("recreate db %s: %w", dbName, err)
+			}
 		}
 
 		// Connect to the new tenant database
@@ -291,6 +304,22 @@ func recreateDB(ctx context.Context, adminDSN, dbName string) error {
 	}
 	return nil
 }
+
+// createDB creates a new database WITHOUT dropping existing one.
+// Used in additive mode where the tenant DB is guaranteed to be brand new.
+func createDB(ctx context.Context, adminDSN, dbName string) error {
+	conn, err := pgx.Connect(ctx, adminDSN)
+	if err != nil {
+		return fmt.Errorf("connect admin: %w", err)
+	}
+	defer conn.Close(ctx)
+
+	if _, err := conn.Exec(ctx, fmt.Sprintf(`CREATE DATABASE "%s"`, dbName)); err != nil {
+		return err
+	}
+	return nil
+}
+
 
 // stripDBFromDSN removes the database name from a DSN, returning just
 // the connection prefix. Handles both URL and key=value formats.

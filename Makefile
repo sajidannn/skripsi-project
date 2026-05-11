@@ -11,7 +11,8 @@
         exporters-db-single-up exporters-db-multi-up exporters-db-down \
         monitoring-up monitoring-down monitoring-reload \
         workload-small workload-medium workload-large \
-        workload-small-ui workload-medium-ui workload-large-ui
+        workload-small-ui workload-medium-ui workload-large-ui \
+        workload-progressive-multi workload-progressive-single
 
 # Data scale for seeding: small | medium | large  (default: small)
 SCALE ?= small
@@ -19,7 +20,7 @@ SCALE ?= small
 # DB Mode for testing: single | multi (default: multi)
 DB_MODE ?= multi
 
-# VM IP Addresses - SINGLE SOURCE OF TRUTH
+# IP Configuration
 VM1_IP ?= 192.168.10.183
 VM2_IP ?= 192.168.10.243
 
@@ -78,7 +79,10 @@ api-clean:
 
 # ── Single-DB ─────────────────────────────────────────────────────────────────
 db-single-up:
-	cd DB && SCALE=$(SCALE) docker compose -f docker-compose.single.yml up --build -d
+	cd DB && SCALE=$(SCALE) \
+		SEED_ADDITIVE=$(SEED_ADDITIVE) \
+		SEED_FROM_TENANT=$(SEED_FROM_TENANT) \
+		docker compose -f docker-compose.single.yml up --build -d
 
 db-single-down:
 	cd DB && docker compose -f docker-compose.single.yml down
@@ -99,7 +103,10 @@ db-single-reseed:
 
 # ── Multi-DB ──────────────────────────────────────────────────────────────────
 db-multi-up:
-	cd DB && SCALE=$(SCALE) docker compose -f docker-compose.multi.yml up --build -d
+	cd DB && SCALE=$(SCALE) \
+		SEED_ADDITIVE=$(SEED_ADDITIVE) \
+		SEED_FROM_TENANT=$(SEED_FROM_TENANT) \
+		docker compose -f docker-compose.multi.yml up --build -d
 
 db-multi-down:
 	cd DB && docker compose -f docker-compose.multi.yml down
@@ -178,6 +185,11 @@ WORKLOAD_API_URL ?= http://$(VM1_IP):8080
 SKIP_LOGIN      ?= false
 PROMETHEUS_URL  ?= http://localhost:9090
 
+# SSH config untuk menjalankan seeder di VM2 (dipakai oleh progressive test)
+VM2_USER        ?= sajidan
+VM2_PROJECT_DIR ?= /home/sajidan/skripsi-project
+SSH_KEY         ?=   # Path ke SSH key (kosong = pakai default ~/.ssh/id_rsa)
+
 # Generate token JWT saja tanpa menjalankan Locust (prep sebelum start exporter)
 workload-login-small:
 	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 5 50
@@ -210,6 +222,22 @@ workload-medium-ui:
 workload-large-ui:
 	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) PROMETHEUS_URL=$(PROMETHEUS_URL) TAG=large SCALE=50 USERS=200 RUN_TIME=10m HEADLESS=false ./workload/run_test.sh
 
+# Progressive: small → medium → large tanpa reseed penuh (additive seeding via SSH ke VM2)
+# Prasyarat: SSH ke VM2 sudah dikonfigurasi (VM2_USER, VM2_IP, VM2_PROJECT_DIR)
+# Contoh: make workload-progressive-multi VM2_USER=ubuntu VM2_IP=192.168.10.243
+workload-progressive-multi:
+	@API_URL=$(WORKLOAD_API_URL) DB_MODE=multi RUN_TIME=10m \
+		PROMETHEUS_URL=$(PROMETHEUS_URL) \
+		VM2_USER=$(VM2_USER) VM2_IP=$(VM2_IP) \
+		VM2_PROJECT_DIR=$(VM2_PROJECT_DIR) SSH_KEY=$(SSH_KEY) \
+		./workload/run_progressive.sh
+
+workload-progressive-single:
+	@API_URL=$(WORKLOAD_API_URL) DB_MODE=single RUN_TIME=10m \
+		PROMETHEUS_URL=$(PROMETHEUS_URL) \
+		VM2_USER=$(VM2_USER) VM2_IP=$(VM2_IP) \
+		VM2_PROJECT_DIR=$(VM2_PROJECT_DIR) SSH_KEY=$(SSH_KEY) \
+		./workload/run_progressive.sh
 
 # ==============================================================================
 # COMBINED VM COMMANDS (For fast switching between environments)

@@ -13,10 +13,12 @@ import (
 
 func main() {
 	// ── CLI flags ────────────────────────────────────────────────────────────
-	mode  := flag.String("mode",  "", `DB mode: "single" or "multi" (required)`)
-	scale := flag.String("scale", "", `Data scale: "small", "medium", or "large" (required)`)
-	dsn   := flag.String("dsn",   "", "PostgreSQL DSN, e.g. postgres://user:pass@host:5432/dbname?sslmode=disable")
+	mode       := flag.String("mode",        "", `DB mode: "single" or "multi" (required)`)
+	scale      := flag.String("scale",       "", `Data scale: "small", "medium", or "large" (required)`)
+	dsn        := flag.String("dsn",         "", "PostgreSQL DSN, e.g. postgres://user:pass@host:5432/dbname?sslmode=disable")
 	schemaPath := flag.String("tenant-schema", "/app/schema/multi-db-tenant.sql", "Path to tenant schema SQL file (multi mode only)")
+	additive   := flag.Bool("additive",      false, "If true, skip TRUNCATE and only insert new tenants (for progressive scaling)")
+	fromTenant := flag.Int("from-tenant",    0, "Start generating tenant IDs from this value+1 (used with --additive)")
 	flag.Parse()
 
 	// Read from env vars as fallback (Docker Compose sets these)
@@ -29,8 +31,15 @@ func main() {
 	if *dsn == "" {
 		*dsn = os.Getenv("DATABASE_URL")
 	}
-	if s := os.Getenv("TENANT_SCHEMA_PATH"); s != "" {
-		*schemaPath = s
+	if *additive && os.Getenv("SEED_ADDITIVE") == "" {
+		// flag already set
+	} else if os.Getenv("SEED_ADDITIVE") == "true" {
+		*additive = true
+	}
+	if *fromTenant == 0 {
+		if v := os.Getenv("SEED_FROM_TENANT"); v != "" {
+			fmt.Sscanf(v, "%d", fromTenant)
+		}
 	}
 
 	// ── Validate ─────────────────────────────────────────────────────────────
@@ -59,7 +68,7 @@ func main() {
 	// ── Generate data ─────────────────────────────────────────────────────
 	log.Printf("[seeder] Generating data for scale=%s mode=%s ...", cfg.Name, *mode)
 	startGen := time.Now()
-	gen := NewGenerator(cfg, string(ownerHash), string(cashierHash))
+	gen := NewGenerator(cfg, string(ownerHash), string(cashierHash), *fromTenant)
 	gen.Generate()
 	log.Printf("[seeder] Data generation done in %s", time.Since(startGen).Round(time.Millisecond))
 
@@ -94,7 +103,7 @@ func main() {
 	startSeed := time.Now()
 	switch *mode {
 	case "single":
-		if err := SeedSingle(ctx, pool, gen); err != nil {
+		if err := SeedSingle(ctx, pool, gen, *additive); err != nil {
 			log.Fatalf("[seeder] single seed failed: %v", err)
 		}
 		log.Println("[seeder] Resetting sequences...")
@@ -102,7 +111,7 @@ func main() {
 			log.Fatalf("[seeder] reset sequences failed: %v", err)
 		}
 	case "multi":
-		if err := SeedMulti(ctx, pool, *dsn, *schemaPath, gen); err != nil {
+		if err := SeedMulti(ctx, pool, *dsn, *schemaPath, gen, *additive); err != nil {
 			log.Fatalf("[seeder] multi seed failed: %v", err)
 		}
 	}
