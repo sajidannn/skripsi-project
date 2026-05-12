@@ -243,7 +243,6 @@ merge_tokens() {
     # Kirim path file sebagai argumen ke python (lebih aman daripada interpolasi string)
     python3 - "${target_users}" "${files[@]}" <<'PYEOF'
 import json, sys
-from collections import defaultdict
 
 output_file = "workload/tokens.json"
 target_total = int(sys.argv[1])
@@ -260,32 +259,25 @@ for fpath in input_files:
     except Exception as e:
         print(f"  WARN: Gagal baca {fpath}: {e}")
 
-# Kelompokkan token berdasarkan tenant_id
-by_tenant = defaultdict(list)
-for t in all_tokens:
-    by_tenant[t['tenant_id']].append(t)
+if not all_tokens:
+    print("  ERROR: Tidak ada token yang berhasil dibaca!")
+    sys.exit(1)
 
-num_tenants = len(by_tenant)
-if num_tenants == 0:
-    sys.exit(0)
+# Urutkan: owner dulu, lalu cashier — tapi jangan potong kecuali melebihi target
+owners   = [t for t in all_tokens if t.get('role') == 'owner']
+cashiers = [t for t in all_tokens if t.get('role') != 'owner']
+ordered  = owners + cashiers
 
-# Hitung jatah token per tenant
-base_upt = target_total // num_tenants
-extra = target_total % num_tenants
-
-final_tokens = []
-for idx, (tenant_id, t_tokens) in enumerate(sorted(by_tenant.items())):
-    upt = base_upt + (1 if idx < extra else 0)
-    
-    # Pastikan 'owner' selalu ada di urutan pertama, diikuti kasir
-    t_tokens_sorted = sorted(t_tokens, key=lambda x: 0 if x.get('role') == 'owner' else 1)
-    
-    # Trim list token sesuai jatah 'upt' (Users Per Tenant)
-    final_tokens.extend(t_tokens_sorted[:upt])
+# Hanya potong jika jumlah melebihi target
+if len(ordered) > target_total:
+    ordered = ordered[:target_total]
+    print(f"  (Dipotong dari {len(all_tokens)} → {target_total} karena melebihi target)")
+elif len(ordered) < target_total:
+    print(f"  WARN: Token tersedia ({len(ordered)}) < target ({target_total}). Semua token disimpan.")
 
 with open(output_file, "w") as fp:
-    json.dump(final_tokens, fp, indent=2)
-print(f"  ✓ Total diseimbangkan: {len(final_tokens)} tokens → {output_file}")
+    json.dump(ordered, fp, indent=2)
+print(f"  ✓ Total token: {len(ordered)} → {output_file}")
 PYEOF
 }
 
