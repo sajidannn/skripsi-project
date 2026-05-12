@@ -233,17 +233,21 @@ run_locust_test() {
 }
 
 merge_tokens() {
-    # Gabungkan beberapa file token JSON menjadi satu tokens.json aktif
-    # Usage: merge_tokens file1.json file2.json ...
+    # Gabungkan beberapa file token JSON menjadi satu tokens.json aktif dan ratakan (balance) jumlah user
+    # Usage: merge_tokens <TARGET_TOTAL_USERS> file1.json file2.json ...
+    local target_users=$1
+    shift
     local files=("$@")
-    echo ">>> Menggabungkan token → ${TOKEN_ACTIVE}"
+    echo ">>> Menggabungkan token → ${TOKEN_ACTIVE} (Target: ${target_users} users)"
     
     # Kirim path file sebagai argumen ke python (lebih aman daripada interpolasi string)
-    python3 - "${files[@]}" <<'PYEOF'
+    python3 - "${target_users}" "${files[@]}" <<'PYEOF'
 import json, sys
+from collections import defaultdict
 
 output_file = "workload/tokens.json"
-input_files = sys.argv[1:]
+target_total = int(sys.argv[1])
+input_files = sys.argv[2:]
 
 all_tokens = []
 for fpath in input_files:
@@ -252,13 +256,36 @@ for fpath in input_files:
         with open(fpath) as fp:
             data = json.load(fp)
             all_tokens.extend(data)
-            print(f"  + {fpath}: {len(data)} tokens")
+            print(f"  + Membaca {fpath}: {len(data)} tokens")
     except Exception as e:
         print(f"  WARN: Gagal baca {fpath}: {e}")
 
+# Kelompokkan token berdasarkan tenant_id
+by_tenant = defaultdict(list)
+for t in all_tokens:
+    by_tenant[t['tenant_id']].append(t)
+
+num_tenants = len(by_tenant)
+if num_tenants == 0:
+    sys.exit(0)
+
+# Hitung jatah token per tenant
+base_upt = target_total // num_tenants
+extra = target_total % num_tenants
+
+final_tokens = []
+for idx, (tenant_id, t_tokens) in enumerate(sorted(by_tenant.items())):
+    upt = base_upt + (1 if idx < extra else 0)
+    
+    # Pastikan 'owner' selalu ada di urutan pertama, diikuti kasir
+    t_tokens_sorted = sorted(t_tokens, key=lambda x: 0 if x.get('role') == 'owner' else 1)
+    
+    # Trim list token sesuai jatah 'upt' (Users Per Tenant)
+    final_tokens.extend(t_tokens_sorted[:upt])
+
 with open(output_file, "w") as fp:
-    json.dump(all_tokens, fp, indent=2)
-print(f"  ✓ Total: {len(all_tokens)} tokens → {output_file}")
+    json.dump(final_tokens, fp, indent=2)
+print(f"  ✓ Total diseimbangkan: {len(final_tokens)} tokens → {output_file}")
 PYEOF
 }
 
@@ -313,9 +340,8 @@ echo ">>> [LOGIN] Tenant 1-5 → ${TOKEN_SMALL}"
 API_URL=${API_URL} python3 workload/login_generator.py 5 50 \
     --output "${TOKEN_SMALL}"
 
-# Salin sebagai token aktif untuk tes small
-cp "${TOKEN_SMALL}" "${TOKEN_ACTIVE}"
-echo "  ✓ tokens.json = tokens_small.json (50 tokens)"
+# Salin dan seimbangkan token
+merge_tokens 50 "${TOKEN_SMALL}"
 
 # Step 1f: Jalankan tes small
 run_locust_test "progressive-small" 50 5
@@ -346,8 +372,8 @@ API_URL=${API_URL} python3 workload/login_generator.py 10 50 \
     --from-tenant 5 \
     --output "${TOKEN_MEDIUM_NEW}"
 
-# Gabungkan tokens_small + tokens_medium_new → tokens.json aktif
-merge_tokens "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}"
+# Gabungkan tokens_small + tokens_medium_new → tokens.json aktif (Target: 100)
+merge_tokens 100 "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}"
 
 # Step 2f: Jalankan tes medium
 run_locust_test "progressive-medium" 100 10
@@ -374,22 +400,22 @@ COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-30} cooldown_and_stabilize
 
 # Step 3e: Login hanya tenant baru (11-50), simpan ke tokens_large_new.json
 echo ">>> [LOGIN] Tenant baru (11-50) → ${TOKEN_LARGE_NEW}"
-API_URL=${API_URL} python3 workload/login_generator.py 50 160 \
+API_URL=${API_URL} python3 workload/login_generator.py 50 400 \
     --from-tenant 10 \
     --output "${TOKEN_LARGE_NEW}"
 
-# Gabungkan semua token → tokens.json aktif
-merge_tokens "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}" "${TOKEN_LARGE_NEW}"
+# Gabungkan semua token → tokens.json aktif (Target: 200)
+merge_tokens 200 "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}" "${TOKEN_LARGE_NEW}"
 
 # Step 3f: Jalankan tes large
 run_locust_test "progressive-large" 200 50
 
 # ╔══════════════════════════════════════════════════════════════╗
-# ║  FASE 4: EXTREME — 150 tenant total, 1000 user             ║
+# ║  FASE 4: EXTREME — 150 tenant total, 600 user              ║
 # ╚══════════════════════════════════════════════════════════════╝
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║  FASE 4: EXTREME (150 tenant total, 1000 user)               ║"
+echo "║  FASE 4: EXTREME (150 tenant total, 600 user)                ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 
 # Step 4a: Additive seed +100 tenant (dari tenant 51 s/d 150)
@@ -406,15 +432,15 @@ COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-30} cooldown_and_stabilize
 
 # Step 4e: Login hanya tenant baru (51-150)
 echo ">>> [LOGIN] Tenant baru (51-150) → ${TOKEN_EXTREME_NEW}"
-API_URL=${API_URL} python3 workload/login_generator.py 150 340 \
+API_URL=${API_URL} python3 workload/login_generator.py 150 1000 \
     --from-tenant 50 \
     --output "${TOKEN_EXTREME_NEW}"
 
-# Gabungkan semua token → tokens.json aktif
-merge_tokens "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}" "${TOKEN_LARGE_NEW}" "${TOKEN_EXTREME_NEW}"
+# Gabungkan semua token → tokens.json aktif (Target: 600)
+merge_tokens 600 "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}" "${TOKEN_LARGE_NEW}" "${TOKEN_EXTREME_NEW}"
 
 # Step 4f: Jalankan tes extreme (dengan SPAWN_RATE lebih tinggi, durasi 15m)
-RUN_TIME="15m" SPAWN_RATE=15 run_locust_test "progressive-extreme" 600 150
+run_locust_test "progressive-extreme" 600 150
 
 # ── Ringkasan Akhir ───────────────────────────────────────────────────────────
 echo ""

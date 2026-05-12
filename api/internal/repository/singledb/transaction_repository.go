@@ -1565,23 +1565,25 @@ func (r *TransactionRepo) RemitBranchBalance(ctx context.Context, tenantID, bran
 	defer tx.Rollback(ctx)
 
 	// Lock the branch to serialize cashflow operations for this branch
-	var dummy int
-	err = tx.QueryRow(ctx, `SELECT 1 FROM branches WHERE id = $1 AND tenant_id = $2 FOR UPDATE`, branchID, tenantID).Scan(&dummy)
+	var openingBalance decimal.Decimal
+	err = tx.QueryRow(ctx, `SELECT opening_balance FROM branches WHERE id = $1 AND tenant_id = $2 FOR UPDATE`, branchID, tenantID).Scan(&openingBalance)
 	if err != nil {
 		return fmt.Errorf("singledb.TransactionRepo.RemitBranchBalance: lock branch: %w", err)
 	}
 
-	// Read current branch net balance
-	var branchNet decimal.Decimal
+	// Read current branch cashflow net
+	var cashflowNet decimal.Decimal
 	err = tx.QueryRow(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END), 0)
 		 FROM branch_cashflow
 		 WHERE tenant_id = $1 AND branch_id = $2`,
 		tenantID, branchID,
-	).Scan(&branchNet)
+	).Scan(&cashflowNet)
 	if err != nil {
 		return fmt.Errorf("singledb.TransactionRepo.RemitBranchBalance: read branch balance: %w", err)
 	}
+
+	branchNet := openingBalance.Add(cashflowNet)
 
 	if req.Amount.GreaterThan(branchNet) {
 		return apierr.InsufficientBalance(

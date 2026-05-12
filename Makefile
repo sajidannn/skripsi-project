@@ -202,7 +202,7 @@ workload-login-large:
 	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 50 200
 
 workload-login-extreme:
-	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 150 500
+	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 150 600
 
 # S1/S2 - Baseline (5 tenant, 50 user)
 workload-small:
@@ -216,9 +216,9 @@ workload-medium:
 workload-large:
 	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) PROMETHEUS_URL=$(PROMETHEUS_URL) TAG=large SCALE=50 USERS=200 RUN_TIME=10m ./workload/run_test.sh
 
-# S7 - Extreme (150 tenant, 1000 user)
+# S7 - Extreme (150 tenant, 600 user)
 workload-extreme:
-	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) PROMETHEUS_URL=$(PROMETHEUS_URL) TAG=extreme SCALE=150 USERS=500 RUN_TIME=15m SPAWN_RATE=15 ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) PROMETHEUS_URL=$(PROMETHEUS_URL) TAG=extreme SCALE=150 USERS=600 RUN_TIME=15m SPAWN_RATE=15 ./workload/run_test.sh
 
 # Mode UI untuk monitoring dashboard Locust
 workload-small-ui:
@@ -231,7 +231,7 @@ workload-large-ui:
 	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) PROMETHEUS_URL=$(PROMETHEUS_URL) TAG=large SCALE=50 USERS=200 RUN_TIME=10m HEADLESS=false ./workload/run_test.sh
 
 workload-extreme-ui:
-	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) PROMETHEUS_URL=$(PROMETHEUS_URL) TAG=extreme SCALE=150 USERS=500 RUN_TIME=15m SPAWN_RATE=15 HEADLESS=false ./workload/run_test.sh
+	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) PROMETHEUS_URL=$(PROMETHEUS_URL) TAG=extreme SCALE=150 USERS=600 RUN_TIME=15m SPAWN_RATE=15 HEADLESS=false ./workload/run_test.sh
 
 # Progressive: small → medium → large tanpa reseed penuh (additive seeding via SSH ke VM2)
 # Prasyarat: SSH ke VM2 sudah dikonfigurasi (VM2_USER, VM2_IP, VM2_PROJECT_DIR)
