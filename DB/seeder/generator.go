@@ -251,8 +251,8 @@ func (g *Generator) genBranches() {
 func (g *Generator) genItems() {
 	totalItems := g.cfg.Tenants * g.cfg.ItemsPerT
 	g.Items = make([]ItemRow, 0, totalItems)
-	// Offset IDs past existing items from previous tenants
-	id := g.FromTenant*g.cfg.ItemsPerT + 1
+	// Offset IDs safely using a fixed maximum possible ItemsPerT (e.g. 10000) to avoid PK overlap
+	id := g.FromTenant*10000 + 1
 	for _, t := range g.Tenants {
 		for i := range g.cfg.ItemsPerT {
 			cat := itemCategories[g.rng.Intn(len(itemCategories))]
@@ -279,8 +279,8 @@ func (g *Generator) genItems() {
 func (g *Generator) genSuppliers() {
 	totalSuppliers := g.cfg.Tenants * g.cfg.SuppliersPerT
 	g.Suppliers = make([]SupplierRow, 0, totalSuppliers)
-	// Offset IDs past existing suppliers from previous tenants
-	id := g.FromTenant*g.cfg.SuppliersPerT + 1
+	// Offset IDs safely using a fixed maximum possible SuppliersPerT (e.g. 100)
+	id := g.FromTenant*100 + 1
 	for _, t := range g.Tenants {
 		for range g.cfg.SuppliersPerT {
 			cType := companyTypes[g.rng.Intn(len(companyTypes))]
@@ -346,8 +346,8 @@ func (g *Generator) genWarehouseItems() {
 	// Every warehouse gets ALL items from that tenant
 	totalWHItems := g.cfg.Tenants * g.cfg.WarehousesPerT * g.cfg.ItemsPerT
 	g.WarehouseItems = make([]WarehouseItemRow, 0, totalWHItems)
-	// Offset IDs past existing warehouse_items from previous tenants
-	id := g.FromTenant*g.cfg.WarehousesPerT*g.cfg.ItemsPerT + 1
+	// Offset IDs safely using a fixed max possible items per warehouse (e.g. 10000)
+	id := g.FromTenant*g.cfg.WarehousesPerT*10000 + 1
 
 	// Build item lookup by tenant
 	itemByTenant := make(map[int][]ItemRow)
@@ -379,9 +379,9 @@ func (g *Generator) genBranchItems() {
 
 	totalBranchItems := len(g.Branches) * branchItemsPerBR
 	g.BranchItems = make([]BranchItemRow, 0, totalBranchItems)
-	// Offset IDs past existing branch_items from previous tenants
+	// Offset IDs safely using a fixed max possible branchItemsPerBR (e.g. 5000)
 	prevBranches := g.FromTenant * g.cfg.WarehousesPerT * g.cfg.BranchesPerWH
-	id := prevBranches*branchItemsPerBR + 1
+	id := prevBranches*5000 + 1
 
 	// Build item index by tenant for random sampling
 	itemByTenant := make(map[int][]ItemRow)
@@ -419,9 +419,9 @@ func (g *Generator) genBranchItems() {
 func (g *Generator) genCustomers() {
 	totalCustomers := len(g.Branches) * g.cfg.CustomersPerBR
 	g.Customers = make([]CustomerRow, 0, totalCustomers)
-	// Offset IDs past existing customers from previous tenants
+	// Offset IDs safely using a fixed max possible CustomersPerBR (e.g. 500)
 	prevBranches := g.FromTenant * g.cfg.WarehousesPerT * g.cfg.BranchesPerWH
-	id := prevBranches*g.cfg.CustomersPerBR + 1
+	id := prevBranches*500 + 1
 
 	for _, br := range g.Branches {
 		for c := range g.cfg.CustomersPerBR {
