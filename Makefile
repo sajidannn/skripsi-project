@@ -96,6 +96,10 @@ db-single-logs:
 
 db-single-logs-seeder:
 	cd DB && docker compose -f docker-compose.single.yml logs -f seeder
+	@cd DB && if [ "$$(docker compose -f docker-compose.single.yml ps -a -q seeder | xargs docker inspect -f '{{.State.ExitCode}}')" != "0" ]; then \
+		echo "ERROR: Seeder container crashed or exited with error!"; \
+		exit 1; \
+	fi
 
 # Clean data + re-seed with chosen scale (forces fresh Postgres volume)
 db-single-reseed:
@@ -120,6 +124,10 @@ db-multi-logs:
 
 db-multi-logs-seeder:
 	cd DB && docker compose -f docker-compose.multi.yml logs -f seeder
+	@cd DB && if [ "$$(docker compose -f docker-compose.multi.yml ps -a -q seeder | xargs docker inspect -f '{{.State.ExitCode}}')" != "0" ]; then \
+		echo "ERROR: Seeder container crashed or exited with error!"; \
+		exit 1; \
+	fi
 
 # Clean data + re-seed with chosen scale (forces fresh Postgres volume)
 db-multi-reseed:

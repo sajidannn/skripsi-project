@@ -28,46 +28,55 @@ func SeedSingle(ctx context.Context, pool *pgxpool.Pool, gen *Generator, additiv
 	if err := insertTenantsSingle(ctx, pool, gen); err != nil {
 		return fmt.Errorf("tenants: %w", err)
 	}
+	gen.Tenants = nil // Free memory
 
 	log.Println("[single] Inserting warehouses...")
 	if err := insertWarehousesSingle(ctx, pool, gen); err != nil {
 		return fmt.Errorf("warehouses: %w", err)
 	}
+	gen.Warehouses = nil // Free memory
 
 	log.Println("[single] Inserting branches...")
 	if err := insertBranchesSingle(ctx, pool, gen); err != nil {
 		return fmt.Errorf("branches: %w", err)
 	}
+	gen.Branches = nil // Free memory
 
 	log.Println("[single] Inserting suppliers...")
 	if err := insertSuppliersSingle(ctx, pool, gen); err != nil {
 		return fmt.Errorf("suppliers: %w", err)
 	}
+	gen.Suppliers = nil // Free memory
 
 	log.Println("[single] Inserting items...")
 	if err := insertItemsSingle(ctx, pool, gen); err != nil {
 		return fmt.Errorf("items: %w", err)
 	}
+	gen.Items = nil // Free memory
 
 	log.Println("[single] Inserting users...")
 	if err := insertUsersSingle(ctx, pool, gen); err != nil {
 		return fmt.Errorf("users: %w", err)
 	}
+	gen.Users = nil // Free memory
 
 	log.Println("[single] Inserting warehouse_items...")
 	if err := insertWarehouseItemsSingle(ctx, pool, gen); err != nil {
 		return fmt.Errorf("warehouse_items: %w", err)
 	}
+	gen.WarehouseItems = nil // Free memory
 
 	log.Println("[single] Inserting branch_items...")
 	if err := insertBranchItemsSingle(ctx, pool, gen); err != nil {
 		return fmt.Errorf("branch_items: %w", err)
 	}
+	gen.BranchItems = nil // Free memory
 
 	log.Println("[single] Inserting customers...")
 	if err := insertCustomersSingle(ctx, pool, gen); err != nil {
 		return fmt.Errorf("customers: %w", err)
 	}
+	gen.Customers = nil // Free memory
 
 	log.Println("[single] Inserting tenant_cashflow (opening balances)...")
 	if err := insertTenantCashflowSingle(ctx, pool, gen); err != nil {
