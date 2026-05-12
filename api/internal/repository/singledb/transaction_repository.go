@@ -1542,17 +1542,23 @@ func (r *TransactionRepo) GetTenantNetBalance(ctx context.Context, tenantID int)
 
 // GetBranchNetBalance returns current net balance from branch_cashflow (IN - OUT).
 func (r *TransactionRepo) GetBranchNetBalance(ctx context.Context, tenantID, branchID int) (decimal.Decimal, error) {
-	var net decimal.Decimal
-	err := r.db.QueryRow(ctx,
+	var openingBalance decimal.Decimal
+	err := r.db.QueryRow(ctx, `SELECT opening_balance FROM branches WHERE id = $1 AND tenant_id = $2`, branchID, tenantID).Scan(&openingBalance)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("singledb.TransactionRepo.GetBranchNetBalance (opening_balance): %w", err)
+	}
+
+	var cashflowNet decimal.Decimal
+	err = r.db.QueryRow(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END), 0)
 		 FROM branch_cashflow
 		 WHERE tenant_id = $1 AND branch_id = $2`,
 		tenantID, branchID,
-	).Scan(&net)
+	).Scan(&cashflowNet)
 	if err != nil {
-		return decimal.Zero, fmt.Errorf("singledb.TransactionRepo.GetBranchNetBalance: %w", err)
+		return decimal.Zero, fmt.Errorf("singledb.TransactionRepo.GetBranchNetBalance (cashflow): %w", err)
 	}
-	return net, nil
+	return openingBalance.Add(cashflowNet), nil
 }
 
 // RemitBranchBalance atomically moves amount from branch_cashflow to tenant_cashflow.
