@@ -411,11 +411,11 @@ merge_tokens 200 "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}" "${TOKEN_LARGE_NEW}"
 run_locust_test "progressive-large" 200 50
 
 # ╔══════════════════════════════════════════════════════════════╗
-# ║  FASE 4: EXTREME — 150 tenant total, 600 user              ║
+# ║  FASE 4: EXTREME — 150 tenant total, 1000 user             ║
 # ╚══════════════════════════════════════════════════════════════╝
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║  FASE 4: EXTREME (150 tenant total, 600 user)                ║"
+echo "║  FASE 4: EXTREME (150 tenant total, 1000 user)               ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 
 # Step 4a: Additive seed +100 tenant (dari tenant 51 s/d 150)
@@ -436,11 +436,11 @@ API_URL=${API_URL} python3 workload/login_generator.py 150 1000 \
     --from-tenant 50 \
     --output "${TOKEN_EXTREME_NEW}"
 
-# Gabungkan semua token → tokens.json aktif (Target: 600)
-merge_tokens 600 "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}" "${TOKEN_LARGE_NEW}" "${TOKEN_EXTREME_NEW}"
+# Gabungkan semua token → tokens.json aktif (Target: 1000)
+merge_tokens 1000 "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}" "${TOKEN_LARGE_NEW}" "${TOKEN_EXTREME_NEW}"
 
 # Step 4f: Jalankan tes extreme (dengan SPAWN_RATE lebih tinggi, durasi 15m)
-run_locust_test "progressive-extreme" 600 150
+run_locust_test "progressive-extreme" 1000 150
 
 # ── Ringkasan Akhir ───────────────────────────────────────────────────────────
 echo ""
