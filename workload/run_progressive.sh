@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================================
 #  POS Progressive Scale Test Runner
-#  Menjalankan 3 skenario pengujian (small → medium → large) secara otomatis
+#  Menjalankan 4 skenario pengujian (small → medium → large → extreme) secara otomatis
 #  tanpa reseed penuh. Setiap skenario menambah data di atas skenario sebelumnya.
 #
 #  Alur:
@@ -14,6 +14,9 @@
 #    [7] Additive seed +40 tenant (total 50) di VM2 via SSH
 #    [8] Login tenant 11-50  → tokens_large_new.json → merge → tokens.json
 #    [9] Locust test LARGE   (10 menit)
+#    [10] Additive seed +100 tenant (total 150) di VM2 via SSH
+#    [11] Login tenant 51-150 → tokens_extreme_new.json → merge → tokens.json
+#    [12] Locust test EXTREME (15 menit)
 #
 #  Penggunaan:
 #    DB_MODE=multi make workload-progressive-multi
@@ -54,6 +57,7 @@ TOKEN_DIR="workload"
 TOKEN_SMALL="${TOKEN_DIR}/tokens_small.json"
 TOKEN_MEDIUM_NEW="${TOKEN_DIR}/tokens_medium_new.json"
 TOKEN_LARGE_NEW="${TOKEN_DIR}/tokens_large_new.json"
+TOKEN_EXTREME_NEW="${TOKEN_DIR}/tokens_extreme_new.json"
 TOKEN_ACTIVE="${TOKEN_DIR}/tokens.json"
 
 # ── Fungsi Helper ─────────────────────────────────────────────────────────────
@@ -380,6 +384,38 @@ merge_tokens "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}" "${TOKEN_LARGE_NEW}"
 # Step 3f: Jalankan tes large
 run_locust_test "progressive-large" 200 50
 
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  FASE 4: EXTREME — 150 tenant total, 1000 user             ║
+# ╚══════════════════════════════════════════════════════════════╝
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║  FASE 4: EXTREME (150 tenant total, 1000 user)               ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+
+# Step 4a: Additive seed +100 tenant (dari tenant 51 s/d 150)
+seed_on_vm2 "extreme" "true" 50
+
+# Step 4b: Verifikasi total tenant sekarang = 150
+verify_tenant_count 150
+
+# Step 4c: VACUUM ANALYZE — fase extreme sangat besar
+run_vacuum_analyze
+
+# Step 4d: Cooldown
+COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-30} cooldown_and_stabilize
+
+# Step 4e: Login hanya tenant baru (51-150)
+echo ">>> [LOGIN] Tenant baru (51-150) → ${TOKEN_EXTREME_NEW}"
+API_URL=${API_URL} python3 workload/login_generator.py 150 340 \
+    --from-tenant 50 \
+    --output "${TOKEN_EXTREME_NEW}"
+
+# Gabungkan semua token → tokens.json aktif
+merge_tokens "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}" "${TOKEN_LARGE_NEW}" "${TOKEN_EXTREME_NEW}"
+
+# Step 4f: Jalankan tes extreme (dengan SPAWN_RATE lebih tinggi, durasi 15m)
+RUN_TIME="15m" SPAWN_RATE=15 run_locust_test "progressive-extreme" 600 150
+
 # ── Ringkasan Akhir ───────────────────────────────────────────────────────────
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
@@ -387,18 +423,21 @@ echo "║  ✅ PROGRESSIVE TEST SELESAI!                               ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 echo "  Token files yang disimpan:"
-echo "    - ${TOKEN_SMALL}        (tenant 1-5)"
-echo "    - ${TOKEN_MEDIUM_NEW}   (tenant 6-10, hanya baru)"
-echo "    - ${TOKEN_LARGE_NEW}    (tenant 11-50, hanya baru)"
+echo "    - ${TOKEN_SMALL}          (tenant 1-5)"
+echo "    - ${TOKEN_MEDIUM_NEW}     (tenant 6-10, hanya baru)"
+echo "    - ${TOKEN_LARGE_NEW}      (tenant 11-50, hanya baru)"
+echo "    - ${TOKEN_EXTREME_NEW}    (tenant 51-150, hanya baru)"
 echo ""
 echo "  Hasil test tersimpan di:"
 echo "    - result/locust/${DB_MODE}/progressive-small_*"
 echo "    - result/locust/${DB_MODE}/progressive-medium_*"
 echo "    - result/locust/${DB_MODE}/progressive-large_*"
+echo "    - result/locust/${DB_MODE}/progressive-extreme_*"
 echo "    - result/prometheus/${DB_MODE}/progressive-*"
 echo ""
 echo "  Untuk generate dashboard Grafana:"
 echo "    python3 workload/generate_inline_dashboard.py ${DB_MODE} progressive-small_*"
 echo "    python3 workload/generate_inline_dashboard.py ${DB_MODE} progressive-medium_*"
 echo "    python3 workload/generate_inline_dashboard.py ${DB_MODE} progressive-large_*"
+echo "    python3 workload/generate_inline_dashboard.py ${DB_MODE} progressive-extreme_*"
 echo ""
