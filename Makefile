@@ -23,7 +23,7 @@ DB_MODE ?= multi
 # IP Configuration
 VM1_IP ?= 10.104.0.3
 VM2_IP ?= 10.104.0.4
-WORKLOAD_IP ?= 10.104.0.2
+WORKLOAD_IP ?= 146.190.108.121
 
 # ==============================================================================
 # API COMMANDS (Local Execution)
@@ -187,8 +187,8 @@ SKIP_LOGIN      ?= false
 PROMETHEUS_URL  ?= http://localhost:9090
 
 # SSH config untuk menjalankan seeder di VM2 (dipakai oleh progressive test)
-VM2_USER        ?= sajidan
-VM2_PROJECT_DIR ?= /home/sajidan/skripsi-project
+VM2_USER        ?= jidan
+VM2_PROJECT_DIR ?= /home/jidan/skripsi-project
 SSH_KEY         ?=   # Path ke SSH key (kosong = pakai default ~/.ssh/id_rsa)
 
 # Generate token JWT saja tanpa menjalankan Locust (prep sebelum start exporter)
