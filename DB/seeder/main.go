@@ -48,7 +48,7 @@ func main() {
 	}
 	cfg, ok := scales[*scale]
 	if !ok {
-		log.Fatalf("ERROR: -scale must be 'small', 'medium', or 'large' (got: %q)", *scale)
+		log.Fatalf("ERROR: -scale must be 'small', 'medium', 'large', or 'extreme' (got: %q)", *scale)
 	}
 	if *dsn == "" {
 		log.Fatal("ERROR: -dsn or DATABASE_URL environment variable is required")
