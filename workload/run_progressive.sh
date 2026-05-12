@@ -399,8 +399,9 @@ run_vacuum_analyze
 COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-30} cooldown_and_stabilize
 
 # Step 3e: Login hanya tenant baru (11-50), simpan ke tokens_large_new.json
+# Small+Medium sudah punya 100 token. Target Large=200. Hanya butuh 100 token baru.
 echo ">>> [LOGIN] Tenant baru (11-50) → ${TOKEN_LARGE_NEW}"
-API_URL=${API_URL} python3 workload/login_generator.py 50 400 \
+API_URL=${API_URL} python3 workload/login_generator.py 50 100 \
     --from-tenant 10 \
     --output "${TOKEN_LARGE_NEW}"
 
@@ -431,8 +432,9 @@ run_vacuum_analyze
 COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-30} cooldown_and_stabilize
 
 # Step 4e: Login hanya tenant baru (51-150)
+# Small+Medium+Large sudah punya 200 token. Target Extreme=1000. Hanya butuh 800 token baru.
 echo ">>> [LOGIN] Tenant baru (51-150) → ${TOKEN_EXTREME_NEW}"
-API_URL=${API_URL} python3 workload/login_generator.py 150 1000 \
+API_URL=${API_URL} python3 workload/login_generator.py 150 800 \
     --from-tenant 50 \
     --output "${TOKEN_EXTREME_NEW}"
 
