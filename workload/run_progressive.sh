@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================================
 #  POS Progressive Scale Test Runner
-#  Menjalankan 3 skenario pengujian (small → medium → large) secara otomatis
+#  Menjalankan 4 skenario pengujian (small → medium → large → extreme) secara otomatis
 #  tanpa reseed penuh. Setiap skenario menambah data di atas skenario sebelumnya.
 #
 #  Alur:
@@ -14,6 +14,9 @@
 #    [7] Additive seed +40 tenant (total 50) di VM2 via SSH
 #    [8] Login tenant 11-50  → tokens_large_new.json → merge → tokens.json
 #    [9] Locust test LARGE   (10 menit)
+#    [10] Additive seed +100 tenant (total 150) di VM2 via SSH
+#    [11] Login tenant 51-150 → tokens_extreme_new.json → merge → tokens.json
+#    [12] Locust test EXTREME (15 menit)
 #
 #  Penggunaan:
 #    DB_MODE=multi make workload-progressive-multi
@@ -30,14 +33,14 @@ PROMETHEUS_URL=${PROMETHEUS_URL:-"http://localhost:9090"}
 SPAWN_RATE=10
 
 # SSH ke VM1 (API)
-VM1_USER=${VM1_USER:-"sajidan"}
-VM1_IP=${VM1_IP:-"192.168.10.183"}
-VM1_PROJECT_DIR=${VM1_PROJECT_DIR:-"/home/sajidan/skripsi-project"}
+VM1_USER=${VM1_USER:-"jidan"}
+VM1_IP=${VM1_IP:-"10.104.0.3"}
+VM1_PROJECT_DIR=${VM1_PROJECT_DIR:-"/home/jidan/skripsi-project"}
 
 # SSH ke VM2 (DB & Seeder)
-VM2_USER=${VM2_USER:-"sajidan"}
-VM2_IP=${VM2_IP:-"192.168.10.243"}
-VM2_PROJECT_DIR=${VM2_PROJECT_DIR:-"/home/sajidan/skripsi-project"}
+VM2_USER=${VM2_USER:-"jidan"}
+VM2_IP=${VM2_IP:-"10.104.0.4"}
+VM2_PROJECT_DIR=${VM2_PROJECT_DIR:-"/home/jidan/skripsi-project"}
 SSH_KEY=${SSH_KEY:-""}  # Optional: path ke SSH key, kosong = pakai default
 
 # Tentukan file docker-compose seeder berdasarkan mode
@@ -54,6 +57,7 @@ TOKEN_DIR="workload"
 TOKEN_SMALL="${TOKEN_DIR}/tokens_small.json"
 TOKEN_MEDIUM_NEW="${TOKEN_DIR}/tokens_medium_new.json"
 TOKEN_LARGE_NEW="${TOKEN_DIR}/tokens_large_new.json"
+TOKEN_EXTREME_NEW="${TOKEN_DIR}/tokens_extreme_new.json"
 TOKEN_ACTIVE="${TOKEN_DIR}/tokens.json"
 
 # ── Fungsi Helper ─────────────────────────────────────────────────────────────
@@ -229,17 +233,20 @@ run_locust_test() {
 }
 
 merge_tokens() {
-    # Gabungkan beberapa file token JSON menjadi satu tokens.json aktif
-    # Usage: merge_tokens file1.json file2.json ...
+    # Gabungkan beberapa file token JSON menjadi satu tokens.json aktif dan ratakan (balance) jumlah user
+    # Usage: merge_tokens <TARGET_TOTAL_USERS> file1.json file2.json ...
+    local target_users=$1
+    shift
     local files=("$@")
-    echo ">>> Menggabungkan token → ${TOKEN_ACTIVE}"
+    echo ">>> Menggabungkan token → ${TOKEN_ACTIVE} (Target: ${target_users} users)"
     
     # Kirim path file sebagai argumen ke python (lebih aman daripada interpolasi string)
-    python3 - "${files[@]}" <<'PYEOF'
+    python3 - "${target_users}" "${files[@]}" <<'PYEOF'
 import json, sys
 
 output_file = "workload/tokens.json"
-input_files = sys.argv[1:]
+target_total = int(sys.argv[1])
+input_files = sys.argv[2:]
 
 all_tokens = []
 for fpath in input_files:
@@ -248,13 +255,29 @@ for fpath in input_files:
         with open(fpath) as fp:
             data = json.load(fp)
             all_tokens.extend(data)
-            print(f"  + {fpath}: {len(data)} tokens")
+            print(f"  + Membaca {fpath}: {len(data)} tokens")
     except Exception as e:
         print(f"  WARN: Gagal baca {fpath}: {e}")
 
+if not all_tokens:
+    print("  ERROR: Tidak ada token yang berhasil dibaca!")
+    sys.exit(1)
+
+# Urutkan: owner dulu, lalu cashier — tapi jangan potong kecuali melebihi target
+owners   = [t for t in all_tokens if t.get('role') == 'owner']
+cashiers = [t for t in all_tokens if t.get('role') != 'owner']
+ordered  = owners + cashiers
+
+# Hanya potong jika jumlah melebihi target
+if len(ordered) > target_total:
+    ordered = ordered[:target_total]
+    print(f"  (Dipotong dari {len(all_tokens)} → {target_total} karena melebihi target)")
+elif len(ordered) < target_total:
+    print(f"  WARN: Token tersedia ({len(ordered)}) < target ({target_total}). Semua token disimpan.")
+
 with open(output_file, "w") as fp:
-    json.dump(all_tokens, fp, indent=2)
-print(f"  ✓ Total: {len(all_tokens)} tokens → {output_file}")
+    json.dump(ordered, fp, indent=2)
+print(f"  ✓ Total token: {len(ordered)} → {output_file}")
 PYEOF
 }
 
@@ -309,9 +332,8 @@ echo ">>> [LOGIN] Tenant 1-5 → ${TOKEN_SMALL}"
 API_URL=${API_URL} python3 workload/login_generator.py 5 50 \
     --output "${TOKEN_SMALL}"
 
-# Salin sebagai token aktif untuk tes small
-cp "${TOKEN_SMALL}" "${TOKEN_ACTIVE}"
-echo "  ✓ tokens.json = tokens_small.json (50 tokens)"
+# Salin dan seimbangkan token
+merge_tokens 50 "${TOKEN_SMALL}"
 
 # Step 1f: Jalankan tes small
 run_locust_test "progressive-small" 50 5
@@ -342,8 +364,8 @@ API_URL=${API_URL} python3 workload/login_generator.py 10 50 \
     --from-tenant 5 \
     --output "${TOKEN_MEDIUM_NEW}"
 
-# Gabungkan tokens_small + tokens_medium_new → tokens.json aktif
-merge_tokens "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}"
+# Gabungkan tokens_small + tokens_medium_new → tokens.json aktif (Target: 100)
+merge_tokens 100 "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}"
 
 # Step 2f: Jalankan tes medium
 run_locust_test "progressive-medium" 100 10
@@ -369,16 +391,50 @@ run_vacuum_analyze
 COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-30} cooldown_and_stabilize
 
 # Step 3e: Login hanya tenant baru (11-50), simpan ke tokens_large_new.json
+# Small+Medium sudah punya 100 token. Target Large=200. Hanya butuh 100 token baru.
 echo ">>> [LOGIN] Tenant baru (11-50) → ${TOKEN_LARGE_NEW}"
-API_URL=${API_URL} python3 workload/login_generator.py 50 160 \
+API_URL=${API_URL} python3 workload/login_generator.py 50 100 \
     --from-tenant 10 \
     --output "${TOKEN_LARGE_NEW}"
 
-# Gabungkan semua token → tokens.json aktif
-merge_tokens "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}" "${TOKEN_LARGE_NEW}"
+# Gabungkan semua token → tokens.json aktif (Target: 200)
+merge_tokens 200 "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}" "${TOKEN_LARGE_NEW}"
 
 # Step 3f: Jalankan tes large
 run_locust_test "progressive-large" 200 50
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  FASE 4: EXTREME — 150 tenant total, 1000 user             ║
+# ╚══════════════════════════════════════════════════════════════╝
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║  FASE 4: EXTREME (150 tenant total, 1000 user)               ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+
+# Step 4a: Additive seed +100 tenant (dari tenant 51 s/d 150)
+seed_on_vm2 "extreme" "true" 50
+
+# Step 4b: Verifikasi total tenant sekarang = 150
+verify_tenant_count 150
+
+# Step 4c: VACUUM ANALYZE — fase extreme sangat besar
+run_vacuum_analyze
+
+# Step 4d: Cooldown
+COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-30} cooldown_and_stabilize
+
+# Step 4e: Login hanya tenant baru (51-150)
+# Small+Medium+Large sudah punya 200 token. Target Extreme=1000. Hanya butuh 800 token baru.
+echo ">>> [LOGIN] Tenant baru (51-150) → ${TOKEN_EXTREME_NEW}"
+API_URL=${API_URL} python3 workload/login_generator.py 150 800 \
+    --from-tenant 50 \
+    --output "${TOKEN_EXTREME_NEW}"
+
+# Gabungkan semua token → tokens.json aktif (Target: 1000)
+merge_tokens 1000 "${TOKEN_SMALL}" "${TOKEN_MEDIUM_NEW}" "${TOKEN_LARGE_NEW}" "${TOKEN_EXTREME_NEW}"
+
+# Step 4f: Jalankan tes extreme (dengan SPAWN_RATE lebih tinggi, durasi 15m)
+run_locust_test "progressive-extreme" 1000 150
 
 # ── Ringkasan Akhir ───────────────────────────────────────────────────────────
 echo ""
@@ -387,18 +443,21 @@ echo "║  ✅ PROGRESSIVE TEST SELESAI!                               ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 echo "  Token files yang disimpan:"
-echo "    - ${TOKEN_SMALL}        (tenant 1-5)"
-echo "    - ${TOKEN_MEDIUM_NEW}   (tenant 6-10, hanya baru)"
-echo "    - ${TOKEN_LARGE_NEW}    (tenant 11-50, hanya baru)"
+echo "    - ${TOKEN_SMALL}          (tenant 1-5)"
+echo "    - ${TOKEN_MEDIUM_NEW}     (tenant 6-10, hanya baru)"
+echo "    - ${TOKEN_LARGE_NEW}      (tenant 11-50, hanya baru)"
+echo "    - ${TOKEN_EXTREME_NEW}    (tenant 51-150, hanya baru)"
 echo ""
 echo "  Hasil test tersimpan di:"
 echo "    - result/locust/${DB_MODE}/progressive-small_*"
 echo "    - result/locust/${DB_MODE}/progressive-medium_*"
 echo "    - result/locust/${DB_MODE}/progressive-large_*"
+echo "    - result/locust/${DB_MODE}/progressive-extreme_*"
 echo "    - result/prometheus/${DB_MODE}/progressive-*"
 echo ""
 echo "  Untuk generate dashboard Grafana:"
 echo "    python3 workload/generate_inline_dashboard.py ${DB_MODE} progressive-small_*"
 echo "    python3 workload/generate_inline_dashboard.py ${DB_MODE} progressive-medium_*"
 echo "    python3 workload/generate_inline_dashboard.py ${DB_MODE} progressive-large_*"
+echo "    python3 workload/generate_inline_dashboard.py ${DB_MODE} progressive-extreme_*"
 echo ""

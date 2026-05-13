@@ -361,6 +361,7 @@ class POSUser(HttpUser):
                 r.success()
                 trx = r.json().get("data", {})
                 if trx.get("trxno"):
+                    trx["locust_purchased_items"] = items_payload
                     self._push_purchase(trx)
                 # Update cache lokal daripada full re-fetch (kurangi [META] inventory/branch)
                 for item_p in items_payload:
@@ -458,8 +459,10 @@ class POSUser(HttpUser):
         if not self.recent_sales:
             return
 
-        # Ambil sale terbaru yang belum pernah di-return
-        sale = self.recent_sales[-1]
+        # Ambil sale secara acak, lalu hapus dari list agar tidak nyangkut (poisoned) jika gagal
+        sale = random.choice(self.recent_sales)
+        self.recent_sales.remove(sale)
+
         trxno = sale.get("trxno")
         details = sale.get("details", [])
         branch_id = sale.get("branch_id")
@@ -486,9 +489,6 @@ class POSUser(HttpUser):
                               catch_response=True) as r:
             if r.status_code == 201:
                 r.success()
-                # Hapus dari recent agar tidak double-return
-                if sale in self.recent_sales:
-                    self.recent_sales.remove(sale)
                 # Update cache lokal: tambah stok item yang di-return (kurangi [META] re-fetch)
                 for item in self.meta["branch_items"].get(branch_id, []):
                     if item.get("id") == bid:
@@ -509,27 +509,23 @@ class POSUser(HttpUser):
         """POST /transactions/purchase-return — Return ke supplier (2%), owner only"""
         if not self._is_owner():
             return
-        if not self.recent_purchases or not self.meta["suppliers"]:
+        if not self.recent_purchases:
             return
 
-        purchase = self.recent_purchases[-1]
+        # Pop purchase agar tidak stuck jika gagal
+        purchase = random.choice(self.recent_purchases)
+        self.recent_purchases.remove(purchase)
+
         trxno    = purchase.get("trxno")
-        details  = purchase.get("details", [])
+        locust_items = purchase.get("locust_purchased_items", [])
         branch_id = purchase.get("branch_id")
 
-        if not trxno or not details:
+        if not trxno or not locust_items:
             return
 
-        # Ambil item_id dari detail (branch_item_id → item_id lookup via cache)
-        detail = random.choice(details)
-        # purchase detail pakai warehouse_item_id atau branch_item_id
-        # kita butuh item_id → cari di master_items via cost sebagai proxy
-        # Ambil item dari master_items sebagai fallback
-        if not self.meta["master_items"]:
-            return
-
-        master_item = random.choice(self.meta["master_items"])
-        cost = float(master_item.get("cost") or master_item.get("cogs") or 10_000)
+        purchased_item = random.choice(locust_items)
+        target_item_id = purchased_item["item_id"]
+        cost = purchased_item["cost"]
         supplier = random.choice(self.meta["suppliers"])
 
         payload = {
@@ -538,7 +534,7 @@ class POSUser(HttpUser):
             "supplier_id":     supplier["id"],
             "note":            "Locust TPC-C Purchase Return",
             "items": [{
-                "item_id":      master_item.get("item_id") or master_item.get("id"),
+                "item_id":      target_item_id,
                 "qty":          1,
                 "return_price": cost,
             }],
@@ -565,12 +561,12 @@ class POSUser(HttpUser):
             return
 
         # Cari sale yang belum pernah di-void
-        candidates = [s for s in self.recent_sales
-                      if s.get("id") and s["id"] not in self.voided_ids]
+        candidates = [s for s in self.recent_sales if s.get("id")]
         if not candidates:
             return
 
-        sale = candidates[0]
+        sale = random.choice(candidates)
+        self.recent_sales.remove(sale) # Hapus agar tidak stuck
         sale_id = sale["id"]
 
         with self.client.post(f"/api/v1/transactions/{sale_id}/void",
@@ -580,9 +576,6 @@ class POSUser(HttpUser):
                               catch_response=True) as r:
             if r.status_code == 200:
                 r.success()
-                self.voided_ids.add(sale_id)
-                if sale in self.recent_sales:
-                    self.recent_sales.remove(sale)
             elif r.status_code in (400, 404, 409):
                 r.failure(f"void HTTP {r.status_code}: already voided or not allowed")
             else:

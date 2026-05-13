@@ -43,4 +43,9 @@ tmp/
 result/
 
 # Workload
-workload/tokens.json
+workload/tokens*.json
+
+# Python
+venv/
+__pycache__/
+*.pyc

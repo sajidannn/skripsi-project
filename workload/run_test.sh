@@ -18,8 +18,8 @@ SKIP_LOGIN=${SKIP_LOGIN:-"false"}
 DB_MODE=${DB_MODE:-"multi"}
 TAG=${TAG:-"workload"}
 
-# Spawn rate sesuai proposal: 10 user/detik
-SPAWN_RATE=10
+# Spawn rate default: 10 user/detik, tapi bisa dioverride via ENV
+SPAWN_RATE=${SPAWN_RATE:-10}
 
 echo "=========================================================="
 echo "  POS TPC-C Workload Runner"

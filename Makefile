@@ -21,8 +21,9 @@ SCALE ?= small
 DB_MODE ?= multi
 
 # IP Configuration
-VM1_IP ?= 192.168.10.183
-VM2_IP ?= 192.168.10.243
+VM1_IP ?= 10.104.0.3
+VM2_IP ?= 10.104.0.4
+WORKLOAD_IP ?= 146.190.108.121
 
 # ==============================================================================
 # API COMMANDS (Local Execution)
@@ -95,6 +96,10 @@ db-single-logs:
 
 db-single-logs-seeder:
 	cd DB && docker compose -f docker-compose.single.yml logs -f seeder
+	@cd DB && if [ "$$(docker compose -f docker-compose.single.yml ps -a -q seeder | xargs docker inspect -f '{{.State.ExitCode}}')" != "0" ]; then \
+		echo "ERROR: Seeder container crashed or exited with error!"; \
+		exit 1; \
+	fi
 
 # Clean data + re-seed with chosen scale (forces fresh Postgres volume)
 db-single-reseed:
@@ -119,6 +124,10 @@ db-multi-logs:
 
 db-multi-logs-seeder:
 	cd DB && docker compose -f docker-compose.multi.yml logs -f seeder
+	@cd DB && if [ "$$(docker compose -f docker-compose.multi.yml ps -a -q seeder | xargs docker inspect -f '{{.State.ExitCode}}')" != "0" ]; then \
+		echo "ERROR: Seeder container crashed or exited with error!"; \
+		exit 1; \
+	fi
 
 # Clean data + re-seed with chosen scale (forces fresh Postgres volume)
 db-multi-reseed:
@@ -166,9 +175,9 @@ monitoring-up:
 	@sed -i '/job_name: node_exporter_db/,/targets:/ s/[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}:9100/$(VM2_IP):9100/' monitoring/prometheus/prometheus.yml
 	cd monitoring && docker compose up -d
 	@echo ""
-	@echo "=== Monitoring Hub started (LOCAL) ==="
-	@echo "  Grafana:    http://localhost:3000  (admin/admin)"
-	@echo "  Prometheus: http://localhost:9090 (VM1: $(VM1_IP), VM2: $(VM2_IP))"
+	@echo "=== Monitoring Hub started (SERVER/VM3) ==="
+	@echo "  Grafana:    http://$(WORKLOAD_IP):3000  (admin/admin)"
+	@echo "  Prometheus: http://$(WORKLOAD_IP):9090 (Targets: VM1, VM2, VM3)"
 	@echo ""
 
 monitoring-down:
@@ -186,8 +195,8 @@ SKIP_LOGIN      ?= false
 PROMETHEUS_URL  ?= http://localhost:9090
 
 # SSH config untuk menjalankan seeder di VM2 (dipakai oleh progressive test)
-VM2_USER        ?= sajidan
-VM2_PROJECT_DIR ?= /home/sajidan/skripsi-project
+VM2_USER        ?= jidan
+VM2_PROJECT_DIR ?= /home/jidan/skripsi-project
 SSH_KEY         ?=   # Path ke SSH key (kosong = pakai default ~/.ssh/id_rsa)
 
 # Generate token JWT saja tanpa menjalankan Locust (prep sebelum start exporter)
@@ -199,6 +208,9 @@ workload-login-medium:
 
 workload-login-large:
 	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 50 200
+
+workload-login-extreme:
+	@API_URL=$(WORKLOAD_API_URL) python3 workload/login_generator.py 150 1000
 
 # S1/S2 - Baseline (5 tenant, 50 user)
 workload-small:
@@ -212,6 +224,10 @@ workload-medium:
 workload-large:
 	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) PROMETHEUS_URL=$(PROMETHEUS_URL) TAG=large SCALE=50 USERS=200 RUN_TIME=10m ./workload/run_test.sh
 
+# S7 - Extreme (150 tenant, 1000 user)
+workload-extreme:
+	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) PROMETHEUS_URL=$(PROMETHEUS_URL) TAG=extreme SCALE=150 USERS=1000 RUN_TIME=15m SPAWN_RATE=15 ./workload/run_test.sh
+
 # Mode UI untuk monitoring dashboard Locust
 workload-small-ui:
 	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) PROMETHEUS_URL=$(PROMETHEUS_URL) TAG=small SCALE=5 USERS=50 RUN_TIME=10m HEADLESS=false ./workload/run_test.sh
@@ -222,9 +238,12 @@ workload-medium-ui:
 workload-large-ui:
 	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) PROMETHEUS_URL=$(PROMETHEUS_URL) TAG=large SCALE=50 USERS=200 RUN_TIME=10m HEADLESS=false ./workload/run_test.sh
 
+workload-extreme-ui:
+	@API_URL=$(WORKLOAD_API_URL) SKIP_LOGIN=$(SKIP_LOGIN) DB_MODE=$(DB_MODE) PROMETHEUS_URL=$(PROMETHEUS_URL) TAG=extreme SCALE=150 USERS=1000 RUN_TIME=15m SPAWN_RATE=15 HEADLESS=false ./workload/run_test.sh
+
 # Progressive: small → medium → large tanpa reseed penuh (additive seeding via SSH ke VM2)
 # Prasyarat: SSH ke VM2 sudah dikonfigurasi (VM2_USER, VM2_IP, VM2_PROJECT_DIR)
-# Contoh: make workload-progressive-multi VM2_USER=ubuntu VM2_IP=192.168.10.243
+# Contoh: make workload-progressive-multi VM2_USER=ubuntu VM2_IP=10.104.0.4
 workload-progressive-multi:
 	@API_URL=$(WORKLOAD_API_URL) DB_MODE=multi RUN_TIME=10m \
 		PROMETHEUS_URL=$(PROMETHEUS_URL) \

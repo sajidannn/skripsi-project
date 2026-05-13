@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/singleflight"
 )
 
 // TenantDB holds connection details fetched from the master tenants table.
@@ -31,6 +32,7 @@ type Manager struct {
 	master *pgxpool.Pool
 	mu     sync.RWMutex
 	pools  map[int]*pgxpool.Pool
+	sf     singleflight.Group
 	// Host / port used to build per-tenant DSNs.  In a PGBouncer setup this
 	// typically points to the PGBouncer endpoint.
 	dbHost string
@@ -83,59 +85,72 @@ func (m *Manager) Pool(ctx context.Context, tenantID int) (*pgxpool.Pool, error)
 	}
 	m.mu.RUnlock()
 
-	// slow-path: fetch credentials & create pool
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	// slow-path: use singleflight to ensure only one goroutine creates the pool
+	// for a given tenant, without blocking other tenants.
+	v, err, _ := m.sf.Do(fmt.Sprintf("tenant-%d", tenantID), func() (interface{}, error) {
+		// double-check inside singleflight just in case
+		m.mu.RLock()
+		if p, ok := m.pools[tenantID]; ok {
+			m.mu.RUnlock()
+			return p, nil
+		}
+		m.mu.RUnlock()
 
-	// double-check after acquiring write lock
-	if p, ok := m.pools[tenantID]; ok {
-		return p, nil
-	}
+		tenant, err := m.fetchTenantDB(ctx, tenantID)
+		if err != nil {
+			return nil, err
+		}
 
-	tenant, err := m.fetchTenantDB(ctx, tenantID)
+		host := m.dbHost
+		port := m.dbPort
+		if tenant.DBHost != "" {
+			host = tenant.DBHost
+		}
+		if tenant.DBPort != "" {
+			port = tenant.DBPort
+		}
+
+		// Build DSN
+		dsn := fmt.Sprintf(
+			"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			tenant.DBUser, tenant.DBPass, host, port, tenant.DBName,
+		)
+
+		config, err := pgxpool.ParseConfig(dsn)
+		if err != nil {
+			return nil, fmt.Errorf("multidb: failed to parse config for tenant %d: %w", tenantID, err)
+		}
+
+		// Keep per-tenant pool small: for a thesis load-test with ≤500 tenants,
+		// min=0 allows total closure of connections when idle, and max=4
+		// connections per tenant avoids exhausting Postgres max_connections.
+		config.MinConns = 0
+		config.MaxConns = 4
+		config.MaxConnIdleTime = 2 * time.Minute
+
+		pool, err := pgxpool.NewWithConfig(ctx, config)
+		if err != nil {
+			return nil, fmt.Errorf("multidb: failed to create pool for tenant %d: %w", tenantID, err)
+		}
+
+		if err := pool.Ping(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("multidb: failed to ping tenant %d DB: %w", tenantID, err)
+		}
+
+		// Kunci write hanya sejenak untuk mendaftarkan pool ke map
+		m.mu.Lock()
+		m.pools[tenantID] = pool
+		m.mu.Unlock()
+
+		return pool, nil
+	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	host := m.dbHost
-	port := m.dbPort
-	if tenant.DBHost != "" {
-		host = tenant.DBHost
-	}
-	if tenant.DBPort != "" {
-		port = tenant.DBPort
-	}
-
-	// Build DSN
-	dsn := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		tenant.DBUser, tenant.DBPass, host, port, tenant.DBName,
-	)
-
-	config, err := pgxpool.ParseConfig(dsn)
-	if err != nil {
-		return nil, fmt.Errorf("multidb: failed to parse config for tenant %d: %w", tenantID, err)
-	}
-
-	// Keep per-tenant pool small: for a thesis load-test with ≤500 tenants,
-	// min=0 allows total closure of connections when idle, and max=4
-	// connections per tenant avoids exhausting Postgres max_connections.
-	config.MinConns = 0
-	config.MaxConns = 4
-	config.MaxConnIdleTime = 2 * time.Minute
-
-	pool, err := pgxpool.NewWithConfig(ctx, config)
-	if err != nil {
-		return nil, fmt.Errorf("multidb: failed to create pool for tenant %d: %w", tenantID, err)
-	}
-
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("multidb: failed to ping tenant %d DB: %w", tenantID, err)
-	}
-
-	m.pools[tenantID] = pool
-	return pool, nil
+	return v.(*pgxpool.Pool), nil
 }
 
 // Close closes all managed pools including the master pool.

@@ -1574,17 +1574,24 @@ func (r *TransactionRepo) GetBranchNetBalance(ctx context.Context, tenantID, bra
 	if err != nil {
 		return decimal.Zero, err
 	}
-	var net decimal.Decimal
+
+	var openingBalance decimal.Decimal
+	err = pool.QueryRow(ctx, `SELECT opening_balance FROM branches WHERE id = $1`, branchID).Scan(&openingBalance)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("multidb.TransactionRepo.GetBranchNetBalance (opening_balance): %w", err)
+	}
+
+	var cashflowNet decimal.Decimal
 	err = pool.QueryRow(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END), 0)
 		 FROM branch_cashflow
 		 WHERE branch_id = $1`,
 		branchID,
-	).Scan(&net)
+	).Scan(&cashflowNet)
 	if err != nil {
-		return decimal.Zero, fmt.Errorf("multidb.TransactionRepo.GetBranchNetBalance: %w", err)
+		return decimal.Zero, fmt.Errorf("multidb.TransactionRepo.GetBranchNetBalance (cashflow): %w", err)
 	}
-	return net, nil
+	return openingBalance.Add(cashflowNet), nil
 }
 
 // RemitBranchBalance atomically moves amount from branch_cashflow to tenant_cashflow.
@@ -1601,23 +1608,25 @@ func (r *TransactionRepo) RemitBranchBalance(ctx context.Context, tenantID, bran
 	defer tx.Rollback(ctx)
 
 	// Lock the branch to serialize cashflow operations for this branch
-	var dummy int
-	err = tx.QueryRow(ctx, `SELECT 1 FROM branches WHERE id = $1 FOR UPDATE`, branchID).Scan(&dummy)
+	var openingBalance decimal.Decimal
+	err = tx.QueryRow(ctx, `SELECT opening_balance FROM branches WHERE id = $1 FOR UPDATE`, branchID).Scan(&openingBalance)
 	if err != nil {
 		return fmt.Errorf("multidb.TransactionRepo.RemitBranchBalance: lock branch: %w", err)
 	}
 
-	// Read current branch net balance
-	var branchNet decimal.Decimal
+	// Read current branch cashflow net
+	var cashflowNet decimal.Decimal
 	err = tx.QueryRow(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN direction = 'IN' THEN amount ELSE -amount END), 0)
 		 FROM branch_cashflow
 		 WHERE branch_id = $1`,
 		branchID,
-	).Scan(&branchNet)
+	).Scan(&cashflowNet)
 	if err != nil {
 		return fmt.Errorf("multidb.TransactionRepo.RemitBranchBalance: read branch balance: %w", err)
 	}
+
+	branchNet := openingBalance.Add(cashflowNet)
 
 	if req.Amount.GreaterThan(branchNet) {
 		return apierr.InsufficientBalance(

@@ -4,7 +4,7 @@ services:
     container_name: pos-api-single
     environment:
       DB_MODE: single
-      SINGLE_DSN: postgres://postgres:supersecret@192.168.10.243:5432/pos_single?sslmode=disable
+      SINGLE_DSN: postgres://postgres:supersecret@10.104.0.4:5432/pos_single?sslmode=disable
       PORT: "8080"
       JWT_SECRET: change-me-in-production
     ports:

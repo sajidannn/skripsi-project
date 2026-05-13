@@ -53,6 +53,18 @@ var scales = map[string]ScaleConfig{
 		StockBR:           50_000,
 		OpeningBalanceMax: 1_000_000_000,
 	},
+	"extreme": {
+		Name:              "Extreme",
+		Tenants:           150,
+		WarehousesPerT:    3,
+		BranchesPerWH:     3,
+		ItemsPerT:         2000,
+		CustomersPerBR:    100,
+		SuppliersPerT:     50,
+		StockWH:           200_000,
+		StockBR:           100_000,
+		OpeningBalanceMax: 1_000_000_000,
+	},
 }
 
 // derivedCounts returns human-readable summary of what will be seeded.
