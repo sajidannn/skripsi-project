@@ -1,0 +1,1762 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "title": "\ud83d\udda5  Host \u2014 API Server (VM 1 OS-level)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 2,
+      "title": "CPU Usage \u2014 API Server (VM 1)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          },
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,6.0222\n1778610978,8.2778\n1778610993,8.7111\n1778611008,4.5778\n1778611023,2.8556\n1778611038,3.1556\n1778611053,3.0778\n1778611068,3.0444\n1778611083,2.7556\n1778611098,2.8556\n1778611113,2.7667\n1778611128,2.7778\n1778611143,2.8111\n1778611158,3.9111\n1778611173,3.8667\n1778611188,3.6556\n1778611203,2.7222\n1778611218,3.7667\n1778611233,4.1667\n1778611248,3.9778\n1778611263,2.9556\n1778611278,2.6556\n1778611293,2.5444\n1778611308,2.4778\n1778611323,2.5000\n1778611338,2.6778\n1778611353,2.6444\n1778611368,2.4444\n1778611383,2.3778\n1778611398,2.4111\n1778611413,2.4000\n1778611428,2.3889\n1778611443,2.4444\n1778611458,2.6222\n1778611473,2.6000\n1778611488,2.4333\n1778611503,2.4000\n1778611518,3.0333\n1778611533,3.0667\n1778611548,2.9556\n1778611563,2.4111",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Memory Usage \u2014 API Server (VM 1)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,805535744.0000\n1778610978,801742848.0000\n1778610993,801714176.0000\n1778611008,802447360.0000\n1778611023,802410496.0000\n1778611038,797044736.0000\n1778611053,797777920.0000\n1778611068,803151872.0000\n1778611083,803131392.0000\n1778611098,801251328.0000\n1778611113,805609472.0000\n1778611128,806084608.0000\n1778611143,806060032.0000\n1778611158,803958784.0000\n1778611173,804175872.0000\n1778611188,804204544.0000\n1778611203,805208064.0000\n1778611218,806567936.0000\n1778611233,808095744.0000\n1778611248,807854080.0000\n1778611263,807817216.0000\n1778611278,807776256.0000\n1778611293,806723584.0000\n1778611308,808218624.0000\n1778611323,808194048.0000\n1778611338,806596608.0000\n1778611353,807346176.0000\n1778611368,806006784.0000\n1778611383,806481920.0000\n1778611398,807997440.0000\n1778611413,807710720.0000\n1778611428,807931904.0000\n1778611443,807886848.0000\n1778611458,807063552.0000\n1778611473,806002688.0000\n1778611488,808034304.0000\n1778611503,808001536.0000\n1778611518,807198720.0000\n1778611533,805867520.0000\n1778611548,804671488.0000\n1778611563,804896768.0000",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "\ud83d\udce6  Container (pos-api Docker)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 5,
+      "title": "Container CPU \u2014 pos-api",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,0.0016\n1778610978,11.1304\n1778610993,11.6207\n1778611008,12.1243\n1778611023,2.5159\n1778611038,1.9426\n1778611053,1.9913\n1778611068,1.9981\n1778611083,1.8483\n1778611098,1.7783\n1778611113,1.7785\n1778611128,1.9296\n1778611143,1.8435\n1778611158,2.3318\n1778611173,2.3782\n1778611188,2.4487\n1778611203,1.8859\n1778611218,2.2503\n1778611233,2.7463\n1778611248,2.8531\n1778611263,2.3125\n1778611278,1.9134\n1778611293,1.8111\n1778611308,1.7418\n1778611323,1.5621\n1778611338,1.7039\n1778611353,1.8244\n1778611368,1.8292\n1778611383,1.6439\n1778611398,1.6218\n1778611413,1.5724\n1778611428,1.5931\n1778611443,1.5210\n1778611458,1.5863\n1778611473,1.6776\n1778611488,1.6234\n1778611503,1.5323\n1778611518,2.0296\n1778611533,2.1036\n1778611548,2.1132\n1778611563,1.5453",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Container Memory \u2014 pos-api",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,13029376.0000\n1778610978,13225984.0000\n1778610993,13803520.0000\n1778611008,14782464.0000\n1778611023,14954496.0000\n1778611038,15003648.0000\n1778611053,15298560.0000\n1778611068,15052800.0000\n1778611083,15081472.0000\n1778611098,15110144.0000\n1778611113,15298560.0000\n1778611128,15560704.0000\n1778611143,15572992.0000\n1778611158,15577088.0000\n1778611173,15839232.0000\n1778611188,15839232.0000\n1778611203,15581184.0000\n1778611218,15577088.0000\n1778611233,15581184.0000\n1778611248,15581184.0000\n1778611263,15581184.0000\n1778611278,15581184.0000\n1778611293,15581184.0000\n1778611308,15585280.0000\n1778611323,15843328.0000\n1778611338,15581184.0000\n1778611353,15839232.0000\n1778611368,15581184.0000\n1778611383,15843328.0000\n1778611398,15613952.0000\n1778611413,15613952.0000\n1778611428,15613952.0000\n1778611443,15613952.0000\n1778611458,15613952.0000\n1778611473,15618048.0000\n1778611488,15876096.0000\n1778611503,15618048.0000\n1778611518,15622144.0000\n1778611533,15884288.0000\n1778611548,15626240.0000\n1778611563,15626240.0000",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "\ud83d\uddc4  Host \u2014 DB Server (VM 2 OS-level)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 8,
+      "title": "CPU Usage \u2014 DB Server (VM 2)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          },
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,1.6778\n1778610978,2.7000\n1778610993,5.1556\n1778611008,5.7111\n1778611023,5.2444\n1778611038,3.3444\n1778611053,3.2111\n1778611068,3.3000\n1778611083,3.5444\n1778611098,3.6667\n1778611113,3.4889\n1778611128,3.2000\n1778611143,3.1444\n1778611158,3.6889\n1778611173,3.9222\n1778611188,3.9222\n1778611203,3.5444\n1778611218,3.6556\n1778611233,4.0444\n1778611248,3.8778\n1778611263,3.7333\n1778611278,3.5889\n1778611293,3.4444\n1778611308,3.2667\n1778611323,3.1778\n1778611338,3.4889\n1778611353,3.6667\n1778611368,3.6333\n1778611383,3.4333\n1778611398,3.3556\n1778611413,3.3444\n1778611428,3.4556\n1778611443,3.5111\n1778611458,3.4667\n1778611473,3.4222\n1778611488,3.1889\n1778611503,3.0444\n1778611518,3.2778\n1778611533,3.4556\n1778611548,3.5333\n1778611563,3.5000",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Used Memory \u2014 DB Server (VM 2)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 19,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,722976768.0000\n1778610978,722808832.0000\n1778610993,729649152.0000\n1778611008,717529088.0000\n1778611023,733831168.0000\n1778611038,716484608.0000\n1778611053,709844992.0000\n1778611068,713539584.0000\n1778611083,710402048.0000\n1778611098,715304960.0000\n1778611113,718405632.0000\n1778611128,718766080.0000\n1778611143,717996032.0000\n1778611158,703741952.0000\n1778611173,709423104.0000\n1778611188,710082560.0000\n1778611203,703029248.0000\n1778611218,709746688.0000\n1778611233,716414976.0000\n1778611248,712904704.0000\n1778611263,724500480.0000\n1778611278,715264000.0000\n1778611293,712220672.0000\n1778611308,714055680.0000\n1778611323,702185472.0000\n1778611338,710676480.0000\n1778611353,707543040.0000\n1778611368,706109440.0000\n1778611383,719822848.0000\n1778611398,730525696.0000\n1778611413,726822912.0000\n1778611428,714452992.0000\n1778611443,709349376.0000\n1778611458,709853184.0000\n1778611473,714608640.0000\n1778611488,710107136.0000\n1778611503,717889536.0000\n1778611518,711032832.0000\n1778611533,706949120.0000\n1778611548,714231808.0000\n1778611563,709767168.0000",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Memory Usage % \u2014 DB Server (VM 2)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 19,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          },
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,17.6074\n1778610978,17.6033\n1778610993,17.7699\n1778611008,17.4747\n1778611023,17.8717\n1778611038,17.4493\n1778611053,17.2876\n1778611068,17.3775\n1778611083,17.3011\n1778611098,17.4205\n1778611113,17.4961\n1778611128,17.5048\n1778611143,17.4861\n1778611158,17.1389\n1778611173,17.2773\n1778611188,17.2934\n1778611203,17.1216\n1778611218,17.2852\n1778611233,17.4476\n1778611248,17.3621\n1778611263,17.6445\n1778611278,17.4195\n1778611293,17.3454\n1778611308,17.3901\n1778611323,17.1010\n1778611338,17.3078\n1778611353,17.2315\n1778611368,17.1966\n1778611383,17.5306\n1778611398,17.7912\n1778611413,17.7010\n1778611428,17.3998\n1778611443,17.2755\n1778611458,17.2878\n1778611473,17.4036\n1778611488,17.2940\n1778611503,17.4835\n1778611518,17.3165\n1778611533,17.2170\n1778611548,17.3944\n1778611563,17.2857",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "\ud83d\udcbf  Disk I/O (sesuai proposal Tabel 3.9)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 12,
+      "title": "Disk Read Throughput",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,0.0000\n1778610978,0.0000\n1778610993,0.0000\n1778611008,0.0000\n1778611023,0.0000\n1778611038,0.0000\n1778611053,0.0000\n1778611068,0.0000\n1778611083,0.0000\n1778611098,0.0000\n1778611113,0.0000\n1778611128,0.0000\n1778611143,0.0000\n1778611158,0.0000\n1778611173,0.0000\n1778611188,0.0000\n1778611203,0.0000\n1778611218,0.0000\n1778611233,0.0000\n1778611248,0.0000\n1778611263,0.0000\n1778611278,0.0000\n1778611293,0.0000\n1778611308,0.0000\n1778611323,0.0000\n1778611338,0.0000\n1778611353,0.0000\n1778611368,0.0000\n1778611383,0.0000\n1778611398,0.0000\n1778611413,0.0000\n1778611428,0.0000\n1778611443,0.0000\n1778611458,0.0000\n1778611473,0.0000\n1778611488,0.0000\n1778611503,0.0000\n1778611518,0.0000\n1778611533,0.0000\n1778611548,0.0000\n1778611563,0.0000",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Disk Write Throughput",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 28,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,421979.0222\n1778610978,34952.5333\n1778610993,49698.1333\n1778611008,80736.7111\n1778611023,111684.2667\n1778611038,107315.2000\n1778611053,107770.3111\n1778611068,100579.5556\n1778611083,120149.3333\n1778611098,115871.2889\n1778611113,121150.5778\n1778611128,109135.6444\n1778611143,114961.0667\n1778611158,111047.1111\n1778611173,211717.6889\n1778611188,274887.1111\n1778611203,342152.5333\n1778611218,275615.2889\n1778611233,254134.0444\n1778611248,227555.5556\n1778611263,235383.4667\n1778611278,232015.6444\n1778611293,228374.7556\n1778611308,222640.3556\n1778611323,225006.9333\n1778611338,230377.2444\n1778611353,233107.9111\n1778611368,222094.2222\n1778611383,595831.4667\n1778611398,592554.6667\n1778611413,591280.3556\n1778611428,212445.8667\n1778611443,191965.8667\n1778611458,160290.1333\n1778611473,222549.3333\n1778611488,257774.9333\n1778611503,300464.3556\n1778611518,243848.5333\n1778611533,227737.6000\n1778611548,224460.8000\n1778611563,222094.2222",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Disk Write Latency",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 28,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,0.9521\n1778610978,0.4639\n1778610993,0.3438\n1778611008,0.2611\n1778611023,0.1794\n1778611038,0.1780\n1778611053,0.3119\n1778611068,0.3012\n1778611083,0.3494\n1778611098,0.2655\n1778611113,0.2705\n1778611128,0.2099\n1778611143,0.1824\n1778611158,0.2693\n1778611173,0.3026\n1778611188,0.3084\n1778611203,0.2748\n1778611218,0.3045\n1778611233,0.5747\n1778611248,0.5740\n1778611263,0.5210\n1778611278,0.2590\n1778611293,0.2444\n1778611308,0.2125\n1778611323,0.2141\n1778611338,0.2220\n1778611353,0.2251\n1778611368,0.1974\n1778611383,0.3252\n1778611398,0.6283\n1778611413,0.6777\n1778611428,0.5564\n1778611443,0.2140\n1778611458,0.1965\n1778611473,0.1928\n1778611488,0.2123\n1778611503,0.2184\n1778611518,0.2165\n1778611533,0.2620\n1778611548,0.2781\n1778611563,0.2743",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "\ud83c\udf10  Network I/O",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 17,
+      "title": "Network In \u2014 API Server",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,6413.2222\n1778610978,193542.4000\n1778610993,211054.2222\n1778611008,225505.6889\n1778611023,53756.7778\n1778611038,53361.1111\n1778611053,54249.4222\n1778611068,56025.9556\n1778611083,54909.1111\n1778611098,56512.9556\n1778611113,55553.0667\n1778611128,56637.4000\n1778611143,53139.0667\n1778611158,55066.9333\n1778611173,55451.8889\n1778611188,56547.9556\n1778611203,53137.9333\n1778611218,50752.8667\n1778611233,51919.2000\n1778611248,54785.6000\n1778611263,59907.4000\n1778611278,60631.4889\n1778611293,58863.6444\n1778611308,55930.8222\n1778611323,53927.2444\n1778611338,56734.1333\n1778611353,59321.8000\n1778611368,57936.1111\n1778611383,57827.4667\n1778611398,54598.0000\n1778611413,56571.6667\n1778611428,54998.0667\n1778611443,54959.4667\n1778611458,56642.6222\n1778611473,58277.1111\n1778611488,56726.8222\n1778611503,53953.5556\n1778611518,50847.9556\n1778611533,53230.4444\n1778611548,54603.2444\n1778611563,55948.7556",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "title": "Network Out \u2014 API Server",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 37,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,7178.7556\n1778610978,194323.2222\n1778610993,211838.3111\n1778611008,226285.4889\n1778611023,54521.0222\n1778611038,54126.0000\n1778611053,55018.0000\n1778611068,56789.1111\n1778611083,55671.4222\n1778611098,57267.9333\n1778611113,56314.8667\n1778611128,57394.8889\n1778611143,53902.8889\n1778611158,55829.6000\n1778611173,56209.3111\n1778611188,57309.5111\n1778611203,53898.5778\n1778611218,51519.6667\n1778611233,52679.7333\n1778611248,55548.3333\n1778611263,60672.2000\n1778611278,61395.9778\n1778611293,59621.7778\n1778611308,56687.0889\n1778611323,54681.4222\n1778611338,57491.4000\n1778611353,60081.4000\n1778611368,58699.2667\n1778611383,58592.5111\n1778611398,55364.4889\n1778611413,57343.5778\n1778611428,55767.4889\n1778611443,55723.9778\n1778611458,57404.2889\n1778611473,59042.6222\n1778611488,57497.2222\n1778611503,54718.9556\n1778611518,51611.3333\n1778611533,53993.3778\n1778611548,55365.5333\n1778611563,56713.8889",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Network In \u2014 DB Server",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 37,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,3796.5333\n1778610978,29698.7111\n1778610993,77591.5778\n1778611008,88489.3111\n1778611023,72889.2000\n1778611038,34388.7778\n1778611053,33365.9333\n1778611068,34101.2000\n1778611083,35325.5556\n1778611098,35742.6889\n1778611113,35619.7778\n1778611128,35672.3778\n1778611143,35839.4444\n1778611158,35740.1111\n1778611173,35496.2889\n1778611188,36195.2444\n1778611203,35795.9778\n1778611218,34161.7778\n1778611233,31721.7111\n1778611248,32720.0000\n1778611263,34340.0667\n1778611278,37918.8000\n1778611293,37359.0444\n1778611308,37432.5778\n1778611323,35911.0444\n1778611338,35681.9778\n1778611353,36299.3778\n1778611368,37615.1111\n1778611383,36470.6889\n1778611398,36406.4889\n1778611413,34524.5111\n1778611428,35580.3556\n1778611443,35042.5778\n1778611458,35525.5778\n1778611473,36436.5778\n1778611488,36096.3111\n1778611503,34483.0444\n1778611518,33921.8889\n1778611533,33130.4667\n1778611548,34817.8667\n1778611563,34490.3556",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "Network Out \u2014 DB Server",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 37,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,2786.0444\n1778610978,28672.7333\n1778610993,76570.7556\n1778611008,87440.9333\n1778611023,71864.7556\n1778611038,33338.8667\n1778611053,32336.0222\n1778611068,33034.7111\n1778611083,34316.9333\n1778611098,34718.6667\n1778611113,34634.0667\n1778611128,34634.6444\n1778611143,34822.6889\n1778611158,34672.9778\n1778611173,34524.6889\n1778611188,35184.3556\n1778611203,34854.8000\n1778611218,33124.6889\n1778611233,30737.2444\n1778611248,31675.3778\n1778611263,33334.7556\n1778611278,36871.3556\n1778611293,36359.4667\n1778611308,36393.0222\n1778611323,34905.6667\n1778611338,34627.9556\n1778611353,35287.5111\n1778611368,36555.3556\n1778611383,35442.4000\n1778611398,35325.5556\n1778611413,33491.0667\n1778611428,34531.9111\n1778611443,34049.5333\n1778611458,34491.2222\n1778611473,35440.8889\n1778611488,35057.9333\n1778611503,33500.3778\n1778611518,32885.9778\n1778611533,32138.3778\n1778611548,33786.6222\n1778611563,33514.0444",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "\ud83d\udc18  PostgreSQL Metrics",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 22,
+      "title": "Active Connections",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 46,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,6.0000\n1778610978,6.0000\n1778610993,7.0000\n1778611008,6.0000\n1778611023,7.0000\n1778611038,7.0000\n1778611053,7.0000\n1778611068,6.0000\n1778611083,7.0000\n1778611098,7.0000\n1778611113,7.0000\n1778611128,6.0000\n1778611143,7.0000\n1778611158,7.0000\n1778611173,6.0000\n1778611188,7.0000\n1778611203,6.0000\n1778611218,7.0000\n1778611233,7.0000\n1778611248,7.0000\n1778611263,7.0000\n1778611278,7.0000\n1778611293,6.0000\n1778611308,7.0000\n1778611323,7.0000\n1778611338,7.0000\n1778611353,6.0000\n1778611368,7.0000\n1778611383,7.0000\n1778611398,7.0000\n1778611413,7.0000\n1778611428,6.0000\n1778611443,7.0000\n1778611458,6.0000\n1778611473,6.0000\n1778611488,7.0000\n1778611503,7.0000\n1778611518,7.0000\n1778611533,7.0000\n1778611548,7.0000\n1778611563,7.0000",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "title": "Reads (Returned Tuples) / sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 46,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,671.8601\n1778610978,29190.4317\n1778610993,79392.9333\n1778611008,90925.3111\n1778611023,70546.4809\n1778611038,27082.7111\n1778611053,18345.2889\n1778611068,18157.7333\n1778611083,15358.9778\n1778611098,16147.4444\n1778611113,15456.1778\n1778611128,14118.8444\n1778611143,14368.5333\n1778611158,11317.4222\n1778611173,13172.4667\n1778611188,13220.7333\n1778611203,11799.4444\n1778611218,10230.3111\n1778611233,10637.5111\n1778611248,11622.5778\n1778611263,13230.0444\n1778611278,14637.8889\n1778611293,13647.0889\n1778611308,12615.1556\n1778611323,9119.4667\n1778611338,11977.9778\n1778611353,15559.5111\n1778611368,21815.1111\n1778611383,23369.2889\n1778611398,21938.5111\n1778611413,22198.8000\n1778611428,21996.0889\n1778611443,22775.8667\n1778611458,19903.0151\n1778611473,20146.2222\n1778611488,19421.7778\n1778611503,21918.8985\n1778611518,19306.2326\n1778611533,18473.0444\n1778611548,18696.4889\n1778611563,19829.6922",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "title": "Lock Count",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 46,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,1.0000\n1778610978,1.0000\n1778610993,1.0000\n1778611008,1.0000\n1778611023,1.0000\n1778611038,1.0000\n1778611053,1.0000\n1778611068,1.0000\n1778611083,1.0000\n1778611098,1.0000\n1778611113,1.0000\n1778611128,1.0000\n1778611143,1.0000\n1778611158,1.0000\n1778611173,1.0000\n1778611188,1.0000\n1778611203,1.0000\n1778611218,1.0000\n1778611233,1.0000\n1778611248,1.0000\n1778611263,1.0000\n1778611278,1.0000\n1778611293,1.0000\n1778611308,1.0000\n1778611323,1.0000\n1778611338,9.0000\n1778611353,1.0000\n1778611368,1.0000\n1778611383,1.0000\n1778611398,1.0000\n1778611413,1.0000\n1778611428,1.0000\n1778611443,1.0000\n1778611458,1.0000\n1778611473,1.0000\n1778611488,1.0000\n1778611503,1.0000\n1778611518,1.0000\n1778611533,1.0000\n1778611548,1.0000\n1778611563,1.0000",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "title": "Committed Transactions (TPS)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 54,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,2.3115\n1778610978,12.2436\n1778610993,32.6000\n1778611008,37.5778\n1778611023,32.2910\n1778611038,16.2000\n1778611053,15.6889\n1778611068,16.1111\n1778611083,16.6889\n1778611098,16.8444\n1778611113,16.6222\n1778611128,16.8667\n1778611143,16.8889\n1778611158,16.5333\n1778611173,16.7778\n1778611188,16.7556\n1778611203,16.4889\n1778611218,15.0889\n1778611233,14.4000\n1778611248,14.8444\n1778611263,15.8444\n1778611278,16.8889\n1778611293,17.0667\n1778611308,17.0222\n1778611323,16.8222\n1778611338,16.6000\n1778611353,17.4444\n1778611368,17.6444\n1778611383,17.1333\n1778611398,16.3111\n1778611413,16.3556\n1778611428,16.6222\n1778611443,16.1778\n1778611458,16.1530\n1778611473,17.0222\n1778611488,17.1778\n1778611503,16.3803\n1778611518,15.3094\n1778611533,15.3778\n1778611548,15.8444\n1778611563,16.4018",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "title": "Rollbacks / sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 54,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,0.0000\n1778610978,0.0000\n1778610993,0.0000\n1778611008,0.0000\n1778611023,0.0000\n1778611038,0.0000\n1778611053,0.0000\n1778611068,0.0000\n1778611083,0.0000\n1778611098,0.0000\n1778611113,0.0000\n1778611128,0.0000\n1778611143,0.0000\n1778611158,0.0000\n1778611173,0.0000\n1778611188,0.0000\n1778611203,0.0000\n1778611218,0.0000\n1778611233,0.0000\n1778611248,0.0000\n1778611263,0.0000\n1778611278,0.0000\n1778611293,0.0000\n1778611308,0.0000\n1778611323,0.0000\n1778611338,0.0000\n1778611353,0.0000\n1778611368,0.0000\n1778611383,0.0000\n1778611398,0.0000\n1778611413,0.0000\n1778611428,0.0000\n1778611443,0.0000\n1778611458,0.0000\n1778611473,0.0000\n1778611488,0.0000\n1778611503,0.0000\n1778611518,0.0000\n1778611533,0.0000\n1778611548,0.0000\n1778611563,0.0000",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "title": "Deadlocks Count",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 54,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,0.0000\n1778610978,0.0000\n1778610993,0.0000\n1778611008,0.0000\n1778611023,0.0000\n1778611038,0.0000\n1778611053,0.0000\n1778611068,0.0000\n1778611083,0.0000\n1778611098,0.0000\n1778611113,0.0000\n1778611128,0.0000\n1778611143,0.0000\n1778611158,0.0000\n1778611173,0.0000\n1778611188,0.0000\n1778611203,0.0000\n1778611218,0.0000\n1778611233,0.0000\n1778611248,0.0000\n1778611263,0.0000\n1778611278,0.0000\n1778611293,0.0000\n1778611308,0.0000\n1778611323,0.0000\n1778611338,0.0000\n1778611353,0.0000\n1778611368,0.0000\n1778611383,0.0000\n1778611398,0.0000\n1778611413,0.0000\n1778611428,0.0000\n1778611443,0.0000\n1778611458,0.0000\n1778611473,0.0000\n1778611488,0.0000\n1778611503,0.0000\n1778611518,0.0000\n1778611533,0.0000\n1778611548,0.0000\n1778611563,0.0000",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "title": "Cache Hit Ratio",
+      "type": "timeseries",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity-csv"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 62,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "showPoints": "auto",
+            "pointSize": 5,
+            "fillOpacity": 10,
+            "gradientMode": "opacity"
+          },
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity-csv"
+          },
+          "refId": "A",
+          "type": "csv",
+          "parser": "frontend",
+          "source": "inline",
+          "data": "timestamp,value\n1778610963,100.0000\n1778610978,100.0000\n1778610993,100.0000\n1778611008,100.0000\n1778611023,100.0000\n1778611038,100.0000\n1778611053,100.0000\n1778611068,100.0000\n1778611083,100.0000\n1778611098,100.0000\n1778611113,100.0000\n1778611128,100.0000\n1778611143,100.0000\n1778611158,100.0000\n1778611173,100.0000\n1778611188,100.0000\n1778611203,100.0000\n1778611218,100.0000\n1778611233,100.0000\n1778611248,100.0000\n1778611263,100.0000\n1778611278,100.0000\n1778611293,100.0000\n1778611308,100.0000\n1778611323,100.0000\n1778611338,100.0000\n1778611353,100.0000\n1778611368,100.0000\n1778611383,100.0000\n1778611398,100.0000\n1778611413,100.0000\n1778611428,100.0000\n1778611443,100.0000\n1778611458,100.0000\n1778611473,100.0000\n1778611488,100.0000\n1778611503,100.0000\n1778611518,100.0000\n1778611533,100.0000\n1778611548,100.0000\n1778611563,100.0000",
+          "url_options": {
+            "method": "GET",
+            "data": ""
+          },
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "Time",
+              "type": "timestamp_epoch_s"
+            },
+            {
+              "selector": "value",
+              "text": "Value",
+              "type": "number"
+            }
+          ],
+          "format": "timeseries"
+        }
+      ]
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 38,
+  "tags": [
+    "pos",
+    "single",
+    "inline"
+  ],
+  "time": {
+    "from": "1778610963000",
+    "to": "1778611563000"
+  },
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "POS Replay \u2014 SINGLE / progressive-medium_10t_100u_20260512_183603",
+  "uid": "p-single-progressive-medium_10t_100u_202",
+  "version": 1
+}

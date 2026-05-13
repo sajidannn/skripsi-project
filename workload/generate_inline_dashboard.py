@@ -5,34 +5,47 @@ import csv
 import sys
 import subprocess
 
-def read_csv_inline(base_path, csv_file):
+def read_csv_inline(base_path, csv_file, agg="sum"):
     """Baca file CSV dan return sebagai string, hanya kolom yang diperlukan."""
     path = os.path.join(base_path, csv_file)
     if not os.path.exists(path):
         return None
     seen_ts = {}
+    counts = {}
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             ts  = row.get("timestamp", "").strip()
             val = row.get("value", "").strip()
-            if not ts or not val:
+            if not val or val.lower() == "nan":
                 continue
+            if not ts:
+                continue
+            try:
+                v = float(val)
+            except ValueError:
+                continue
+            
             if ts not in seen_ts:
-                seen_ts[ts] = float(val)
+                seen_ts[ts] = v
+                counts[ts] = 1
             else:
-                seen_ts[ts] += float(val)  # sum per timestamp
+                seen_ts[ts] += v
+                counts[ts] += 1
     
     if not seen_ts:
         return None
         
     rows = ["timestamp,value"]
-    for ts, val in sorted(seen_ts.items(), key=lambda x: int(x[0])):
+    for ts in sorted(seen_ts.keys(), key=lambda x: int(x)):
+        val = seen_ts[ts]
+        if agg == "avg" and counts[ts] > 0:
+            val = val / counts[ts]
         rows.append(f"{ts},{val:.4f}")
     return "\n".join(rows)
 
-def make_target(base_path, csv_file, ref_id="A"):
-    data_str = read_csv_inline(base_path, csv_file)
+def make_target(base_path, csv_file, ref_id="A", agg="sum"):
+    data_str = read_csv_inline(base_path, csv_file, agg=agg)
     if data_str is None:
         return None
     return {
@@ -50,8 +63,8 @@ def make_target(base_path, csv_file, ref_id="A"):
         "format": "timeseries"
     }
 
-def make_panel(base_path, pid, title, csv_file, x, y, w=12, h=8, unit="percent", min_=0, max_=None):
-    target = make_target(base_path, csv_file)
+def make_panel(base_path, pid, title, csv_file, x, y, w=12, h=8, unit="percent", min_=0, max_=None, agg="sum"):
+    target = make_target(base_path, csv_file, agg=agg)
     if target is None:
         return None
     fc = {
@@ -160,8 +173,8 @@ def main():
         (None,   "💿  Disk I/O (sesuai proposal Tabel 3.9)", 0, 27, 0, None, None,    None),
         ("Disk Read Throughput",            "disk_read_db.csv",         0, 28, 6,  "Bps",      0,   None),
         ("Disk Write Throughput",           "disk_write_db.csv",        6, 28, 6,  "Bps",      0,   None),
-        ("Disk Read Latency",               "disk_read_latency_db.csv", 12, 28, 6,  "ms",       0,   None),
-        ("Disk Write Latency",              "disk_write_latency_db.csv",18, 28, 6,  "ms",       0,   None),
+        ("Disk Read Latency",               "disk_read_latency_db.csv", 12, 28, 6,  "ms",       0,   None, "avg"),
+        ("Disk Write Latency",              "disk_write_latency_db.csv",18, 28, 6,  "ms",       0,   None, "avg"),
 
         # ── ROW: Network ──────────────────────────────────────────────────────
         (None,   "🌐  Network I/O",                          0, 36, 0, None, None,    None),
@@ -180,7 +193,7 @@ def main():
         ("Rollbacks / sec",                 "pg_rollbacks.csv",         8, 54, 8,  "short",    0,   None),
         ("Deadlocks Count",                 "pg_deadlocks.csv",         16, 54, 8,  "short",    0,   None),
 
-        ("Cache Hit Ratio",                 "pg_blk_hit_ratio.csv",     0, 62, 24, "percent",  0,   100),
+        ("Cache Hit Ratio",                 "pg_blk_hit_ratio.csv",     0, 62, 24, "percent",  0,   100, "avg"),
     ]
 
     for spec in specs:
@@ -189,8 +202,18 @@ def main():
             y = spec[3]
             panels.append(make_row(pid, row_title, y)); pid += 1
         else:
-            title, csv_file, x, y, w, unit, min_, max_ = spec
-            p = make_panel(base_path, pid, title, csv_file, x, y, w, 8, unit, min_, max_)
+            # spec: (title, csv_file, x, y, w, unit, min_, max_, [agg])
+            title = spec[0]
+            csv_file = spec[1]
+            x = spec[2]
+            y = spec[3]
+            w = spec[4]
+            unit = spec[5]
+            min_ = spec[6]
+            max_ = spec[7]
+            agg = spec[8] if len(spec) > 8 else "sum"
+            
+            p = make_panel(base_path, pid, title, csv_file, x, y, w, 8, unit, min_, max_, agg=agg)
             if p:
                 panels.append(p)
             pid += 1
