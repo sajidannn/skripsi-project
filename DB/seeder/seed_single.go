@@ -28,7 +28,6 @@ func SeedSingle(ctx context.Context, pool *pgxpool.Pool, gen *Generator, additiv
 	if err := insertTenantsSingle(ctx, pool, gen); err != nil {
 		return fmt.Errorf("tenants: %w", err)
 	}
-	gen.Tenants = nil // Free memory
 
 	log.Println("[single] Inserting warehouses...")
 	if err := insertWarehousesSingle(ctx, pool, gen); err != nil {
@@ -40,7 +39,14 @@ func SeedSingle(ctx context.Context, pool *pgxpool.Pool, gen *Generator, additiv
 	if err := insertBranchesSingle(ctx, pool, gen); err != nil {
 		return fmt.Errorf("branches: %w", err)
 	}
-	gen.Branches = nil // Free memory
+
+	// tenant_cashflow MUST be inserted while gen.Tenants and gen.Branches are still alive
+	log.Println("[single] Inserting tenant_cashflow (opening balances)...")
+	if err := insertTenantCashflowSingle(ctx, pool, gen); err != nil {
+		return fmt.Errorf("tenant_cashflow: %w", err)
+	}
+	gen.Tenants = nil  // Free memory — no longer needed after tenant_cashflow
+	gen.Branches = nil // Free memory — no longer needed after tenant_cashflow
 
 	log.Println("[single] Inserting suppliers...")
 	if err := insertSuppliersSingle(ctx, pool, gen); err != nil {
@@ -77,11 +83,6 @@ func SeedSingle(ctx context.Context, pool *pgxpool.Pool, gen *Generator, additiv
 		return fmt.Errorf("customers: %w", err)
 	}
 	gen.Customers = nil // Free memory
-
-	log.Println("[single] Inserting tenant_cashflow (opening balances)...")
-	if err := insertTenantCashflowSingle(ctx, pool, gen); err != nil {
-		return fmt.Errorf("tenant_cashflow: %w", err)
-	}
 
 	return nil
 }
