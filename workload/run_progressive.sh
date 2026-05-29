@@ -33,14 +33,14 @@ PROMETHEUS_URL=${PROMETHEUS_URL:-"http://localhost:9090"}
 SPAWN_RATE=10
 
 # SSH ke VM1 (API)
-VM1_USER=${VM1_USER:-"jidan"}
-VM1_IP=${VM1_IP:-"10.104.0.3"}
-VM1_PROJECT_DIR=${VM1_PROJECT_DIR:-"/home/jidan/skripsi-project"}
+VM1_USER=${VM1_USER:-"ahmadnursajidan"}
+VM1_IP=${VM1_IP:-"10.128.0.2"}
+VM1_PROJECT_DIR=${VM1_PROJECT_DIR:-"/home/ahmadnursajidan/skripsi-project"}
 
 # SSH ke VM2 (DB & Seeder)
-VM2_USER=${VM2_USER:-"jidan"}
-VM2_IP=${VM2_IP:-"10.104.0.4"}
-VM2_PROJECT_DIR=${VM2_PROJECT_DIR:-"/home/jidan/skripsi-project"}
+VM2_USER=${VM2_USER:-"ahmadnursajidan"}
+VM2_IP=${VM2_IP:-"10.128.0.3"}
+VM2_PROJECT_DIR=${VM2_PROJECT_DIR:-"/home/ahmadnursajidan/skripsi-project"}
 SSH_KEY=${SSH_KEY:-""}  # Optional: path ke SSH key, kosong = pakai default
 
 # Tentukan file docker-compose seeder berdasarkan mode

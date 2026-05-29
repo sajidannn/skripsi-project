@@ -4,8 +4,8 @@ services:
     container_name: pos-api-multi
     environment:
       DB_MODE: multi
-      MASTER_DSN: postgres://postgres:supersecret@10.104.0.4:5433/pos_master?sslmode=disable
-      TENANT_DB_HOST: 10.104.0.4
+      MASTER_DSN: postgres://postgres:supersecret@${VM2_IP}:5433/pos_master?sslmode=disable
+      TENANT_DB_HOST: ${VM2_IP}
       TENANT_DB_PORT: "5433"
       PORT: "8080"
       JWT_SECRET: change-me-in-production

@@ -1,3 +1,8 @@
+ifneq (,$(wildcard .env))
+    include .env
+    export
+endif
+
 .PHONY: api-run-single api-run-multi api-run api-build api-tidy \
         api-docker-build \
         api-single-up api-single-down api-single-logs \
@@ -21,9 +26,9 @@ SCALE ?= small
 DB_MODE ?= multi
 
 # IP Configuration
-VM1_IP ?= 10.104.0.3
-VM2_IP ?= 10.104.0.4
-WORKLOAD_IP ?= 146.190.108.121
+VM1_IP ?= 10.128.0.2
+VM2_IP ?= 10.128.0.3
+WORKLOAD_IP ?= 34.45.140.162
 
 # ==============================================================================
 # API COMMANDS (Local Execution)
@@ -247,6 +252,7 @@ workload-extreme-ui:
 workload-progressive-multi:
 	@API_URL=$(WORKLOAD_API_URL) DB_MODE=multi RUN_TIME=10m \
 		PROMETHEUS_URL=$(PROMETHEUS_URL) \
+		VM1_IP=$(VM1_IP) \
 		VM2_USER=$(VM2_USER) VM2_IP=$(VM2_IP) \
 		VM2_PROJECT_DIR=$(VM2_PROJECT_DIR) SSH_KEY=$(SSH_KEY) \
 		./workload/run_progressive.sh
@@ -254,6 +260,7 @@ workload-progressive-multi:
 workload-progressive-single:
 	@API_URL=$(WORKLOAD_API_URL) DB_MODE=single RUN_TIME=10m \
 		PROMETHEUS_URL=$(PROMETHEUS_URL) \
+		VM1_IP=$(VM1_IP) \
 		VM2_USER=$(VM2_USER) VM2_IP=$(VM2_IP) \
 		VM2_PROJECT_DIR=$(VM2_PROJECT_DIR) SSH_KEY=$(SSH_KEY) \
 		./workload/run_progressive.sh

@@ -15,14 +15,10 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "10.104.0.3:8080/health",
+              "raw": "{{host}}/health",
               "host": [
-                "10",
-                "104",
-                "0",
-                "3"
+                "{{host}}"
               ],
-              "port": "8080",
               "path": [
                 "health"
               ]
