@@ -199,9 +199,11 @@ WORKLOAD_API_URL ?= http://$(VM1_IP):8080
 SKIP_LOGIN      ?= false
 PROMETHEUS_URL  ?= http://localhost:9090
 
-# SSH config untuk menjalankan seeder di VM2 (dipakai oleh progressive test)
-VM2_USER        ?= jidan
-VM2_PROJECT_DIR ?= /home/jidan/skripsi-project
+# SSH config (dipakai oleh progressive test)
+VM1_USER        ?= ahmadnursajidan
+VM1_PROJECT_DIR ?= /home/ahmadnursajidan/skripsi-project
+VM2_USER        ?= ahmadnursajidan
+VM2_PROJECT_DIR ?= /home/ahmadnursajidan/skripsi-project
 SSH_KEY         ?=   # Path ke SSH key (kosong = pakai default ~/.ssh/id_rsa)
 
 # Generate token JWT saja tanpa menjalankan Locust (prep sebelum start exporter)
@@ -252,17 +254,17 @@ workload-extreme-ui:
 workload-progressive-multi:
 	@API_URL=$(WORKLOAD_API_URL) DB_MODE=multi RUN_TIME=10m \
 		PROMETHEUS_URL=$(PROMETHEUS_URL) \
-		VM1_IP=$(VM1_IP) \
-		VM2_USER=$(VM2_USER) VM2_IP=$(VM2_IP) \
-		VM2_PROJECT_DIR=$(VM2_PROJECT_DIR) SSH_KEY=$(SSH_KEY) \
+		VM1_USER=$(VM1_USER) VM1_IP=$(VM1_IP) VM1_PROJECT_DIR=$(VM1_PROJECT_DIR) \
+		VM2_USER=$(VM2_USER) VM2_IP=$(VM2_IP) VM2_PROJECT_DIR=$(VM2_PROJECT_DIR) \
+		SSH_KEY=$(SSH_KEY) \
 		./workload/run_progressive.sh
 
 workload-progressive-single:
 	@API_URL=$(WORKLOAD_API_URL) DB_MODE=single RUN_TIME=10m \
 		PROMETHEUS_URL=$(PROMETHEUS_URL) \
-		VM1_IP=$(VM1_IP) \
-		VM2_USER=$(VM2_USER) VM2_IP=$(VM2_IP) \
-		VM2_PROJECT_DIR=$(VM2_PROJECT_DIR) SSH_KEY=$(SSH_KEY) \
+		VM1_USER=$(VM1_USER) VM1_IP=$(VM1_IP) VM1_PROJECT_DIR=$(VM1_PROJECT_DIR) \
+		VM2_USER=$(VM2_USER) VM2_IP=$(VM2_IP) VM2_PROJECT_DIR=$(VM2_PROJECT_DIR) \
+		SSH_KEY=$(SSH_KEY) \
 		./workload/run_progressive.sh
 
 # ==============================================================================
