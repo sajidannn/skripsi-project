@@ -26,9 +26,9 @@ SCALE ?= small
 DB_MODE ?= multi
 
 # IP Configuration
-VM1_IP ?= 10.128.0.2
-VM2_IP ?= 10.128.0.3
-WORKLOAD_IP ?= 34.45.140.162
+VM1_IP ?= 10.128.0.7
+VM2_IP ?= 10.128.0.8
+WORKLOAD_IP ?= 35.254.17.66
 
 # ==============================================================================
 # API COMMANDS (Local Execution)

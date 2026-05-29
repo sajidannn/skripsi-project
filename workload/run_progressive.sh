@@ -34,12 +34,12 @@ SPAWN_RATE=50
 
 # SSH ke VM1 (API)
 VM1_USER=${VM1_USER:-"ahmadnursajidan"}
-VM1_IP=${VM1_IP:-"10.128.0.2"}
+VM1_IP=${VM1_IP:-"10.128.0.7"}
 VM1_PROJECT_DIR=${VM1_PROJECT_DIR:-"/home/ahmadnursajidan/skripsi-project"}
 
 # SSH ke VM2 (DB & Seeder)
 VM2_USER=${VM2_USER:-"ahmadnursajidan"}
-VM2_IP=${VM2_IP:-"10.128.0.3"}
+VM2_IP=${VM2_IP:-"10.128.0.8"}
 VM2_PROJECT_DIR=${VM2_PROJECT_DIR:-"/home/ahmadnursajidan/skripsi-project"}
 SSH_KEY=${SSH_KEY:-""}  # Optional: path ke SSH key, kosong = pakai default
 
