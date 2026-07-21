@@ -26,6 +26,10 @@ def read_csv_inline(base_path, csv_file, agg="sum"):
             except ValueError:
                 continue
             
+            labels = row.get("labels", "")
+            if "datname=" in labels and "datname=pos_" not in labels:
+                continue
+            
             if ts not in seen_ts:
                 seen_ts[ts] = v
                 counts[ts] = 1
